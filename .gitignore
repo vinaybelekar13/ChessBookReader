@@ -1,0 +1,54 @@
+node_modules/
+dist/
+.env
+.env.local
+backend/.venv/
+backend/.venv-ocr/
+backend/models/*.onnx
+backend/__pycache__/
+backend/app/__pycache__/
+backend/tests/__pycache__/
+backend/.pytest_cache/
+
+# Local environments and generated files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.cache/
+coverage/
+*.log
+
+# Model weights are not committed; see backend model documentation
+backend/models/*.onnx
+
+# Temporary backups and local audit/diagnostic exports
+backup*/
+*.backup-*
+*-audit.txt
+*-audit-*.txt
+*corruption-report*.txt
+*encoding-preview*.txt
+*source-audit*.txt
+*source.txt
+review-panel-fix-input.txt
+
+# Local secrets
+.env
+.env.*
+!.env.example
+# All timestamped and named local backups
+*.bak
+*.bak_*
+*.backup
+*.backup_*
+*.before-*
+*.before_*
+*.pre-delete-fix-*
+*.failed-fix-backup-*
+*.recovered-*
+
+# Timestamped local backups
+*.bak-*
+*.bak.*
