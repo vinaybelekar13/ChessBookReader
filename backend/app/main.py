@@ -19,6 +19,7 @@ from app.recognition import (
 app = FastAPI(title="ChessBook Reader CV API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=["https://chessbookreader.netlify.app"],
     allow_origin_regex=r"https?://(127\.0\.0\.1|localhost):\d+",
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
