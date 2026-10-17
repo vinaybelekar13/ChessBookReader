@@ -1088,3 +1088,491 @@ button.clear-scan-button::after {
   right: 10px;
   bottom: 10px;
 }
+/* Main analysis board: standalone chess piece images */
+.piece img {
+  display: block;
+  width: 96%;
+  height: 96%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* BOARD OVERFLOW FIX: keep the board inside its layout column */
+.board-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.board-area {
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.board-frame {
+  box-sizing: border-box;
+  width: min(100%,  min(58vh, 650px));
+  max-width: 100%;
+  min-width: 0;
+  aspect-ratio: 1 / 1;
+  flex: 0 1 auto;
+}
+
+.chessboard {
+  width: 100%;
+  height: 100%;
+}
+
+.board-controls,
+.turn-row,
+.position-editor,
+.moves-panel {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Recognition review board: render the same standalone piece assets */
+.recognized-square img {
+  display: block;
+  width: 92%;
+  height: 92%;
+  object-fit: contain;
+  pointer-events: none;
+}
+/* Layout refinement: wider reader and compact analysis */
+@media (min-width: 1200px) {
+  .workspace:not(.library-collapsed) {
+    grid-template-columns: 200px minmax(340px, 40%) minmax(0, 1fr);
+  }
+
+  .workspace.library-collapsed {
+    grid-template-columns: minmax(340px, 40%) minmax(0, 1fr);
+  }
+
+  .board-panel {
+    min-width: 0;
+    min-height: 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .reader-panel {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .board-frame {
+    width: min(100%, min(50vh, 560px));
+    max-width: 100%;
+  }
+
+  .section-kicker {
+    margin-top: 2px;
+    margin-bottom: 4px;
+  }
+}
+/* Compact modern workspace polish */
+@media (min-width: 1200px) {
+  .library-panel {
+    font-size: 12px;
+  }
+
+  .library-panel button {
+    min-height: 30px;
+  }
+
+  .library-panel .green-button {
+    min-height: 28px;
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .board-panel {
+    padding: 8px 10px 6px;
+  }
+
+  .section-kicker {
+    padding-bottom: 6px;
+    margin-bottom: 0;
+    border-bottom-color: #353d39;
+    letter-spacing: 1.1px;
+  }
+
+  .board-panel h2,
+  .board-panel h3 {
+    margin-top: 7px;
+    margin-bottom: 4px;
+  }
+
+  .board-panel .board-frame {
+    margin-top: 4px;
+    margin-bottom: 6px;
+  }
+
+  .reader-panel button {
+    font-size: 11px;
+  }
+
+  .reader-title strong {
+    font-size: 13px;
+  }
+
+  .reader-title span {
+    font-size: 10px;
+  }
+}
+/* Glass header and compact library refinement */
+@media (min-width: 1200px) {
+  /* Keep the analysis column compact without shrinking the board itself. */
+  .board-panel {
+    min-width: 0;
+  }
+
+  /* The section label becomes a distinct, glass-like dark header strip. */
+  .section-kicker {
+    box-sizing: border-box;
+    padding: 8px 12px;
+    margin: 0 0 8px;
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    border: 1px solid rgba(150, 180, 165, 0.16);
+    border-bottom-color: rgba(150, 180, 165, 0.24);
+    border-radius: 9px;
+    background: linear-gradient(
+      115deg,
+      rgba(15, 21, 20, 0.96),
+      rgba(35, 43, 40, 0.82)
+    );
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.035),
+      0 4px 14px rgba(0, 0, 0, 0.12);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* Compact the Add Book control without changing other green buttons. */
+  .library-panel button.green-button,
+  .library-panel .green-button {
+    box-sizing: border-box;
+    min-height: 28px;
+    padding: 4px 8px;
+    font-size: 11px;
+    line-height: 1.2;
+    border-radius: 7px;
+  }
+}
+/* EVALUATION BAR VISIBILITY FIX — desktop only */
+@media (min-width: 1200px) {
+  .board-area {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: center;
+    gap: 8px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .board-area .evaluation-bar {
+    display: flex;
+    flex: 0 0 15px;
+    align-self: stretch;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+    border: 1px solid #536057;
+    border-radius: 4px;
+    background: #28312d;
+  }
+
+  .board-area .evaluation-bar .eval-white,
+  .board-area .evaluation-bar .eval-black {
+    display: block;
+    width: 100%;
+    min-height: 0;
+    flex-shrink: 0;
+    transition: height 200ms ease;
+  }
+
+  .board-area .evaluation-bar .eval-white {
+    background: #e4e6dc;
+  }
+
+  .board-area .evaluation-bar .eval-black {
+    background: #28312d;
+  }
+
+  .board-area .board-frame {
+    flex: 0 1 auto;
+    min-width: 0;
+    height: auto;
+    aspect-ratio: 1 / 1;
+  }
+}
+
+/* FINAL UI REFINEMENT: full-height evaluation bar + compact Add Book */
+@media (min-width: 1200px) {
+  .board-area {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .board-area .board-frame {
+    flex: 0 1 auto;
+    min-width: 0;
+    aspect-ratio: 1 / 1;
+  }
+
+  .board-area .evaluation-bar {
+    display: flex;
+    flex: 0 0 15px;
+    align-self: stretch;
+    height: auto;
+    min-height: 0;
+    box-sizing: border-box;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .board-area .evaluation-bar .eval-white,
+  .board-area .evaluation-bar .eval-black {
+    display: block;
+    width: 100%;
+    min-height: 0;
+    flex-shrink: 0;
+  }
+
+  .library-panel button.green-button,
+  .library-panel .green-button {
+    min-height: 25px;
+    padding: 3px 7px;
+    font-size: 10px;
+    line-height: 1.15;
+    border-radius: 6px;
+  }
+}
+
+/* Make only the Add Book button more compact */
+.library-panel button.green-button,
+.library-panel .green-button {
+  min-height: 22px;
+  padding: 2px 6px;
+  font-size: 9px;
+  line-height: 1.1;
+  border-radius: 5px;
+}
+
+/* ADD BOOK: compact sizing override */
+.library-panel .green-button,
+.library-panel button.green-button,
+.library-panel button[class*="green-button"] {
+  box-sizing: border-box !important;
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 30px !important;
+  padding: 3px 9px !important;
+  font-size: 12px !important;
+  line-height: 1.1 !important;
+  border-radius: 6px !important;
+}
+
+.library-panel .green-button * {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+/* Add Book: target the actual JSX class */
+.library-panel .library-heading > .text-button {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  height: 30px;
+  padding: 3px 8px;
+  font-size: 12px;
+  line-height: 1.1;
+  white-space: nowrap;
+  border-radius: 6px;
+}
+
+/* READER SPACE REFINEMENT — desktop layout only */
+@media (min-width: 1200px) {
+  .reader-panel {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .reader-toolbar {
+    flex: 0 0 46px;
+    height: 46px;
+    min-height: 46px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  /* Keep the page viewport flexible and give it the remaining height. */
+  .page-stage,
+  .page-scroll {
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .reader-footer {
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 4px 10px;
+    gap: 7px;
+    flex-wrap: nowrap;
+  }
+
+  .diagram-strip {
+    flex: 0 0 auto;
+    gap: 4px;
+  }
+
+  .strip-label {
+    font-size: 9px;
+    margin-right: 2px;
+  }
+
+  .diagram-strip button {
+    width: 25px;
+    height: 25px;
+    min-width: 25px;
+    padding: 0;
+    font-size: 11px;
+  }
+
+  .crop-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 5px;
+  }
+
+  .crop-actions button {
+    min-height: 27px;
+    height: 27px;
+    padding: 0 7px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .scan-hint {
+    min-width: 0;
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  /* Separate Stockfish from the toolbar and keep it compact. */
+  .analysis-strip {
+    flex: 0 0 auto;
+    min-height: 70px;
+    margin-top: 6px;
+    padding: 7px 10px;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+}
+
+/* COMPACT PDF HEADER — desktop only */
+@media (min-width: 1200px) {
+  .reader-toolbar {
+    box-sizing: border-box;
+    min-height: 48px;
+    padding: 5px 10px;
+    gap: 8px;
+  }
+
+  .reader-title {
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .reader-title .document-icon {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+  }
+
+  .reader-title strong {
+    display: block;
+    max-width: 420px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .reader-title span {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  .reader-actions {
+    gap: 5px;
+  }
+
+  .reader-actions button {
+    min-width: 30px;
+    min-height: 30px;
+    height: 30px;
+    padding: 0 8px;
+    font-size: 11px;
+    border-radius: 7px;
+  }
+
+  .reader-actions .zoom-value {
+    min-width: 34px;
+    font-size: 10px;
+    text-align: center;
+  }
+
+  .page-navigation {
+    box-sizing: border-box;
+    min-height: 42px;
+    padding: 5px 10px;
+    gap: 7px;
+  }
+
+  .page-navigation button {
+    min-height: 30px;
+    height: 30px;
+    padding: 0 9px;
+    font-size: 11px;
+    border-radius: 7px;
+  }
+
+  .page-navigation label {
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .page-navigation input {
+    box-sizing: border-box;
+    width: 48px;
+    height: 29px;
+    padding: 3px 5px;
+    font-size: 12px;
+  }
+
+  .page-navigation .nav-separator {
+    margin: 0 2px;
+  }
+
+  .page-navigation .detection-status {
+    font-size: 10px;
+    white-space: nowrap;
+  }
+}
