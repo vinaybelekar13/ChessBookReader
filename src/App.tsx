@@ -44,11 +44,6 @@ const PIECE_LABELS: Record<string, string> = {
   R: "White rook", Q: "White queen", K: "White king", p: "Black pawn",
   n: "Black knight", b: "Black bishop", r: "Black rook", q: "Black queen", k: "Black king",
 };
-const PIECE_ASSETS: Record<string, string> = {
-  P: "wp", N: "wn", B: "wb", R: "wr", Q: "wq", K: "wk",
-  p: "bp", n: "bn", b: "bb", r: "br", q: "bq", k: "bk",
-};
-
 function readableDate(timestamp: number): string {
   if (!timestamp) return "Not opened";
   const elapsed = Date.now() - timestamp;
@@ -1207,7 +1202,7 @@ if (
                       draggable={Boolean(piece && piece.color === game.turn())}
                       onClick={() => handleSquareClick(square)}
                       onDragStart={(event) => {
-                        const image = event.currentTarget.querySelector("svg");
+                        const image = event.currentTarget.querySelector("img");
                         if (image) {
                           const bounds = event.currentTarget.getBoundingClientRect();
                           event.dataTransfer.setDragImage(image, bounds.width / 2, bounds.height / 2);
@@ -1219,7 +1214,7 @@ if (
                       onDrop={(event) => { event.preventDefault(); const from = event.dataTransfer.getData("text/plain") as Square; if (from) makeMove(from, square); }}
                       onDragEnd={() => setSelectedSquare(null)}
                     >
-                      {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><svg viewBox="0 0 40 40" focusable="false"><use href={`${import.meta.env.BASE_URL}assets/pieces/standard.svg#${piece.color}${piece.type}`} /></svg></span>}
+                      {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece.color}${piece.type}.svg`} /></span>}
                       {legal && <span className={piece ? "legal-capture" : "legal-dot"} />}
                       {session?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
                       {session?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
@@ -1453,7 +1448,7 @@ if (
                   aria-label={`Rank ${8 - row}, file ${"abcdefgh"[col]}: ${PIECE_LABELS[piece]}`}
                   title={`${"abcdefgh"[col]}${8 - row} · ${PIECE_LABELS[piece]}`}
                   onClick={() => editTransferSquare(row, col)}
-                >{piece && <svg viewBox="0 0 40 40" aria-hidden="true"><use href={`${import.meta.env.BASE_URL}assets/pieces/standard.svg#${PIECE_ASSETS[piece]}`} /></svg>}</button>;
+                >{piece && <img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece === piece.toUpperCase() ? "w" : "b"}${piece.toLowerCase()}.svg`} />}</button>;
               }))}
             </div>
             <div className="recognition-edit-controls">
