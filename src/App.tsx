@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Chess, type Square } from "chess.js";
+import {
+  Search, Bookmark, BookmarkCheck, Library, History, BookMarked, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  FolderOpen, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
 import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { fenWithTurn, makePosition } from "./chess-state";
 import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
 import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
-import { flipFenPlacement, parseFenPlacement, setFenPiece, withFenPlacement } from "./position-editor";
+import { ManualBoardEditor } from "./ManualBoardEditor";
 import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
 import {
   getActiveBookId,
@@ -39,11 +41,6 @@ type RecognitionResult = {
 };
 type RecognitionStatus = "idle" | "loading" | "complete" | "failed";
 
-const PIECE_LABELS: Record<string, string> = {
-  "": "Empty square", P: "White pawn", N: "White knight", B: "White bishop",
-  R: "White rook", Q: "White queen", K: "White king", p: "Black pawn",
-  n: "Black knight", b: "Black bishop", r: "Black rook", q: "Black queen", k: "Black king",
-};
 function readableDate(timestamp: number): string {
   if (!timestamp) return "Not opened";
   const elapsed = Date.now() - timestamp;
@@ -84,13 +81,17 @@ export default function App() {
   const [detecting, setDetecting] = useState(false);
   const [fenInput, setFenInput] = useState("");
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [promotionRequest, setPromotionRequest] = useState<{ from: Square; to: Square } | null>(null);
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
+  const [gameEndOverlay, setGameEndOverlay] = useState<{ title: string; message: string } | null>(null);
   const [userArrows, setUserArrows] = useState<BoardArrow[]>([]);
+  const [redSquares, setRedSquares] = useState<Square[]>([]);
   const [arrowStart, setArrowStart] = useState<Square | null>(null);
   const [arrowHover, setArrowHover] = useState<Square | null>(null);
   const [annotationMode, setAnnotationMode] = useState(false);
   const [dragSelection, setDragSelection] = useState<{ x: number; y: number; x2: number; y2: number } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
   const [manualMode, setManualMode] = useState(false);
   const [cropEditingId, setCropEditingId] = useState<string | null>(null);
   const [transferCandidate, setTransferCandidate] = useState<Candidate | null>(null);
@@ -99,8 +100,6 @@ export default function App() {
   const [recognitionStatus, setRecognitionStatus] = useState<RecognitionStatus>("idle");
   const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
   const [recognitionError, setRecognitionError] = useState("");
-  const [recognitionEdited, setRecognitionEdited] = useState(false);
-  const [transferPiece, setTransferPiece] = useState("P");
   const [engineEnabled, setEngineEnabled] = useState(false);
   const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
   const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
@@ -117,6 +116,7 @@ export default function App() {
   const dragCurrentRef = useRef<{ x: number; y: number; x2: number; y2: number } | null>(null);
   const arrowGestureRef = useRef<Square | null>(null);
   const suppressBoardContextMenuRef = useRef(false);
+  const arrowGestureMovedRef = useRef(false);
 const scanAbortControllerRef = useRef<AbortController | null>(null);
   const scanRequestIdRef = useRef(0);
   const transferRequestRef = useRef(0);
@@ -465,10 +465,11 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
   }
 
   function moveToPosition(fen: string): boolean {
-    if (!session) return false;
+    const activeSession = session ?? newSession("analysis");
     try {
       const next = new Chess(fen);
-      patchSession({
+      setSession({
+        ...activeSession,
         originalFen: fen,
         lineBaseFen: fen,
         currentFen: next.fen(),
@@ -477,12 +478,27 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
       });
       setLastMove(null);
       setSelectedSquare(null);
+      setUserArrows([]);
       setNotice("Position loaded. Reset Board returns to this diagram position.");
       return true;
     } catch (cause) {
       setError(`Invalid chess position: ${messageOf(cause)}`);
       return false;
     }
+  }
+
+  function analyzeManualPosition(fen: string): boolean {
+    const loaded = moveToPosition(fen);
+    if (!loaded) return false;
+    setEngineScore(null);
+    setEngineMessage("");
+    if (!engineEnabled) {
+      toggleEngine();
+    } else {
+      engineRef.current?.analyze(fen, engineDepth);
+    }
+    setNotice("Manual position loaded. Stockfish analysis started.");
+    return true;
   }
 
   function selectCandidate(candidate: Candidate) {
@@ -557,10 +573,8 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
     setTransferPreview(preview.toDataURL("image/png"));
     setTransferFen("");
     setRecognitionResult(null);
-    setRecognitionEdited(false);
-    setRecognitionError("");
-    setTransferPiece("P");
-    const requestId = ++transferRequestRef.current;
+        setRecognitionError("");
+        const requestId = ++transferRequestRef.current;
     setRecognitionStatus("loading");
     try {
       const image = await new Promise<Blob>((resolve, reject) => {
@@ -596,55 +610,55 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
     setRecognitionStatus("idle");
     setRecognitionResult(null);
     setRecognitionError("");
-    setRecognitionEdited(false);
+      }
+
+
+  function updateGameEndOverlay(currentGame: Chess) {
+    if (currentGame.isCheckmate()) {
+      setGameEndOverlay({
+        title: "Checkmate",
+        message: `${currentGame.turn() === "w" ? "Black" : "White"} wins.`,
+      });
+    } else if (currentGame.isStalemate()) {
+      setGameEndOverlay({
+        title: "Stalemate",
+        message: "The side to move has no legal moves, but its king is not in check. The game is a draw.",
+      });
+    } else if (currentGame.isDraw()) {
+      let message = "The game is drawn.";
+      if (currentGame.isThreefoldRepetition()) message = "Draw by threefold repetition.";
+      else if (currentGame.isInsufficientMaterial()) message = "Draw by insufficient material.";
+      else if (currentGame.isDrawByFiftyMoves()) message = "Draw by the fifty-move rule.";
+      else if (currentGame.isDraw()) message = "Draw by a draw rule.";
+      setGameEndOverlay({ title: "Draw", message });
+    } else {
+      setGameEndOverlay(null);
+    }
   }
 
-  function editTransferSquare(displayRow: number, displayCol: number) {
-    const fields = transferFen.trim().split(/\s+/);
-    if (fields.length !== 6) {
-      setRecognitionError("Enter or recognize a six-field FEN before editing individual squares.");
-      return;
-    }
-    const board = parseFenPlacement(fields[0]);
-    if (!board) {
-      setRecognitionError("The FEN piece placement is invalid. Correct it before editing squares.");
-      return;
-    }
-    const row = displayRow;
-    const col = displayCol;
+  function completePromotion(piece: "q" | "r" | "b" | "n") {
+    if (!promotionRequest || !session) return;
     try {
-      const placement = setFenPiece(fields[0], row, col, transferPiece);
-      setTransferFen(withFenPlacement(transferFen, placement));
-      setRecognitionEdited(true);
-      setRecognitionError("");
-    } catch (cause) {
-      setRecognitionError(messageOf(cause));
-    }
-  }
-
-  function flipTransferPosition() {
-    const fields = transferFen.trim().split(/\s+/);
-    if (fields.length !== 6) {
-      setRecognitionError("Recognize a position or enter a complete FEN before flipping it.");
-      return;
-    }
-    try {
-      setTransferFen(withFenPlacement(transferFen, flipFenPlacement(fields[0])));
-      setRecognitionEdited(true);
-      setRecognitionError("");
-    } catch (cause) {
-      setRecognitionError(messageOf(cause));
-    }
-  }
-
-  function confirmTransfer() {
-    if (!transferCandidate) return;
-    if (!transferFen.trim()) {
-      setRecognitionError("Enter or recognize a FEN position first.");
-      return;
-    }
-    if (moveToPosition(transferFen.trim())) {
-      closeTransfer();
+      const currentGame = new Chess(session.currentFen);
+      const result = currentGame.move({
+        from: promotionRequest.from,
+        to: promotionRequest.to,
+        promotion: piece,
+      });
+      const nextMoves = [...session.moves.slice(0, session.moveIndex), result.san];
+      patchSession({
+        currentFen: currentGame.fen(),
+        moves: nextMoves,
+        moveIndex: nextMoves.length,
+      });
+      updateGameEndOverlay(currentGame);
+      setLastMove({ from: promotionRequest.from, to: promotionRequest.to });
+      setSelectedSquare(null);
+      setPromotionRequest(null);
+      setError("");
+    } catch {
+      setError("Unable to complete pawn promotion.");
+      setPromotionRequest(null);
     }
   }
 
@@ -654,27 +668,18 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
       const currentGame = new Chess(session.currentFen);
       const mover = currentGame.get(from);
       const promote = mover?.type === "p" && (to.endsWith("8") || to.endsWith("1"));
-      let promotion: "q" | "r" | "b" | "n" = "q";
       if (promote) {
-        const choice = window.prompt("Promote to queen, rook, bishop, or knight? (q/r/b/n)", "q")?.toLowerCase();
-        if (!choice) return;
-        switch (choice) {
-          case "q": promotion = "q"; break;
-          case "r": promotion = "r"; break;
-          case "b": promotion = "b"; break;
-          case "n": promotion = "n"; break;
-          default:
-            setError("Promotion must be q, r, b, or n.");
-            return;
-        }
+        setPromotionRequest({ from, to });
+        return;
       }
-      const result = currentGame.move({ from, to, promotion });
+      const result = currentGame.move({ from, to });
       const nextMoves = [...session.moves.slice(0, session.moveIndex), result.san];
       patchSession({
         currentFen: currentGame.fen(),
         moves: nextMoves,
         moveIndex: nextMoves.length,
       });
+      updateGameEndOverlay(currentGame);
       setLastMove({ from, to });
       setSelectedSquare(null);
       setError("");
@@ -686,7 +691,16 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
   }
 
   function handleSquareClick(square: Square) {
-    if (!session) return;
+    // A left-click removes the red highlight from that square.
+    setRedSquares([]);
+    
+    if (!annotationMode && (userArrows.length > 0 || arrowStart !== null)) {
+      setUserArrows([]);
+      setArrowStart(null);
+      setArrowHover(null);
+      return;
+    }
+if (!session) return;
     if (annotationMode) {
       if (!arrowStart) {
         setArrowStart(square);
@@ -707,34 +721,63 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
   }
 
   function boardArrowPointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (event.button !== 2 || !boardRef.current) return;
-    event.preventDefault();
-    const bounds = boardRef.current.getBoundingClientRect();
-    const square = boardSquareAtPoint(event.clientX, event.clientY, bounds, Boolean(session?.flipped));
-    if (!square) return;
-    suppressBoardContextMenuRef.current = true;
-    arrowGestureRef.current = square;
-    setArrowStart(square);
-    setArrowHover(square);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
+  if (event.button !== 2 || !boardRef.current) return;
+
+  event.preventDefault();
+
+  const bounds = boardRef.current.getBoundingClientRect();
+  const square = boardSquareAtPoint(
+    event.clientX,
+    event.clientY,
+    bounds,
+    Boolean(session?.flipped),
+  );
+
+  if (!square) return;
+
+  // Only suppress the context menu if an arrow is actually drawn.
+  suppressBoardContextMenuRef.current = false;
+  arrowGestureMovedRef.current = false;
+  arrowGestureRef.current = square;
+  setArrowStart(square);
+  setArrowHover(square);
+
+  event.currentTarget.setPointerCapture(event.pointerId);
+}
 
   function boardArrowPointerMove(event: React.PointerEvent<HTMLDivElement>) {
     if (!arrowGestureRef.current || !boardRef.current) return;
     const bounds = boardRef.current.getBoundingClientRect();
-    setArrowHover(boardSquareAtPoint(event.clientX, event.clientY, bounds, Boolean(session?.flipped)));
+    const square = boardSquareAtPoint(event.clientX, event.clientY, bounds, Boolean(session?.flipped));
+    if (square && square !== arrowGestureRef.current) arrowGestureMovedRef.current = true;
+    setArrowHover(square);
   }
 
   function boardArrowPointerUp(event: React.PointerEvent<HTMLDivElement>) {
-    const from = arrowGestureRef.current;
-    if (!from || !boardRef.current) return;
-    const bounds = boardRef.current.getBoundingClientRect();
-    const to = boardSquareAtPoint(event.clientX, event.clientY, bounds, Boolean(session?.flipped));
-    if (to && to !== from) setUserArrows((arrows) => toggleArrow(arrows, { from, to }));
-    arrowGestureRef.current = null;
-    setArrowStart(null);
-    setArrowHover(null);
+  const from = arrowGestureRef.current;
+
+  if (!from || !boardRef.current) return;
+
+  const bounds = boardRef.current.getBoundingClientRect();
+  const to = boardSquareAtPoint(
+    event.clientX,
+    event.clientY,
+    bounds,
+    Boolean(session?.flipped),
+  );
+
+  if (to && to !== from) {
+    setUserArrows((arrows) => toggleArrow(arrows, { from, to }));
+    suppressBoardContextMenuRef.current = true;
+  } else {
+    suppressBoardContextMenuRef.current = false;
   }
+
+  arrowGestureRef.current = null;
+  arrowGestureMovedRef.current = false;
+  setArrowStart(null);
+  setArrowHover(null);
+}
 
   function cancelBoardArrowGesture() {
     arrowGestureRef.current = null;
@@ -1028,16 +1071,7 @@ if (
     }
   }
 
-  async function expandBoard() {
-    const target = document.querySelector(".board-frame");
-    if (!target) return;
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await target.requestFullscreen();
-    } catch (cause) {
-      setError(`Could not expand chessboard: ${messageOf(cause)}`);
-    }
-  }
+
 
   function saveBookmark() {
     if (!session) return;
@@ -1079,17 +1113,6 @@ if (
   const detectionAttempted = Boolean(session && Object.hasOwn(session.candidatesByPage, String(session.page)));
   const currentDiagram = currentCandidates.find((candidate) => candidate.id === session?.selectedDiagramId);
   const whiteTurn = game.turn() === "w";
-  const transferFenFields = transferFen.trim() ? transferFen.trim().split(/\s+/) : [];
-  const transferBoard = transferFenFields.length === 6 ? parseFenPlacement(transferFenFields[0]) : null;
-  let transferFenValid = false;
-  if (transferFen.trim()) {
-    try {
-      new Chess(transferFen.trim());
-      transferFenValid = true;
-    } catch {
-      transferFenValid = false;
-    }
-  }
 
   if (!ready) {
     return <main className="startup"><div className="loader" /><span>Restoring your reading session...</span></main>;
@@ -1105,7 +1128,7 @@ if (
         <div className="current-book" title={book?.title ?? "No book open"}>
           <span className="book-dot" />
           <strong>{book?.title ?? "No book open"}</strong>
-          {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "–"}</span>}
+          {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
         </div>
         <div className="top-spacer" />
         <span className="storage-label"><i /> LOCAL LIBRARY</span>
@@ -1123,14 +1146,14 @@ if (
               accept="application/pdf,.pdf"
               onChange={(event) => void addBook(event.target.files?.[0])}
             />
-            <label className="search-field"><span>🔍</span><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+            <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
             <nav className="library-nav" aria-label="Library sections">
-              <LibraryNavItem active={libraryTab === "all"} onClick={() => setLibraryTab("all")} icon="🗂" label="All Books" />
-              <LibraryNavItem active={libraryTab === "recent"} onClick={() => setLibraryTab("recent")} icon="📅" label="Recently Opened" />
-            <LibraryNavItem active={libraryTab === "bookmarks"} onClick={() => setLibraryTab("bookmarks")} icon="⭐" label="Bookmarks" />
-            <LibraryNavItem active={libraryTab === "positions"} onClick={() => setLibraryTab("positions")} icon="📌" label="Saved Positions" />
-            <LibraryNavItem active={libraryTab === "progress"} onClick={() => setLibraryTab("progress")} icon="📈" label="Reading Progress" />
-            <LibraryNavItem active={libraryTab === "local"} onClick={() => setLibraryTab("local")} icon="📁" label="Local Books" />
+              <LibraryNavItem active={libraryTab === "all"} onClick={() => setLibraryTab("all")} icon={Library} label="All Books" />
+              <LibraryNavItem active={libraryTab === "recent"} onClick={() => setLibraryTab("recent")} icon={History} label="Recently Opened" />
+              <LibraryNavItem active={libraryTab === "bookmarks"} onClick={() => setLibraryTab("bookmarks")} icon={Bookmark} label="Bookmarks" />
+              <LibraryNavItem active={libraryTab === "positions"} onClick={() => setLibraryTab("positions")} icon={BookmarkCheck} label="Saved Positions" />
+              <LibraryNavItem active={libraryTab === "progress"} onClick={() => setLibraryTab("progress")} icon={BookMarked} label="Reading Progress" />
+              <LibraryNavItem active={libraryTab === "local"} onClick={() => setLibraryTab("local")} icon={FolderOpen} label="Local Books" />
             </nav>
             <div className="library-list-title"><span>{libraryTab === "recent" ? "RECENTLY OPENED" : libraryTab.toUpperCase()}</span><span>{visibleBooks.length}</span></div>
             <div className="book-list">
@@ -1148,17 +1171,38 @@ if (
                   </div>
                 );
               })}
-              {!visibleBooks.length && <div className="empty-library"><div>📚</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+              {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
             </div>
+
+            <section className="sidebar-moves-panel" aria-label="Move list">
+<div className="moves-panel">
+            <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+              if (!session) return;
+              patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+              setLastMove(null);
+              setNotice("New analysis line started from the current position.");
+            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={session?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && session?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={session?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && session?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+            </div>
+          </div>
+            </section>
             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
           </aside>
         )}
 
         <section className="board-panel" aria-label="Chessboard analysis">
-          <div className="section-kicker"><span>POSITION ANALYSIS</span><span className={`engine-idle engine-${engineStatus}`}><i /> {engineStatus === "off" ? "ENGINE OFF" : `ENGINE ${engineStatus.toUpperCase()}`}</span></div>
           <div className="board-header">
-            <div><strong>{session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} · ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
-            <button className="mini-button" onClick={() => patchSession({ flipped: !session?.flipped })} title="Flip board">↻ Flip</button>
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} · ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div className="board-header-actions">
+              <button className="mini-button flip-board-button" onClick={() => patchSession({ flipped: !session?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+            </div>
           </div>
           <div className="board-area">
             <div
@@ -1178,11 +1222,30 @@ if (
                 onPointerUp={boardArrowPointerUp}
                 onPointerCancel={cancelBoardArrowGesture}
                 onContextMenu={(event) => {
-                  if (suppressBoardContextMenuRef.current) {
-                    event.preventDefault();
-                    suppressBoardContextMenuRef.current = false;
-                  }
-                }}
+  event.preventDefault();
+
+  if (suppressBoardContextMenuRef.current || arrowGestureMovedRef.current) {
+    suppressBoardContextMenuRef.current = false;
+    return;
+  }
+
+  const bounds = boardRef.current?.getBoundingClientRect();
+  if (!bounds) return;
+
+  const square = boardSquareAtPoint(
+    event.clientX,
+    event.clientY,
+    bounds,
+    Boolean(session?.flipped),
+  );
+  if (!square) return;
+
+  setRedSquares((current) =>
+    current.includes(square)
+      ? current.filter((item) => item !== square)
+      : [...current, square]
+  );
+}}
               >
                 {Array.from({ length: 64 }, (_, index) => {
                   const visibleRow = Math.floor(index / 8);
@@ -1197,7 +1260,7 @@ if (
                   return (
                     <button
                       key={square}
-                      className={`square ${light ? "light-square" : "dark-square"} ${selectedSquare === square ? "selected-square" : ""} ${isLast ? "last-square" : ""}`}
+                      className={`square ${light ? "light-square" : "dark-square"} ${selectedSquare === square ? "selected-square" : ""} ${isLast ? "last-square" : ""} ${redSquares.includes(square) ? "red-highlight" : ""}`}
                       aria-label={`${square}${piece ? ` ${piece.color === "w" ? "white" : "black"} ${piece.type}` : ""}`}
                       draggable={Boolean(piece && piece.color === game.turn())}
                       onClick={() => handleSquareClick(square)}
@@ -1222,14 +1285,6 @@ if (
                   );
                 })}
                 <svg className="board-arrows" viewBox="0 0 8 8" aria-hidden="true">
-                  <defs>
-                    <marker id="user-arrowhead" markerWidth="0.28" markerHeight="0.28" refX="0.22" refY="0.14" orient="auto" markerUnits="userSpaceOnUse">
-                      <path d="M0 0 L0.28 0.14 L0 0.28 Z" fill="#3277a8" />
-                    </marker>
-                    <marker id="engine-arrowhead" markerWidth="0.3" markerHeight="0.3" refX="0.24" refY="0.15" orient="auto" markerUnits="userSpaceOnUse">
-                      <path d="M0 0 L0.3 0.15 L0 0.3 Z" fill="#d49b38" />
-                    </marker>
-                  </defs>
                   {[
                     ...userArrows.map((arrow) => ({ arrow, kind: "user" as const })),
                     ...(engineArrow ? [{ arrow: engineArrow, kind: "engine" as const }] : []),
@@ -1239,45 +1294,70 @@ if (
                   ].map(({ arrow, kind }, index) => {
                     const from = squareCenter(arrow.from, Boolean(session?.flipped));
                     const to = squareCenter(arrow.to, Boolean(session?.flipped));
-                    const color = kind === "engine" ? "#d49b38" : kind === "preview" ? "#3277a8aa" : "#3277a8";
-                    return <line
-                      key={`${kind}-${arrow.from}-${arrow.to}-${index}`}
-                      x1={from.x}
-                      y1={from.y}
-                      x2={to.x}
-                      y2={to.y}
-                      stroke={color}
-                      strokeWidth={kind === "engine" ? 0.13 : 0.11}
-                      strokeLinecap="round"
-                      markerEnd={kind === "engine" ? "url(#engine-arrowhead)" : "url(#user-arrowhead)"}
-                      className={`board-arrow board-arrow-${kind}`}
-                    />;
+                    const dx = to.x - from.x;
+                    const dy = to.y - from.y;
+                    const length = Math.hypot(dx, dy);
+                    if (length < 0.001) return null;
+
+                    const ux = dx / length;
+                    const uy = dy / length;
+                    const px = -uy;
+                    const py = ux;
+
+                    const headLength = Math.min(0.34, length * 0.30);
+                    const headHalfWidth = 0.19;
+                    const shaftHalfWidth = kind === "preview" ? 0.045 : 0.055;
+                    const tipX = to.x - ux * 0.04;
+                    const tipY = to.y - uy * 0.04;
+                    const baseX = tipX - ux * headLength;
+                    const baseY = tipY - uy * headLength;
+                    const startX = from.x + ux * 0.12;
+                    const startY = from.y + uy * 0.12;
+
+                    const points = [
+                      [startX + px * shaftHalfWidth, startY + py * shaftHalfWidth],
+                      [baseX + px * shaftHalfWidth, baseY + py * shaftHalfWidth],
+                      [baseX + px * headHalfWidth, baseY + py * headHalfWidth],
+                      [tipX, tipY],
+                      [baseX - px * headHalfWidth, baseY - py * headHalfWidth],
+                      [baseX - px * shaftHalfWidth, baseY - py * shaftHalfWidth],
+                      [startX - px * shaftHalfWidth, startY - py * shaftHalfWidth],
+                    ];
+                    const color = kind === "engine" ? "#f0a23b" : "#81b64c";
+                    const opacity = kind === "preview" ? 0.52 : kind === "engine" ? 0.78 : 0.80;
+
+                    return (
+                      <polygon
+                        key={`${kind}-${arrow.from}-${arrow.to}-${index}`}
+                        points={points.map(([x, y]) => `${x},${y}`).join(" ")}
+                        fill={color}
+                        opacity={opacity}
+                        className={`board-arrow board-arrow-${kind}`}
+                      />
+                    );
                   })}
                 </svg>
               </div>
             </div>
           </div>
           <div className="board-controls">
-            <button title="First move" onClick={() => jumpToMove(0)}>⏮</button>
-            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (session?.moveIndex ?? 0) - 1))}>◀</button>
-            <button title="Next move" onClick={() => jumpToMove(Math.min(session?.moves.length ?? 0, (session?.moveIndex ?? 0) + 1))}>▶</button>
-            <button title="Last move" onClick={() => jumpToMove(session?.moves.length ?? 0)}>⏭</button>
+            <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (session?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+            <button title="Next move" onClick={() => jumpToMove(Math.min(session?.moves.length ?? 0, (session?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+            <button title="Last move" onClick={() => jumpToMove(session?.moves.length ?? 0)}><ChevronLast size={17} /></button>
             <span className="controls-separator" />
-            <button title="Undo move" onClick={() => jumpToMove(Math.max(0, (session?.moveIndex ?? 0) - 1))}>↶</button>
-            <button title="Redo move" onClick={() => jumpToMove(Math.min(session?.moves.length ?? 0, (session?.moveIndex ?? 0) + 1))}>↷</button>
-            <button title="Reset to original diagram position" onClick={resetBoard}>⟲ Reset</button>
-            <button title="Toggle coordinates" onClick={() => patchSession({ coordinates: !session?.coordinates })}>⌗</button>
-            <button title="Expand board" onClick={() => void expandBoard()}>⤢</button>
+            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
             <button
               className={annotationMode ? "annotation-active" : ""}
               title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
               aria-pressed={annotationMode}
               onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
-            >↔ Arrows</button>
-            {userArrows.length > 0 && <button title="Clear user analysis arrows" onClick={() => setUserArrows([])}>Clear arrows</button>}
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
             <span className="controls-spacer" />
-            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}>FEN</button>
-            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}>PGN</button>
+            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
           </div>
           <div className="turn-row">
             <span>TO MOVE</span>
@@ -1287,58 +1367,41 @@ if (
                 patchSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
                 setLastMove(null);
               } catch (cause) { setError(messageOf(cause)); }
-            }}>○ White</button>
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
             <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
               try {
                 const fen = fenWithTurn(game.fen(), "b");
                 patchSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
                 setLastMove(null);
               } catch (cause) { setError(messageOf(cause)); }
-            }}>♟ Black</button>
-            <button className="save-position" onClick={savePosition}>↳ Save position</button>
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+            <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
           </div>
           <details className="position-editor">
             <summary>Board position · enter FEN to correct selected diagram</summary>
             <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
           </details>
-          <div className="moves-panel">
-            <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
-              if (!session) return;
-              patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
-              setLastMove(null);
-              setNotice("New analysis line started from the current position.");
-            }}>＋ New line</button></div>
-            <div className="move-list">
-              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
-                <div className="move-pair" key={row}>
-                  <span className="move-number">{row + 1}.</span>
-                  {moveHistory[row * 2] && <button className={session?.moveIndex === row * 2 + 1 ? "active-move" : ""} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
-                  {moveHistory[row * 2 + 1] && <button className={session?.moveIndex === row * 2 + 2 ? "active-move" : ""} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
-                </div>
-              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
-            </div>
-          </div>
           <div className="board-fen"><span>{game.fen()}</span><span>{session?.moveIndex ? `MOVE ${session.moveIndex}` : "BOOK POSITION"}</span></div>
         </section>
 
         <section className="reader-panel" aria-label="PDF book reader">
           <div className="reader-toolbar">
-            <div className="reader-title"><div className="document-icon">▤</div><div><strong>{book?.title ?? "Book reader"}</strong><span>{pdf ? `${session?.pageCount} pages · PDF document` : "Add a PDF book to begin"}</span></div></div>
+            <div className="reader-title"><div className="document-icon" aria-hidden="true"><BookOpenText size={20} strokeWidth={1.8} /></div><div><strong>{book?.title ?? "Book reader"}</strong><span>{pdf ? `${session?.pageCount} pages · PDF document` : "Add a PDF book to begin"}</span></div></div>
             <div className="reader-actions">
               <button className={session?.bookmarks.includes(session.page) ? "active-action" : ""} title="Bookmark this page" disabled={!book} onClick={saveBookmark}>☆</button>
               <button title="Zoom out" disabled={!session} onClick={() => patchSession({ zoom: Math.max(0.65, (session?.zoom ?? 1) - 0.1) })}>−</button>
               <span className="zoom-value">{Math.round((session?.zoom ?? 1) * 100)}%</span>
-              <button title="Zoom in" disabled={!session} onClick={() => patchSession({ zoom: Math.min(1.8, (session?.zoom ?? 1) + 0.1) })}>＋</button>
+              <button title="Zoom in" disabled={!session} onClick={() => patchSession({ zoom: Math.min(1.8, (session?.zoom ?? 1) + 0.1) })}><Plus size={15} aria-hidden="true" /></button>
               <button title="Fit to width" disabled={!pdf} onClick={() => void fitPage("width")}>Fit width</button>
               <button title="Fit page" disabled={!pdf} onClick={() => void fitPage("page")}>Fit page</button>
             </div>
           </div>
           <div className="page-navigation">
-            <button aria-label="Previous page" disabled={!pdf || session?.page === 1} onClick={() => changePage(-1)}>‹</button>
+            <button aria-label="Previous page" disabled={!pdf || session?.page === 1} onClick={() => changePage(-1)}>&#8249;</button>
             <label>PAGE <input aria-label="Current page" type="number" min="1" max={session?.pageCount || 1} value={session?.page ?? 1} disabled={!pdf} onChange={(event) => goToPage(Number(event.target.value))} /> <span>of {session?.pageCount || "—"}</span></label>
-            <button aria-label="Next page" disabled={!pdf || (session?.page ?? 1) >= (session?.pageCount ?? 1)} onClick={() => changePage(1)}>›</button>
+            <button aria-label="Next page" disabled={!pdf || (session?.page ?? 1) >= (session?.pageCount ?? 1)} onClick={() => changePage(1)}>&#8250;</button>
             <span className="nav-separator" />
-            <button className={`scan-button ${detecting ? "scan-active" : ""}`} disabled={!pdf || rendering} onClick={() => void detectBoards()}>{detecting ? "■ Stop scan" : "⚲ Detect boards"}</button>
+            <button className={`scan-button ${detecting ? "scan-active" : ""}`} disabled={!pdf || rendering} onClick={() => void detectBoards()}>{detecting ? "–  Stop scan" : "Detect boards Detect boards"}</button>
             <button
               type="button"
               className="clear-scan-button"
@@ -1349,7 +1412,7 @@ if (
             <span className="detection-status">{detecting ? "Scanning current page..." : currentCandidates.length ? `${currentCandidates.length} candidate${currentCandidates.length === 1 ? "" : "s"}` : detectionAttempted ? "No boards found" : "Not scanned"}</span>
           </div>
           <div className="page-workspace">
-            {!book && <div className="reader-empty"><div className="empty-glyph">⚠</div><strong>Open a chess book</strong><span>Import a PDF to read pages and mark chess diagrams.</span><button className="green-button" onClick={() => fileInput.current?.click()}>Add a book</button></div>}
+            {!book && <div className="reader-empty"><div className="empty-glyph">âš </div><strong>Open a chess book</strong><span>Import a PDF to read pages and mark chess diagrams.</span><button className="green-button" onClick={() => fileInput.current?.click()}>Add a book</button></div>}
             {book && (
               <div className="page-scroll">
                 <div
@@ -1403,81 +1466,117 @@ if (
             <div className="diagram-strip"><span className="strip-label">DIAGRAMS</span>{currentCandidates.length ? currentCandidates.map((candidate, index) => <button key={candidate.id} className={candidate.id === session?.selectedDiagramId ? "strip-selected" : ""} onClick={() => selectCandidate(candidate)} aria-label={`Select diagram ${index + 1}`}>{index + 1}</button>) : <span className="muted">None detected on this page</span>}</div>
             {currentDiagram && <div className="crop-actions">
               {cropEditingId === currentDiagram.id && <button onClick={resetSelectedCrop}>Reset crop</button>}
-              <button onClick={() => adjustSelectedCrop(currentDiagram)}>{cropEditingId === currentDiagram.id ? "Adjusting…" : "Adjust Crop"}</button>
+              <button onClick={() => adjustSelectedCrop(currentDiagram)}>{cropEditingId === currentDiagram.id ? "Adjusting&#8230;" : "Adjust Crop"}</button>
               <button className="green-button" onClick={() => void openTransfer(currentDiagram)}>Recognize Pieces</button>
               <button onClick={cancelCandidateSelection}>Cancel</button>
             </div>}
             <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
           </div>
           <div className="analysis-strip">
-            <div className="analysis-name"><span className="stockfish-mark">♞</span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engine…" : engineStatus === "analyzing" ? "Analyzing current position…" : "Ready · White-positive scores"}</span></div></div>
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engine&#8230;" : engineStatus === "analyzing" ? "Analyzing current position&#8230;" : "Ready · White-positive scores"}</span></div></div>
             <div className="analysis-divider" />
             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
             <div className="analysis-result"><span>Evaluation · White</span><strong>{engineScore ? formatEvaluation(engineScore) : "—"}</strong></div>
             <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ?? "—"}</strong></div>
-            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv?.join(" ") ?? (engineEnabled ? "Waiting for first valid score…" : "Enable Stockfish to analyze this position.")}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv?.join(" ") ?? (engineEnabled ? "Waiting for first valid score&#8230;" : "Enable Stockfish to analyze this position.")}</strong></div>
           </div>
         </section>
       </div>
 
       {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
-      {transferCandidate && <div className="modal-backdrop" role="presentation">
-        <section className="transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
-          <header><div><h2 id="transfer-title">Review recognized position</h2><p>The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits.</p></div><button aria-label="Close crop preview" onClick={closeTransfer}>×</button></header>
-          <div className="recognition-layout">
-            {transferPreview && <img className="crop-preview" src={transferPreview} alt="Exact selected chess diagram crop" />}
-            <div className="recognition-summary" role="status">
-              {recognitionStatus === "loading" && <><span className="spinner" /> Recognizing pieces…</>}
-              {recognitionStatus === "complete" && <>
-                <strong>{recognitionEdited ? "Model result · Manually corrected" : "Model-generated position"}</strong>
-                <span>{recognitionResult?.piece_count ?? 0} pieces · board score {recognitionResult?.board_confidence.toFixed(2)} · piece scores are uncalibrated</span>
-                <span>Orientation: {recognitionResult?.orientation ?? "unknown"}; confirm against the source crop.</span>
-              </>}
-              {recognitionStatus === "failed" && <><strong>Automatic recognition did not complete.</strong><span>{recognitionError}</span><span>Review the source crop and enter or correct its FEN manually.</span></>}
+      {transferCandidate && (
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+          title="Review recognized position"
+          subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits."
+          confirmLabel="Use on Board"
+          cropPreviewUrl={transferPreview}
+          recognitionStatus={recognitionStatus}
+          recognitionResult={recognitionResult}
+          recognitionError={recognitionError}
+          onRetryRecognition={() => void openTransfer(transferCandidate)}
+          onConfirm={(confirmedFen) => {
+            if (moveToPosition(confirmedFen)) {
+              closeTransfer();
+            }
+          }}
+          onCancel={closeTransfer}
+        />
+      )}
+      {setupOpen && (
+        <ManualBoardEditor
+          initialFen={game.fen()}
+          title="Set Up Position"
+          subtitle="Set up a custom chess position to analyze with Stockfish."
+          confirmLabel="Analyze Position"
+          showPresets={true}
+          currentAnalysisFen={game.fen()}
+          onConfirm={(confirmedFen) => {
+            if (analyzeManualPosition(confirmedFen)) {
+              setSetupOpen(false);
+            }
+          }}
+          onCancel={() => setSetupOpen(false)}
+        />
+      )}
+      {gameEndOverlay && (
+        <div className="game-end-backdrop">
+          <section className="game-end-dialog" role="dialog" aria-modal="true" aria-labelledby="game-end-title">
+            <div className="game-end-icon" aria-hidden="true">
+              {gameEndOverlay.title === "Checkmate" ? "♚" : gameEndOverlay.title === "Stalemate" ? "½" : "½"}
             </div>
-          </div>
-          {recognitionStatus === "complete" && transferBoard && <div className="recognized-position">
-            <div className="recognized-board" role="group" aria-label="Editable recognized chess position">
-              {transferBoard.flatMap((rank, row) => rank.map((piece, col) => {
-                const light = (row + col) % 2 === 1;
-                return <button
-                  key={`${row}-${col}`}
-                  type="button"
-                  className={`recognized-square ${light ? "light-square" : "dark-square"}`}
-                  aria-label={`Rank ${8 - row}, file ${"abcdefgh"[col]}: ${PIECE_LABELS[piece]}`}
-                  title={`${"abcdefgh"[col]}${8 - row} · ${PIECE_LABELS[piece]}`}
-                  onClick={() => editTransferSquare(row, col)}
-                >{piece && <img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece === piece.toUpperCase() ? "w" : "b"}${piece.toLowerCase()}.svg`} />}</button>;
-              }))}
+            <h2 id="game-end-title">{gameEndOverlay.title}</h2>
+            <p>{gameEndOverlay.message}</p>
+            <div className="game-end-actions">
+              <button type="button" onClick={() => setGameEndOverlay(null)}>Review position</button>
+              <button type="button" onClick={() => { setGameEndOverlay(null); setSelectedSquare(null); }}>Continue analysis</button>
             </div>
-            <div className="recognition-edit-controls">
-              <label>Piece to place
-                <select value={transferPiece} onChange={(event) => setTransferPiece(event.target.value)}>
-                  {Object.entries(PIECE_LABELS).map(([code, label]) => <option key={code || "empty"} value={code}>{label}</option>)}
-                </select>
-              </label>
-              <button type="button" onClick={flipTransferPosition}>Flip position 180°</button>
-              <button type="button" onClick={() => void openTransfer(transferCandidate)}>Retry recognition</button>
+          </section>
+        </div>
+      )}
+      {promotionRequest && (
+        <div className="promotion-backdrop" onClick={() => setPromotionRequest(null)}>
+          <section className="promotion-dialog" role="dialog" aria-modal="true" aria-labelledby="promotion-title" onClick={(event) => event.stopPropagation()}>
+            <h2 id="promotion-title">Promote pawn</h2>
+            <p>Choose a piece to complete your move.</p>
+            <div className="promotion-choices">
+              <button type="button" onClick={() => completePromotion("q")} aria-label="Promote to queen"><span>♕</span><small>Queen</small></button>
+              <button type="button" onClick={() => completePromotion("r")} aria-label="Promote to rook"><span>♖</span><small>Rook</small></button>
+              <button type="button" onClick={() => completePromotion("b")} aria-label="Promote to bishop"><span>♗</span><small>Bishop</small></button>
+              <button type="button" onClick={() => completePromotion("n")} aria-label="Promote to knight"><span>♘</span><small>Knight</small></button>
             </div>
-          </div>}
-          {recognitionResult?.warnings.map((warning) => <p className="recognition-warning" key={warning}>{warning}</p>)}
-          {recognitionError && recognitionStatus !== "failed" && <p className="recognition-error" role="alert">{recognitionError}</p>}
-          {recognitionStatus === "failed" && <div className="recognition-retry"><button type="button" onClick={() => void openTransfer(transferCandidate)}>Retry recognition</button></div>}
-          <label className="transfer-fen">FEN · edit manually if needed
-            <input value={transferFen} onChange={(event) => { setTransferFen(event.target.value); setRecognitionEdited(true); setRecognitionError(""); }} placeholder="Paste a six-field FEN position" autoComplete="off" spellCheck={false} />
-          </label>
-          {transferFen && <p className={transferFenValid ? "fen-validation valid-fen" : "fen-validation"}>{transferFenValid ? "Syntactically valid chess position · visually verify it against the diagram." : "FEN is not a valid chess position yet."}</p>}
-          <footer><button onClick={closeTransfer}>Cancel</button><button className="green-button" disabled={!transferFenValid} onClick={confirmTransfer}>Use on Board</button></footer>
-        </section>
-      </div>}
-      {(error || notice) && <div className={`toast ${error ? "toast-error" : ""}`} role={error ? "alert" : "status"}><span>{error || notice}</span><button aria-label="Dismiss message" onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
+            <button className="promotion-cancel" type="button" onClick={() => setPromotionRequest(null)}>Cancel</button>
+          </section>
+        </div>
+      )}
+            {(error || notice) && <div className={`toast ${error ? "toast-error" : ""}`} role={error ? "alert" : "status"}><span>{error || notice}</span><button aria-label="Dismiss message" onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
     </main>
   );
 }
 
-function LibraryNavItem({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: string; label: string }) {
-  return <button className={`library-nav-item ${active ? "nav-active" : ""}`} onClick={onClick}><span>{icon}</span>{label}</button>;
+function LibraryNavItem({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number; "aria-hidden"?: boolean }>;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={`library-nav-item ${active ? "nav-active" : ""}`}
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+    >
+      <Icon size={17} strokeWidth={1.8} aria-hidden={true} />
+      <span>{label}</span>
+    </button>
+  );
 }
 
 function formatSize(bytes: number): string {
@@ -1488,3 +1587,4 @@ function formatSize(bytes: number): string {
 function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 }
+

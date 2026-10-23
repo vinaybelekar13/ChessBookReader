@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow } from "./board-annotations";
+import {
+  ANNOTATION_COLORS,
+  boardSquareAtPoint,
+  getAnnotationColor,
+  getArrowPath,
+  parseBestMove,
+  squareCenter,
+  toggleArrow,
+  toggleSquareHighlight,
+} from "./board-annotations";
 
 describe("chessboard annotation geometry", () => {
   const board = { left: 100, top: 50, width: 400, height: 400 };
@@ -17,8 +26,8 @@ describe("chessboard annotation geometry", () => {
   });
 
   it("accepts valid UCI best moves and rejects absent or invalid moves", () => {
-    expect(parseBestMove("e2e4")).toEqual({ from: "e2", to: "e4" });
-    expect(parseBestMove("a7a8q")).toEqual({ from: "a7", to: "a8" });
+    expect(parseBestMove("e2e4")).toEqual({ from: "e2", to: "e4", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("a7a8q")).toEqual({ from: "a7", to: "a8", color: ANNOTATION_COLORS.engine });
     expect(parseBestMove("(none)")).toBeNull();
     expect(parseBestMove(undefined)).toBeNull();
   });
@@ -28,5 +37,36 @@ describe("chessboard annotation geometry", () => {
     const second = { from: "d2" as const, to: "d4" as const };
     expect(toggleArrow([first], second)).toEqual([first, second]);
     expect(toggleArrow([first, second], first)).toEqual([second]);
+  });
+
+  it("toggles arrow colors when repeated with a different color", () => {
+    const red = { from: "e2" as const, to: "e4" as const, color: "#EF5350" };
+    const green = { from: "e2" as const, to: "e4" as const, color: "#8BC34A" };
+    expect(toggleArrow([red], green)).toEqual([green]);
+    expect(toggleArrow([green], green)).toEqual([]);
+  });
+
+  it("toggles square highlights correctly", () => {
+    expect(toggleSquareHighlight([], "e4")).toEqual([{ square: "e4", color: ANNOTATION_COLORS.red }]);
+    expect(toggleSquareHighlight([{ square: "e4", color: ANNOTATION_COLORS.red }], "e4")).toEqual([]);
+    expect(
+      toggleSquareHighlight([{ square: "e4", color: ANNOTATION_COLORS.red }], "e4", ANNOTATION_COLORS.yellow),
+    ).toEqual([{ square: "e4", color: ANNOTATION_COLORS.yellow }]);
+  });
+
+  it("resolves modifier key colors accurately", () => {
+    expect(getAnnotationColor({ shiftKey: true })).toBe(ANNOTATION_COLORS.green);
+    expect(getAnnotationColor({ ctrlKey: true })).toBe(ANNOTATION_COLORS.yellow);
+    expect(getAnnotationColor({ altKey: true })).toBe(ANNOTATION_COLORS.blue);
+    expect(getAnnotationColor({})).toBe(ANNOTATION_COLORS.red);
+  });
+
+  it("generates clean SVG arrow paths with triangular arrowhead and rounded base", () => {
+    const path = getArrowPath("e2", "e4");
+    expect(path).toContain("M ");
+    expect(path).toContain(" L ");
+    expect(path).toContain(" A ");
+    expect(path.endsWith(" Z")).toBe(true);
+    expect(getArrowPath("e4", "e4")).toBe("");
   });
 });

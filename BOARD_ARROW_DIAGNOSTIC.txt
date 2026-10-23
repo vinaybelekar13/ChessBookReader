@@ -1,0 +1,2239 @@
+CHESSBOOKREADER - BOARD AND ARROW DIAGNOSTIC
+Project: D:\chess\BookChess\ChessBookReader
+Generated: 10/24/2026 00:01:05
+
+========== APP BOARD JSX AND SVG ==========
+1181:                 </div>
+1182:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+1183:             </div>
+1184:           </div>
+1185:             </section>
+1186:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+1187:           </aside>
+1188:         )}
+1189: 
+1190:         <section className="board-panel" aria-label="Chessboard analysis">
+1191:           <div className="section-kicker"><span className={`engine-idle engine-${engineStatus}`}><i /> {engineStatus === "off" ? "ENGINE OFF" : `ENGINE ${engineStatus.toUpperCase()}`}</span></div>
+1192:           <div className="board-header">
+1193:             <div><strong>{session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1194:             <div className="board-header-actions">
+1195:               <button className="mini-button" onClick={() => patchSession({ flipped: !session?.flipped })} title="Flip board">â†» Flip</button>
+1196:               <button className="mini-button setup-position-btn" onClick={() => setSetupOpen(true)} title="Set Up Position manually">â™Ÿ Set Up Position</button>
+1197:             </div>
+1198:           </div>
+1199:           <div className="board-area">
+1200:             <div
+1201:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+1202:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+1203:               title={engineScore ? `White's perspective Â· depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+1204:             >
+1205:               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+1206:               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+1207:             </div>
+1208:             <div className="board-frame">
+1209:               <div
+1210:                 className={`chessboard ${session?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+1211:                 ref={boardRef}
+1212:                 onPointerDown={boardArrowPointerDown}
+1213:                 onPointerMove={boardArrowPointerMove}
+1214:                 onPointerUp={boardArrowPointerUp}
+1215:                 onPointerCancel={cancelBoardArrowGesture}
+1216:                 onContextMenu={(event) => {
+1217:   event.preventDefault();
+1218: 
+1219:   if (suppressBoardContextMenuRef.current) {
+1220:     // The right-drag already created an arrow. Keep it.
+1221:     suppressBoardContextMenuRef.current = false;
+1222:     return;
+1223:   }
+1224: 
+1225:   // A plain right-click clears annotations, not the chess position.
+1226:   setUserArrows([]);
+1227:   setArrowStart(null);
+1228:   setArrowHover(null);
+1229:   setSelectedSquare(null);
+1230:   setLastMove(null);
+1231: }}
+1232:               >
+1233:                 {Array.from({ length: 64 }, (_, index) => {
+1234:                   const visibleRow = Math.floor(index / 8);
+1235:                   const visibleCol = index % 8;
+1236:                   const fileIndex = session?.flipped ? 7 - visibleCol : visibleCol;
+1237:                   const rankIndex = session?.flipped ? visibleRow : 7 - visibleRow;
+1238:                   const square = squareName(fileIndex, rankIndex);
+1239:                   const piece = pieceSquares[7 - rankIndex]?.[fileIndex];
+1240:                   const legal = legalTargets.has(square);
+1241:                   const isLast = highlightedMove?.from === square || highlightedMove?.to === square;
+1242:                   const light = (fileIndex + rankIndex) % 2 === 1;
+1243:                   return (
+1244:                     <button
+1245:                       key={square}
+1246:                       className={`square ${light ? "light-square" : "dark-square"} ${selectedSquare === square ? "selected-square" : ""} ${isLast ? "last-square" : ""}`}
+1247:                       aria-label={`${square}${piece ? ` ${piece.color === "w" ? "white" : "black"} ${piece.type}` : ""}`}
+1248:                       draggable={Boolean(piece && piece.color === game.turn())}
+1249:                       onClick={() => handleSquareClick(square)}
+1250:                       onDragStart={(event) => {
+1251:                         const image = event.currentTarget.querySelector("img");
+1252:                         if (image) {
+1253:                           const bounds = event.currentTarget.getBoundingClientRect();
+1254:                           event.dataTransfer.setDragImage(image, bounds.width / 2, bounds.height / 2);
+1255:                         }
+1256:                         event.dataTransfer.setData("text/plain", square);
+1257:                         setSelectedSquare(square);
+1258:                       }}
+1259:                       onDragOver={(event) => event.preventDefault()}
+1260:                       onDrop={(event) => { event.preventDefault(); const from = event.dataTransfer.getData("text/plain") as Square; if (from) makeMove(from, square); }}
+1261:                       onDragEnd={() => setSelectedSquare(null)}
+1262:                     >
+1263:                       {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece.color}${piece.type}.svg`} /></span>}
+1264:                       {legal && <span className={piece ? "legal-capture" : "legal-dot"} />}
+1265:                       {session?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
+1266:                       {session?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
+1267:                     </button>
+1268:                   );
+1269:                 })}
+1270:                 <svg className="board-arrows" viewBox="0 0 8 8" aria-hidden="true">
+1271:                   <defs>
+1272: 
+1273:                     <marker id="user-arrowhead" markerWidth="0.72" markerHeight="0.62" refX="0.72" refY="0.31" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0,0 L 0.72,0.31 L 0,0.62 Z" fill="#81b64c" /></marker>
+1274: 
+1275:                     <marker id="engine-arrowhead" markerWidth="0.72" markerHeight="0.62" refX="0.72" refY="0.31" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0,0 L 0.72,0.31 L 0,0.62 Z" fill="#f0a23b" /></marker>
+1276: 
+1277:                   </defs>
+1278:                   {[
+1279:                     ...userArrows.map((arrow) => ({ arrow, kind: "user" as const })),
+1280:                     ...(engineArrow ? [{ arrow: engineArrow, kind: "engine" as const }] : []),
+1281:                     ...(arrowStart && arrowHover && arrowStart !== arrowHover
+1282:                       ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
+1283:                       : []),
+1284:                   ].map(({ arrow, kind }, index) => {
+1285:                     const from = squareCenter(arrow.from, Boolean(session?.flipped));
+1286:                     const to = squareCenter(arrow.to, Boolean(session?.flipped));
+1287:                     const color = kind === "engine" ? "#f0a23be8" : kind === "preview" ? "#81b64cbb" : "#81b64cf0";
+1288:                     return <line
+1289:                       key={`${kind}-${arrow.from}-${arrow.to}-${index}`}
+1290:                       x1={from.x}
+1291:                       y1={from.y}
+1292:                       x2={to.x}
+1293:                       y2={to.y}
+1294:                       stroke={color}
+1295:                       strokeWidth={kind === "preview" ? 0.14 : 0.18}
+1296:                       strokeLinecap="round"
+1297:                       strokeLinejoin="round"
+1298:                       markerEnd={kind === "engine" ? "url(#engine-arrowhead)" : "url(#user-arrowhead)"}
+1299:                       className={`board-arrow board-arrow-${kind}`}
+1300:                     />;
+1301:                   })}
+1302:                 </svg>
+1303:               </div>
+1304:             </div>
+1305:           </div>
+
+========== APP ARROW COORDINATE LOGIC ==========
+
+  src\App.tsx:1:import { useEffect, useMemo, useRef, useState } from "react";
+  src\App.tsx:2:import { Chess, type Square } from "chess.js";
+  src\App.tsx:3:import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+  src\App.tsx:4:import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+  src\App.tsx:5:import { fenWithTurn, makePosition } from "./chess-state";
+> src\App.tsx:6:import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+  src\App.tsx:7:import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+  src\App.tsx:8:import { ManualBoardEditor } from "./ManualBoardEditor";
+  src\App.tsx:9:import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+  src\App.tsx:10:import {
+  src\App.tsx:11:  getActiveBookId,
+  src\App.tsx:12:  getBooks,
+  src\App.tsx:13:  getSession,
+  src\App.tsx:14:  getSession as getStoredSession,
+  src\App.tsx:15:  putBook,
+  src\App.tsx:16:  putSession,
+  src\App.tsx:17:  removeBook,
+  src\App.tsx:18:  removeSession,
+  src\App.tsx:109:  const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  src\App.tsx:110:  const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+  src\App.tsx:111:  const renderTaskRef = useRef<RenderTask | null>(null);
+  src\App.tsx:112:  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  src\App.tsx:113:  const dragCurrentRef = useRef<{ x: number; y: number; x2: number; y2: number } | null>(null);
+> src\App.tsx:114:  const arrowGestureRef = useRef<Square | null>(null);
+  src\App.tsx:115:  const suppressBoardContextMenuRef = useRef(false);
+  src\App.tsx:116:const scanAbortControllerRef = useRef<AbortController | null>(null);
+  src\App.tsx:117:  const scanRequestIdRef = useRef(0);
+  src\App.tsx:118:  const transferRequestRef = useRef(0);
+  src\App.tsx:119:  const cropEditStartRef = useRef<{ candidate: Candidate; handle: CropHandle; point: { x: number; y: number } } | null>(null);
+  src\App.tsx:120:  const cropBaselineRef = useRef<Candidate | null>(null);
+  src\App.tsx:121:  const engineRef = useRef<StockfishEngine | null>(null);
+  src\App.tsx:122:
+  src\App.tsx:123:  useEffect(() => {
+  src\App.tsx:124:    let cancelled = false;
+  src\App.tsx:125:    async function initialize() {
+  src\App.tsx:126:      try {
+  src\App.tsx:712:    const piece = game.get(square);
+  src\App.tsx:713:    if (piece?.color === game.turn()) setSelectedSquare(square);
+  src\App.tsx:714:    else setSelectedSquare(null);
+  src\App.tsx:715:  }
+  src\App.tsx:716:
+> src\App.tsx:717:  function boardArrowPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+  src\App.tsx:718:  if (event.button !== 2 || !boardRef.current) return;
+  src\App.tsx:719:
+  src\App.tsx:720:  event.preventDefault();
+  src\App.tsx:721:
+  src\App.tsx:722:  const bounds = boardRef.current.getBoundingClientRect();
+> src\App.tsx:723:  const square = boardSquareAtPoint(
+  src\App.tsx:724:    event.clientX,
+  src\App.tsx:725:    event.clientY,
+  src\App.tsx:726:    bounds,
+  src\App.tsx:727:    Boolean(session?.flipped),
+  src\App.tsx:728:  );
+  src\App.tsx:729:
+  src\App.tsx:730:  if (!square) return;
+  src\App.tsx:731:
+  src\App.tsx:732:  // Only suppress the context menu if an arrow is actually drawn.
+  src\App.tsx:733:  suppressBoardContextMenuRef.current = false;
+> src\App.tsx:734:  arrowGestureRef.current = square;
+  src\App.tsx:735:  setArrowStart(square);
+  src\App.tsx:736:  setArrowHover(square);
+  src\App.tsx:737:
+  src\App.tsx:738:  event.currentTarget.setPointerCapture(event.pointerId);
+  src\App.tsx:739:}
+  src\App.tsx:740:
+> src\App.tsx:741:  function boardArrowPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+> src\App.tsx:742:    if (!arrowGestureRef.current || !boardRef.current) return;
+  src\App.tsx:743:    const bounds = boardRef.current.getBoundingClientRect();
+> src\App.tsx:744:    setArrowHover(boardSquareAtPoint(event.clientX, event.clientY, bounds, Boolean(session?.flipped)));
+  src\App.tsx:745:  }
+  src\App.tsx:746:
+> src\App.tsx:747:  function boardArrowPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+> src\App.tsx:748:  const from = arrowGestureRef.current;
+  src\App.tsx:749:
+  src\App.tsx:750:  if (!from || !boardRef.current) return;
+  src\App.tsx:751:
+  src\App.tsx:752:  const bounds = boardRef.current.getBoundingClientRect();
+> src\App.tsx:753:  const to = boardSquareAtPoint(
+  src\App.tsx:754:    event.clientX,
+  src\App.tsx:755:    event.clientY,
+  src\App.tsx:756:    bounds,
+  src\App.tsx:757:    Boolean(session?.flipped),
+  src\App.tsx:758:  );
+  src\App.tsx:759:
+  src\App.tsx:760:  if (to && to !== from) {
+  src\App.tsx:761:    setUserArrows((arrows) => toggleArrow(arrows, { from, to }));
+  src\App.tsx:762:    suppressBoardContextMenuRef.current = true;
+  src\App.tsx:763:  } else {
+  src\App.tsx:764:    suppressBoardContextMenuRef.current = false;
+  src\App.tsx:765:  }
+  src\App.tsx:766:
+> src\App.tsx:767:  arrowGestureRef.current = null;
+  src\App.tsx:768:  setArrowStart(null);
+  src\App.tsx:769:  setArrowHover(null);
+  src\App.tsx:770:}
+  src\App.tsx:771:
+> src\App.tsx:772:  function cancelBoardArrowGesture() {
+> src\App.tsx:773:    arrowGestureRef.current = null;
+  src\App.tsx:774:    setArrowStart(null);
+  src\App.tsx:775:    setArrowHover(null);
+  src\App.tsx:776:  }
+  src\App.tsx:777:
+  src\App.tsx:778:  function jumpToMove(index: number) {
+  src\App.tsx:779:    if (!session) return;
+  src\App.tsx:780:    try {
+  src\App.tsx:781:      const next = makePosition(session.lineBaseFen, session.moves, index);
+  src\App.tsx:782:      const last = next.history({ verbose: true }).at(-1);
+  src\App.tsx:783:      patchSession({ moveIndex: index, currentFen: next.fen() });
+  src\App.tsx:784:      setLastMove(last ? { from: last.from, to: last.to } : null);
+  src\App.tsx:785:      setSelectedSquare(null);
+  src\App.tsx:1280:                    ...(engineArrow ? [{ arrow: engineArrow, kind: "engine" as const }] : []),
+  src\App.tsx:1281:                    ...(arrowStart && arrowHover && arrowStart !== arrowHover
+  src\App.tsx:1282:                      ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
+  src\App.tsx:1283:                      : []),
+  src\App.tsx:1284:                  ].map(({ arrow, kind }, index) => {
+> src\App.tsx:1285:                    const from = squareCenter(arrow.from, Boolean(session?.flipped));
+> src\App.tsx:1286:                    const to = squareCenter(arrow.to, Boolean(session?.flipped));
+  src\App.tsx:1287:                    const color = kind === "engine" ? "#f0a23be8" : kind === "preview" ? "#81b64cbb" : "#81b64cf0";
+  src\App.tsx:1288:                    return <line
+  src\App.tsx:1289:                      key={`${kind}-${arrow.from}-${arrow.to}-${index}`}
+  src\App.tsx:1290:                      x1={from.x}
+  src\App.tsx:1291:                      y1={from.y}
+  src\App.tsx:1292:                      x2={to.x}
+  src\App.tsx:1293:                      y2={to.y}
+  src\App.tsx:1294:                      stroke={color}
+  src\App.tsx:1295:                      strokeWidth={kind === "preview" ? 0.14 : 0.18}
+  src\App.tsx:1296:                      strokeLinecap="round"
+  src\App.tsx:1297:                      strokeLinejoin="round"
+  src\App.tsx:1298:                      markerEnd={kind === "engine" ? "url(#engine-arrowhead)" : "url(#user-arrowhead)"}
+
+
+
+
+========== ALL BOARD AND LAYOUT CSS MATCHES ==========
+
+  src\styles.css:15:}
+  src\styles.css:16:
+> src\styles.css:17:.workspace {
+  src\styles.css:18:  flex: 1 1 auto;
+  src\styles.css:19:  min-width: 0;
+  src\styles.css:20:  min-height: 0;
+  src\styles.css:21:  height: auto;
+  src\styles.css:22:  max-height: none;
+  src\styles.css:23:  overflow: hidden;
+  src\styles.css:25:
+  src\styles.css:26:.library-panel,
+> src\styles.css:27:.board-panel,
+  src\styles.css:28:.reader-panel {
+  src\styles.css:29:  min-width: 0;
+  src\styles.css:30:  min-height: 0;
+  src\styles.css:31:  box-sizing: border-box;
+  src\styles.css:32:}
+  src\styles.css:33:
+> src\styles.css:34:.board-panel {
+  src\styles.css:35:  overflow-x: hidden;
+  src\styles.css:36:  overflow-y: auto;
+  src\styles.css:37:}
+  src\styles.css:38:
+> src\styles.css:39:.board-area {
+  src\styles.css:40:  display: flex;
+  src\styles.css:41:  flex-direction: row;
+  src\styles.css:42:  justify-content: center;
+  src\styles.css:43:  align-items: stretch;
+  src\styles.css:44:  width: 100%;
+  src\styles.css:45:  min-width: 0;
+  src\styles.css:48:}
+  src\styles.css:49:
+> src\styles.css:50:.board-frame {
+  src\styles.css:51:  width: min(100%, 48vh, 440px);
+  src\styles.css:52:  min-width: 0;
+  src\styles.css:53:  flex: 0 1 auto;
+  src\styles.css:54:  aspect-ratio: 1 / 1;
+  src\styles.css:55:}
+  src\styles.css:56:
+  src\styles.css:83:
+  src\styles.css:84:@media (max-width: 1280px) and (min-width: 821px) {
+> src\styles.css:85:  .workspace {
+  src\styles.css:86:    grid-template-columns: 190px minmax(300px, 340px) minmax(0, 1fr);
+  src\styles.css:87:  }
+  src\styles.css:88:
+> src\styles.css:89:  .board-panel {
+  src\styles.css:90:    padding-left: 8px;
+  src\styles.css:91:    padding-right: 8px;
+  src\styles.css:92:  }
+  src\styles.css:93:
+> src\styles.css:94:  .board-frame {
+  src\styles.css:95:    width: min(100%, 42vh, 340px);
+  src\styles.css:96:  }
+  src\styles.css:97:}
+  src\styles.css:98:
+  src\styles.css:99:@media (max-width: 820px) {
+> src\styles.css:100:  .workspace,
+> src\styles.css:101:  .workspace.library-collapsed {
+  src\styles.css:102:    grid-template-columns: minmax(0, 1fr);
+  src\styles.css:103:  }
+  src\styles.css:104:
+  src\styles.css:105:  .library-panel {
+  src\styles.css:106:    display: none;
+  src\styles.css:107:  }
+  src\styles.css:108:
+> src\styles.css:109:  .board-panel {
+  src\styles.css:110:    max-height: 48vh;
+  src\styles.css:111:  }
+  src\styles.css:112:
+> src\styles.css:113:  .board-frame {
+  src\styles.css:114:    width: min(100%, 38vh, 300px);
+  src\styles.css:115:  }
+  src\styles.css:116:}
+  src\styles.css:117:
+  src\styles.css:118:
+  src\styles.css:119:/* ==========================================================
+  src\styles.css:436:   ========================================================== */
+  src\styles.css:437:
+> src\styles.css:438:.workspace {
+  src\styles.css:439:  flex: 1 1 auto;
+  src\styles.css:440:  min-height: 0;
+  src\styles.css:441:  display: grid;
+  src\styles.css:442:  grid-template-columns: minmax(190px, 220px) minmax(320px, 380px) minmax(0, 1fr);
+  src\styles.css:443:  background: var(--bg-app);
+  src\styles.css:444:  overflow: hidden;
+  src\styles.css:445:}
+  src\styles.css:446:
+> src\styles.css:447:.workspace.library-collapsed {
+  src\styles.css:448:  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  src\styles.css:449:}
+  src\styles.css:450:
+  src\styles.css:451:/* ==========================================================
+  src\styles.css:452:   5. LEFT SIDEBAR: LIBRARY & NAVIGATION
+  src\styles.css:453:   ========================================================== */
+  src\styles.css:750:   ========================================================== */
+  src\styles.css:751:
+> src\styles.css:752:.board-panel {
+  src\styles.css:753:  min-width: 0;
+  src\styles.css:754:  background: var(--panel-primary);
+  src\styles.css:755:  border-right: 1px solid var(--border-subtle);
+  src\styles.css:756:  padding: 10px 14px 10px;
+  src\styles.css:757:  overflow-y: auto;
+  src\styles.css:758:  display: flex;
+  src\styles.css:851:
+  src\styles.css:852:/* Board frame and evaluation bar */
+> src\styles.css:853:.board-area {
+  src\styles.css:854:  display: flex;
+  src\styles.css:855:  flex-direction: row;
+  src\styles.css:856:  align-items: stretch;
+  src\styles.css:857:  justify-content: center;
+  src\styles.css:858:  gap: 8px;
+  src\styles.css:859:  min-width: 0;
+  src\styles.css:887:}
+  src\styles.css:888:
+> src\styles.css:889:.board-frame {
+  src\styles.css:890:  box-sizing: border-box;
+  src\styles.css:891:  width: min(100%, min(52vh, 480px));
+  src\styles.css:892:  max-width: 100%;
+  src\styles.css:893:  min-width: 220px;
+  src\styles.css:894:  aspect-ratio: 1 / 1;
+  src\styles.css:895:  padding: 3px;
+  src\styles.css:900:}
+  src\styles.css:901:
+> src\styles.css:902:.chessboard {
+  src\styles.css:903:  width: 100%;
+  src\styles.css:904:  height: 100%;
+  src\styles.css:905:  display: grid;
+  src\styles.css:906:  grid-template-columns: repeat(8, 1fr);
+  src\styles.css:907:  grid-template-rows: repeat(8, 1fr);
+  src\styles.css:908:  user-select: none;
+  src\styles.css:911:}
+  src\styles.css:912:
+> src\styles.css:913:.square {
+  src\styles.css:914:  border: 0;
+  src\styles.css:915:  padding: 0;
+  src\styles.css:916:  margin: 0;
+  src\styles.css:917:  position: relative;
+  src\styles.css:918:  display: grid;
+  src\styles.css:919:  place-items: center;
+  src\styles.css:931:}
+  src\styles.css:932:
+> src\styles.css:933:.square:hover {
+  src\styles.css:934:  filter: brightness(1.04);
+  src\styles.css:935:}
+  src\styles.css:936:
+  src\styles.css:937:.selected-square::after {
+  src\styles.css:938:  content: "";
+  src\styles.css:939:  position: absolute;
+  src\styles.css:2368:
+  src\styles.css:2369:@media (max-width: 1280px) {
+> src\styles.css:2370:  .workspace {
+  src\styles.css:2371:    grid-template-columns: 210px minmax(340px, 380px) minmax(0, 1fr);
+  src\styles.css:2372:  }
+> src\styles.css:2373:  .workspace.library-collapsed {
+  src\styles.css:2374:    grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+  src\styles.css:2375:  }
+  src\styles.css:2376:}
+  src\styles.css:2377:
+  src\styles.css:2378:@media (max-width: 1024px) {
+> src\styles.css:2379:  .workspace {
+  src\styles.css:2380:    grid-template-columns: 200px minmax(320px, 360px) minmax(0, 1fr);
+  src\styles.css:2381:  }
+> src\styles.css:2382:  .workspace.library-collapsed {
+  src\styles.css:2383:    grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+  src\styles.css:2384:  }
+  src\styles.css:2385:}
+  src\styles.css:2386:
+  src\styles.css:2387:@media (max-width: 820px) {
+> src\styles.css:2388:  .workspace:not(.library-collapsed) {
+  src\styles.css:2389:    grid-template-columns: 100%;
+  src\styles.css:2390:  }
+  src\styles.css:2391:  .library-panel {
+  src\styles.css:2392:    display: none;
+  src\styles.css:2393:  }
+> src\styles.css:2394:  .workspace.library-collapsed {
+  src\styles.css:2395:    grid-template-columns: 100%;
+  src\styles.css:2396:  }
+  src\styles.css:2397:  .manual-editor-workspace {
+  src\styles.css:2398:    grid-template-columns: 1fr;
+  src\styles.css:2399:  }
+  src\styles.css:2400:  .manual-chessboard {
+  src\styles.css:2410:
+  src\styles.css:2411:/* Modern chess analysis controls — Chess.com-inspired */
+> src\styles.css:2412:.board-panel .board-controls,
+> src\styles.css:2413:.board-panel .move-controls,
+> src\styles.css:2414:.board-panel .turn-row {
+  src\styles.css:2415:  gap: 8px;
+  src\styles.css:2416:}
+  src\styles.css:2417:
+> src\styles.css:2418:.board-panel .board-controls {
+  src\styles.css:2419:  display: flex;
+  src\styles.css:2420:  flex-wrap: wrap;
+  src\styles.css:2421:  align-items: center;
+  src\styles.css:2422:  margin-top: 10px;
+  src\styles.css:2423:}
+  src\styles.css:2424:
+> src\styles.css:2425:.board-panel .board-controls button,
+> src\styles.css:2426:.board-panel .move-controls button,
+> src\styles.css:2427:.board-panel .turn-row button {
+  src\styles.css:2428:  min-height: 40px;
+  src\styles.css:2429:  padding: 9px 13px;
+  src\styles.css:2430:  border: 1px solid #48443e;
+  src\styles.css:2431:  border-radius: 9px;
+  src\styles.css:2432:  background: linear-gradient(180deg, #393632 0%, #2d2b28 100%);
+  src\styles.css:2433:  color: #e8e6e3;
+  src\styles.css:2440:}
+  src\styles.css:2441:
+> src\styles.css:2442:.board-panel .board-controls button:hover,
+> src\styles.css:2443:.board-panel .move-controls button:hover,
+> src\styles.css:2444:.board-panel .turn-row button:hover {
+  src\styles.css:2445:  background: linear-gradient(180deg, #48453f 0%, #383530 100%);
+  src\styles.css:2446:  border-color: #6a655b;
+  src\styles.css:2447:  box-shadow: 0 3px 9px rgba(0, 0, 0, .22);
+  src\styles.css:2448:  transform: translateY(-1px);
+  src\styles.css:2449:}
+  src\styles.css:2450:
+> src\styles.css:2451:.board-panel .board-controls button:active,
+> src\styles.css:2452:.board-panel .move-controls button:active,
+> src\styles.css:2453:.board-panel .turn-row button:active {
+  src\styles.css:2454:  transform: translateY(0);
+  src\styles.css:2455:  box-shadow: none;
+  src\styles.css:2456:}
+  src\styles.css:2457:
+> src\styles.css:2458:.board-panel .board-controls button:focus-visible,
+> src\styles.css:2459:.board-panel .move-controls button:focus-visible,
+> src\styles.css:2460:.board-panel .turn-row button:focus-visible {
+  src\styles.css:2461:  outline: 2px solid #91c94d;
+  src\styles.css:2462:  outline-offset: 2px;
+  src\styles.css:2463:}
+  src\styles.css:2464:
+> src\styles.css:2465:.board-panel .board-controls button:disabled,
+> src\styles.css:2466:.board-panel .move-controls button:disabled,
+> src\styles.css:2467:.board-panel .turn-row button:disabled {
+  src\styles.css:2468:  opacity: .42;
+  src\styles.css:2469:  cursor: not-allowed;
+  src\styles.css:2470:  transform: none;
+  src\styles.css:2471:  box-shadow: none;
+  src\styles.css:2472:}
+  src\styles.css:2473:
+> src\styles.css:2474:.board-panel .board-controls .setup-position-button,
+> src\styles.css:2475:.board-panel .turn-row .save-position {
+  src\styles.css:2476:  background: linear-gradient(180deg, #91c94d 0%, #78ad39 100%);
+  src\styles.css:2477:  border-color: #91c94d;
+  src\styles.css:2478:  color: #18220f;
+  src\styles.css:2479:}
+  src\styles.css:2480:
+> src\styles.css:2481:.board-panel .board-controls .setup-position-button:hover,
+> src\styles.css:2482:.board-panel .turn-row .save-position:hover {
+  src\styles.css:2483:  background: linear-gradient(180deg, #a1d75e 0%, #88bd46 100%);
+  src\styles.css:2484:  border-color: #b0e17b;
+  src\styles.css:2485:}
+  src\styles.css:2486:
+> src\styles.css:2487:.board-panel .board-controls .annotation-active,
+> src\styles.css:2488:.board-panel .turn-row .turn-active {
+  src\styles.css:2489:  background: #35442a;
+  src\styles.css:2490:  border-color: #91c94d;
+  src\styles.css:2491:  color: #c8f19c;
+  src\styles.css:2492:  box-shadow: inset 0 0 0 1px rgba(145, 201, 77, .16);
+  src\styles.css:2493:}
+  src\styles.css:2494:
+> src\styles.css:2495:.board-panel .turn-row {
+  src\styles.css:2496:  display: flex;
+  src\styles.css:2497:  flex-wrap: wrap;
+  src\styles.css:2498:  align-items: center;
+  src\styles.css:2499:  margin-top: 10px;
+  src\styles.css:2500:  padding: 10px;
+  src\styles.css:2501:  border: 1px solid #403c36;
+  src\styles.css:2504:}
+  src\styles.css:2505:
+> src\styles.css:2506:.board-panel .turn-row > span {
+  src\styles.css:2507:  color: #aaa49a;
+  src\styles.css:2508:  font-size: 11px;
+  src\styles.css:2509:  font-weight: 800;
+  src\styles.css:2510:  letter-spacing: .09em;
+  src\styles.css:2511:}
+  src\styles.css:2512:
+> src\styles.css:2513:.board-panel .turn-row button {
+  src\styles.css:2514:  flex: 1 1 auto;
+  src\styles.css:2515:}
+  src\styles.css:2516:
+> src\styles.css:2517:.board-panel .turn-row .save-position {
+  src\styles.css:2518:  flex: 0 1 auto;
+  src\styles.css:2519:}
+  src\styles.css:2520:
+> src\styles.css:2521:.board-panel .board-controls .controls-spacer {
+  src\styles.css:2522:  flex: 1 1 8px;
+  src\styles.css:2523:}
+  src\styles.css:2524:
+> src\styles.css:2525:.board-panel .position-editor {
+  src\styles.css:2526:  margin-top: 9px;
+  src\styles.css:2527:  border: 1px solid #403c36;
+  src\styles.css:2528:  border-radius: 9px;
+  src\styles.css:2529:  overflow: hidden;
+  src\styles.css:2530:}
+  src\styles.css:2531:
+> src\styles.css:2532:.board-panel .position-editor summary {
+  src\styles.css:2533:  padding: 10px 12px;
+  src\styles.css:2534:  color: #b9b2a7;
+  src\styles.css:2535:  cursor: pointer;
+  src\styles.css:2536:}
+  src\styles.css:2537:
+> src\styles.css:2538:.board-panel .position-editor[open] summary {
+  src\styles.css:2539:  border-bottom: 1px solid #403c36;
+  src\styles.css:2540:  background: #2d2b28;
+  src\styles.css:2541:}
+  src\styles.css:2542:
+  src\styles.css:2543:@media (max-width: 600px) {
+> src\styles.css:2544:  .board-panel .board-controls {
+  src\styles.css:2545:    gap: 6px;
+  src\styles.css:2546:  }
+  src\styles.css:2547:
+> src\styles.css:2548:  .board-panel .board-controls button,
+> src\styles.css:2549:  .board-panel .move-controls button,
+> src\styles.css:2550:  .board-panel .turn-row button {
+  src\styles.css:2551:    min-height: 38px;
+  src\styles.css:2552:    padding: 8px 10px;
+  src\styles.css:2553:    font-size: 12px;
+  src\styles.css:2554:  }
+  src\styles.css:2555:
+> src\styles.css:2556:  .board-panel .turn-row {
+  src\styles.css:2557:    gap: 6px;
+  src\styles.css:2558:  }
+  src\styles.css:2559:}
+  src\styles.css:2560:
+  src\styles.css:2561:/* Layout repair: organize analysis controls into consistent, non-overlapping rows */
+> src\styles.css:2562:.board-panel {
+  src\styles.css:2563:  box-sizing: border-box;
+  src\styles.css:2564:  min-width: 0;
+  src\styles.css:2565:  overflow-x: hidden;
+  src\styles.css:2566:}
+  src\styles.css:2567:
+> src\styles.css:2568:.board-area {
+  src\styles.css:2569:  width: 100%;
+  src\styles.css:2570:  min-width: 0;
+  src\styles.css:2571:  display: flex;
+  src\styles.css:2572:  flex-direction: column;
+  src\styles.css:2573:  align-items: center;
+  src\styles.css:2574:  gap: 10px;
+  src\styles.css:2575:}
+  src\styles.css:2576:
+> src\styles.css:2577:.board-frame {
+  src\styles.css:2578:  flex: 0 0 auto;
+  src\styles.css:2579:  width: min(100%, min(52vh, 480px));
+  src\styles.css:2580:  min-width: 0;
+  src\styles.css:2581:  max-width: 100%;
+  src\styles.css:2582:  box-sizing: border-box;
+  src\styles.css:2583:}
+  src\styles.css:2711:
+  src\styles.css:2712:@media (max-width: 640px) {
+> src\styles.css:2713:  .board-area {
+  src\styles.css:2714:    align-items: center;
+  src\styles.css:2715:  }
+  src\styles.css:2716:
+> src\styles.css:2717:  .board-frame {
+  src\styles.css:2718:    width: min(100%, 460px);
+  src\styles.css:2719:  }
+  src\styles.css:2720:
+  src\styles.css:2721:  .board-controls {
+  src\styles.css:2722:    gap: 6px;
+  src\styles.css:2723:  }
+  src\styles.css:2739:
+  src\styles.css:2740:/* FINAL LAYOUT OVERRIDES — stable chess analysis workspace */
+> src\styles.css:2741:.workspace {
+  src\styles.css:2742:  align-items: start;
+  src\styles.css:2743:  min-width: 0;
+  src\styles.css:2744:}
+  src\styles.css:2745:
+  src\styles.css:2746:.library-panel,
+> src\styles.css:2747:.board-panel,
+  src\styles.css:2748:.reader-panel {
+  src\styles.css:2749:  min-width: 0;
+  src\styles.css:2750:  box-sizing: border-box;
+  src\styles.css:2751:}
+  src\styles.css:2752:
+> src\styles.css:2753:.board-panel {
+  src\styles.css:2754:  display: flex;
+  src\styles.css:2755:  flex-direction: column;
+  src\styles.css:2756:  align-items: stretch;
+  src\styles.css:2757:  gap: 0;
+  src\styles.css:2758:  overflow: hidden;
+  src\styles.css:2759:}
+  src\styles.css:2778:}
+  src\styles.css:2779:
+> src\styles.css:2780:.board-area {
+  src\styles.css:2781:  display: flex;
+  src\styles.css:2782:  flex-direction: column;
+  src\styles.css:2783:  align-items: center;
+  src\styles.css:2784:  gap: 12px;
+  src\styles.css:2785:  width: 100%;
+  src\styles.css:2786:  min-width: 0;
+  src\styles.css:2787:}
+  src\styles.css:2788:
+> src\styles.css:2789:.board-frame {
+  src\styles.css:2790:  width: min(100%, 480px);
+  src\styles.css:2791:  min-width: 0;
+  src\styles.css:2792:  flex-shrink: 0;
+  src\styles.css:2793:  aspect-ratio: 1;
+  src\styles.css:2794:  box-sizing: border-box;
+  src\styles.css:2795:}
+  src\styles.css:2970:
+  src\styles.css:2971:@media (max-width: 640px) {
+> src\styles.css:2972:  .board-panel {
+  src\styles.css:2973:    padding-left: 10px;
+  src\styles.css:2974:    padding-right: 10px;
+  src\styles.css:2975:  }
+  src\styles.css:2976:
+  src\styles.css:2977:  .board-header {
+  src\styles.css:2978:    align-items: flex-start;
+  src\styles.css:2984:  }
+  src\styles.css:2985:
+> src\styles.css:2986:  .board-frame {
+  src\styles.css:2987:    width: 100%;
+  src\styles.css:2988:    max-width: 460px;
+  src\styles.css:2989:  }
+  src\styles.css:2990:
+  src\styles.css:2991:  .board-controls {
+  src\styles.css:2992:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:3029:
+  src\styles.css:3030:/* FIX: analysis controls stay aligned beneath the chessboard at 100% zoom */
+> src\styles.css:3031:.board-panel {
+  src\styles.css:3032:  min-width: 0;
+  src\styles.css:3033:  overflow-x: hidden;
+  src\styles.css:3034:}
+  src\styles.css:3035:
+> src\styles.css:3036:.board-area {
+  src\styles.css:3037:  display: flex;
+  src\styles.css:3038:  flex-direction: row;
+  src\styles.css:3039:  justify-content: center;
+  src\styles.css:3040:  align-items: stretch;
+  src\styles.css:3041:  width: 100%;
+  src\styles.css:3042:  min-width: 0;
+  src\styles.css:3043:}
+  src\styles.css:3044:
+> src\styles.css:3045:.board-frame {
+  src\styles.css:3046:  width: min(100%, 42vh, 340px);
+  src\styles.css:3047:  min-width: 0;
+  src\styles.css:3048:  flex: 0 1 auto;
+  src\styles.css:3049:}
+  src\styles.css:3050:
+  src\styles.css:3051:.board-controls {
+  src\styles.css:3059:}
+  src\styles.css:3060:
+> src\styles.css:3061:.board-panel .board-controls .controls-separator,
+> src\styles.css:3062:.board-panel .board-controls .controls-spacer {
+  src\styles.css:3063:  display: none !important;
+  src\styles.css:3064:}
+  src\styles.css:3065:
+> src\styles.css:3066:.board-panel .board-controls button {
+  src\styles.css:3067:  display: flex;
+  src\styles.css:3068:  align-items: center;
+  src\styles.css:3069:  justify-content: center;
+  src\styles.css:3070:  width: 100%;
+  src\styles.css:3071:  min-width: 0;
+  src\styles.css:3072:  min-height: 36px;
+  src\styles.css:3082:}
+  src\styles.css:3083:
+> src\styles.css:3084:.board-panel .board-controls button.setup-position-button {
+  src\styles.css:3085:  grid-column: span 2;
+  src\styles.css:3086:}
+  src\styles.css:3087:
+> src\styles.css:3088:.board-panel .turn-row {
+  src\styles.css:3089:  display: grid;
+  src\styles.css:3090:  grid-template-columns: repeat(3, minmax(0, 1fr));
+  src\styles.css:3091:  align-items: center;
+  src\styles.css:3092:  gap: 6px;
+  src\styles.css:3093:  width: 100%;
+  src\styles.css:3094:  min-width: 0;
+  src\styles.css:3098:}
+  src\styles.css:3099:
+> src\styles.css:3100:.board-panel .turn-row > span {
+  src\styles.css:3101:  grid-column: 1 / -1;
+  src\styles.css:3102:  white-space: normal;
+  src\styles.css:3103:}
+  src\styles.css:3104:
+> src\styles.css:3105:.board-panel .turn-row button {
+  src\styles.css:3106:  width: 100%;
+  src\styles.css:3107:  min-width: 0;
+  src\styles.css:3108:  min-height: 34px;
+  src\styles.css:3109:  margin: 0;
+  src\styles.css:3110:  padding: 6px 4px;
+  src\styles.css:3111:  font-size: 11px;
+  src\styles.css:3116:}
+  src\styles.css:3117:
+> src\styles.css:3118:.board-panel .position-editor,
+> src\styles.css:3119:.board-panel .fen-entry,
+> src\styles.css:3120:.board-panel .moves-panel,
+> src\styles.css:3121:.board-panel .moves-heading,
+> src\styles.css:3122:.board-panel .move-list,
+> src\styles.css:3123:.board-panel .board-fen {
+  src\styles.css:3124:  width: 100%;
+  src\styles.css:3125:  min-width: 0;
+  src\styles.css:3126:  max-width: 100%;
+  src\styles.css:3127:  box-sizing: border-box;
+  src\styles.css:3128:}
+  src\styles.css:3129:
+> src\styles.css:3130:.board-panel .fen-entry {
+  src\styles.css:3131:  display: flex;
+  src\styles.css:3132:  flex-wrap: wrap;
+  src\styles.css:3133:  gap: 6px;
+  src\styles.css:3134:}
+  src\styles.css:3135:
+> src\styles.css:3136:.board-panel .fen-entry input {
+  src\styles.css:3137:  flex: 1 1 120px;
+  src\styles.css:3138:  width: auto;
+  src\styles.css:3139:  min-width: 0;
+  src\styles.css:3140:  max-width: 100%;
+  src\styles.css:3141:}
+  src\styles.css:3142:
+> src\styles.css:3143:.board-panel .fen-entry button {
+  src\styles.css:3144:  min-width: 0;
+  src\styles.css:3145:  max-width: 100%;
+  src\styles.css:3146:}
+  src\styles.css:3147:
+  src\styles.css:3148:@media (max-width: 1100px) {
+> src\styles.css:3149:  .board-panel .board-controls {
+  src\styles.css:3150:    grid-template-columns: repeat(3, minmax(0, 1fr));
+  src\styles.css:3151:  }
+  src\styles.css:3152:
+> src\styles.css:3153:  .board-panel .turn-row {
+  src\styles.css:3154:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:3155:  }
+  src\styles.css:3156:}
+  src\styles.css:3157:
+  src\styles.css:3158:@media (max-width: 600px) {
+> src\styles.css:3159:  .board-panel .board-controls {
+  src\styles.css:3160:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:3161:  }
+  src\styles.css:3162:
+> src\styles.css:3163:  .board-panel .board-controls button.setup-position-button {
+  src\styles.css:3164:    grid-column: span 2;
+  src\styles.css:3165:  }
+  src\styles.css:3166:}
+> src\styles.css:3167:.board-panel {
+  src\styles.css:3168:  min-width: 0;
+  src\styles.css:3169:  min-height: 0;
+  src\styles.css:3170:  overflow-y: auto;
+  src\styles.css:3171:  overflow-x: hidden;
+  src\styles.css:3172:}
+> src\styles.css:3173:.board-area {
+  src\styles.css:3174:  width: 100%;
+  src\styles.css:3175:  min-width: 0;
+  src\styles.css:3176:  display: flex;
+  src\styles.css:3177:  justify-content: center;
+  src\styles.css:3178:  align-items: flex-start;
+  src\styles.css:3179:}
+> src\styles.css:3180:.board-frame {
+  src\styles.css:3181:  box-sizing: border-box;
+  src\styles.css:3182:  width: min(100%, 52vh, 440px);
+  src\styles.css:3183:  min-width: 0;
+  src\styles.css:3184:  aspect-ratio: 1 / 1;
+  src\styles.css:3185:  flex: 0 1 auto;
+  src\styles.css:3186:}
+  src\styles.css:3208:}
+  src\styles.css:3209:@media (max-width: 1280px) {
+> src\styles.css:3210:  .board-panel { padding-inline: 10px; }
+> src\styles.css:3211:  .board-frame { width: min(100%, 46vh, 390px); }
+  src\styles.css:3212:}
+  src\styles.css:3213:
+  src\styles.css:3214:/* ChessBookReader: wider analysis board and compact PDF reader */
+> src\styles.css:3215:.workspace {
+  src\styles.css:3216:  grid-template-columns: 220px minmax(450px, 36%) minmax(0, 1fr) !important;
+  src\styles.css:3217:}
+  src\styles.css:3218:
+> src\styles.css:3219:.workspace.library-collapsed {
+  src\styles.css:3220:  grid-template-columns: minmax(450px, 36%) minmax(0, 1fr) !important;
+  src\styles.css:3221:}
+  src\styles.css:3222:
+> src\styles.css:3223:.board-panel {
+  src\styles.css:3224:  min-width: 0;
+  src\styles.css:3225:  padding-left: 12px;
+  src\styles.css:3226:  padding-right: 12px;
+  src\styles.css:3227:  overflow-y: auto;
+  src\styles.css:3228:}
+  src\styles.css:3229:
+  src\styles.css:3247:}
+  src\styles.css:3248:
+> src\styles.css:3249:.board-area {
+  src\styles.css:3250:  width: 100%;
+  src\styles.css:3251:  min-width: 0;
+  src\styles.css:3252:  display: flex;
+  src\styles.css:3253:  justify-content: center;
+  src\styles.css:3254:  align-items: flex-start;
+  src\styles.css:3255:}
+  src\styles.css:3256:
+> src\styles.css:3257:.board-frame {
+  src\styles.css:3258:  width: min(100%, 58vh, 560px);
+  src\styles.css:3259:  max-width: 100%;
+  src\styles.css:3260:  min-width: 0;
+  src\styles.css:3261:  flex: 0 1 auto;
+  src\styles.css:3262:  aspect-ratio: 1 / 1;
+  src\styles.css:3263:}
+  src\styles.css:3285:
+  src\styles.css:3286:@media (max-width: 1280px) {
+> src\styles.css:3287:  .workspace {
+  src\styles.css:3288:    grid-template-columns: 200px minmax(410px, 38%) minmax(0, 1fr) !important;
+  src\styles.css:3289:  }
+> src\styles.css:3290:  .workspace.library-collapsed {
+  src\styles.css:3291:    grid-template-columns: minmax(410px, 38%) minmax(0, 1fr) !important;
+  src\styles.css:3292:  }
+> src\styles.css:3293:  .board-frame {
+  src\styles.css:3294:    width: min(100%, 54vh, 480px);
+  src\styles.css:3295:  }
+  src\styles.css:3296:}
+  src\styles.css:3297:
+  src\styles.css:3298:@media (max-width: 900px) {
+> src\styles.css:3299:  .workspace,
+> src\styles.css:3300:  .workspace.library-collapsed {
+  src\styles.css:3301:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:3302:  }
+> src\styles.css:3303:  .board-frame {
+  src\styles.css:3304:    width: min(100%, 68vw, 480px);
+  src\styles.css:3305:  }
+  src\styles.css:3306:  .board-header-actions {
+  src\styles.css:3307:    flex-wrap: wrap;
+  src\styles.css:3308:  }
+  src\styles.css:3309:}
+  src\styles.css:3310:
+  src\styles.css:3311:/* Compact, viewport-fitted analysis layout */
+> src\styles.css:3312:.workspace {
+  src\styles.css:3313:  min-height: 0;
+  src\styles.css:3314:  height: 100%;
+  src\styles.css:3315:  overflow: hidden;
+  src\styles.css:3316:  grid-template-columns: 220px minmax(470px, 39%) minmax(0, 1fr) !important;
+  src\styles.css:3317:}
+  src\styles.css:3318:
+> src\styles.css:3319:.workspace.library-collapsed {
+  src\styles.css:3320:  grid-template-columns: minmax(470px, 39%) minmax(0, 1fr) !important;
+  src\styles.css:3321:}
+  src\styles.css:3322:
+> src\styles.css:3323:.board-panel {
+  src\styles.css:3324:  min-height: 0;
+  src\styles.css:3325:  height: 100%;
+  src\styles.css:3326:  overflow-y: auto;
+  src\styles.css:3327:  overflow-x: hidden;
+  src\styles.css:3328:  padding: 5px 10px 8px;
+  src\styles.css:3329:  gap: 4px;
+  src\styles.css:3330:}
+  src\styles.css:3331:
+> src\styles.css:3332:.board-panel > .section-kicker {
+  src\styles.css:3333:  margin: 0;
+  src\styles.css:3334:  padding: 3px 0;
+  src\styles.css:3335:  line-height: 1.2;
+  src\styles.css:3336:}
+  src\styles.css:3337:
+  src\styles.css:3338:.board-header {
+  src\styles.css:3370:}
+  src\styles.css:3371:
+> src\styles.css:3372:.board-area {
+  src\styles.css:3373:  flex: 0 0 auto;
+  src\styles.css:3374:  width: 100%;
+  src\styles.css:3375:  min-width: 0;
+  src\styles.css:3376:  margin: 0 auto;
+  src\styles.css:3377:  display: flex;
+  src\styles.css:3378:  align-items: flex-start;
+  src\styles.css:3380:}
+  src\styles.css:3381:
+> src\styles.css:3382:.board-frame {
+  src\styles.css:3383:  box-sizing: border-box;
+  src\styles.css:3384:  width: min(100%, calc(100vh - 340px), 560px);
+  src\styles.css:3385:  max-width: 100%;
+  src\styles.css:3386:  min-width: 0;
+  src\styles.css:3387:  flex: 0 1 auto;
+  src\styles.css:3388:  aspect-ratio: 1 / 1;
+  src\styles.css:3450:
+  src\styles.css:3451:@media (max-height: 850px) {
+> src\styles.css:3452:  .board-panel {
+  src\styles.css:3453:    padding-top: 3px;
+  src\styles.css:3454:    padding-bottom: 5px;
+  src\styles.css:3455:  }
+  src\styles.css:3456:
+> src\styles.css:3457:  .board-frame {
+  src\styles.css:3458:    width: min(100%, calc(100vh - 310px), 500px);
+  src\styles.css:3459:  }
+  src\styles.css:3460:
+  src\styles.css:3461:  .board-controls {
+  src\styles.css:3462:    margin-top: 4px;
+  src\styles.css:3463:    gap: 4px;
+  src\styles.css:3476:
+  src\styles.css:3477:@media (max-width: 1280px) {
+> src\styles.css:3478:  .workspace {
+  src\styles.css:3479:    grid-template-columns: 205px minmax(430px, 40%) minmax(0, 1fr) !important;
+  src\styles.css:3480:  }
+  src\styles.css:3481:
+> src\styles.css:3482:  .workspace.library-collapsed {
+  src\styles.css:3483:    grid-template-columns: minmax(430px, 40%) minmax(0, 1fr) !important;
+  src\styles.css:3484:  }
+  src\styles.css:3485:}
+  src\styles.css:3486:
+  src\styles.css:3487:@media (max-width: 900px) {
+> src\styles.css:3488:  .workspace,
+> src\styles.css:3489:  .workspace.library-collapsed {
+  src\styles.css:3490:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:3491:  }
+  src\styles.css:3492:
+> src\styles.css:3493:  .board-frame {
+  src\styles.css:3494:    width: min(100%, calc(100vh - 300px), 460px);
+  src\styles.css:3495:  }
+  src\styles.css:3496:
+  src\styles.css:3497:  .board-header {
+  src\styles.css:3498:    flex-wrap: wrap;
+  src\styles.css:3499:  }
+  src\styles.css:3527:
+  src\styles.css:3528:/* Force Flip + Set Up Position onto one horizontal header row */
+> src\styles.css:3529:.board-panel .board-header {
+  src\styles.css:3530:  display: grid !important;
+  src\styles.css:3531:  grid-template-columns: minmax(0, 1fr) auto !important;
+  src\styles.css:3532:  grid-template-rows: auto !important;
+  src\styles.css:3533:  align-items: center !important;
+  src\styles.css:3534:  column-gap: 8px !important;
+  src\styles.css:3535:  row-gap: 0 !important;
+  src\styles.css:3538:}
+  src\styles.css:3539:
+> src\styles.css:3540:.board-panel .board-header > * {
+  src\styles.css:3541:  min-width: 0;
+  src\styles.css:3542:}
+  src\styles.css:3543:
+> src\styles.css:3544:.board-panel .board-header-actions {
+  src\styles.css:3545:  display: flex !important;
+  src\styles.css:3546:  flex-direction: row !important;
+  src\styles.css:3547:  flex-wrap: nowrap !important;
+  src\styles.css:3548:  align-items: center !important;
+  src\styles.css:3549:  justify-content: flex-end !important;
+  src\styles.css:3550:  gap: 6px !important;
+  src\styles.css:3554:}
+  src\styles.css:3555:
+> src\styles.css:3556:.board-panel .board-header-actions button {
+  src\styles.css:3557:  display: inline-flex !important;
+  src\styles.css:3558:  flex: 0 0 auto !important;
+  src\styles.css:3559:  width: auto !important;
+  src\styles.css:3560:  min-width: max-content !important;
+  src\styles.css:3561:  white-space: nowrap !important;
+  src\styles.css:3562:  margin: 0 !important;
+  src\styles.css:3563:}
+  src\styles.css:3564:
+> src\styles.css:3565:.board-panel .board-header > button {
+  src\styles.css:3566:  display: inline-flex !important;
+  src\styles.css:3567:  flex: 0 0 auto !important;
+  src\styles.css:3568:  width: auto !important;
+  src\styles.css:3569:  white-space: nowrap !important;
+  src\styles.css:3570:}
+  src\styles.css:3571:
+  src\styles.css:3677:
+  src\styles.css:3678:/* Remove excess vertical gaps around the board and its controls */
+> src\styles.css:3679:.board-panel {
+  src\styles.css:3680:  min-height: 0 !important;
+  src\styles.css:3681:  gap: 2px !important;
+  src\styles.css:3682:  padding-top: 3px !important;
+  src\styles.css:3683:  padding-bottom: 4px !important;
+  src\styles.css:3684:  overflow-y: auto !important;
+  src\styles.css:3685:}
+  src\styles.css:3686:
+> src\styles.css:3687:.board-panel .section-kicker {
+  src\styles.css:3688:  padding: 1px 0 !important;
+  src\styles.css:3689:  margin: 0 !important;
+  src\styles.css:3690:  line-height: 1.15 !important;
+  src\styles.css:3691:}
+  src\styles.css:3692:
+> src\styles.css:3693:.board-panel .board-header {
+  src\styles.css:3694:  margin: 0 0 3px !important;
+  src\styles.css:3695:  padding: 0 !important;
+  src\styles.css:3696:  gap: 5px !important;
+  src\styles.css:3697:}
+  src\styles.css:3698:
+> src\styles.css:3699:.board-panel .board-header-actions {
+  src\styles.css:3700:  gap: 5px !important;
+  src\styles.css:3701:}
+  src\styles.css:3702:
+> src\styles.css:3703:.board-panel .board-header-actions button {
+  src\styles.css:3704:  min-height: 27px !important;
+  src\styles.css:3705:  padding: 3px 7px !important;
+  src\styles.css:3706:  font-size: 11px !important;
+  src\styles.css:3707:}
+  src\styles.css:3708:
+> src\styles.css:3709:.board-panel .board-area {
+  src\styles.css:3710:  margin: 0 auto !important;
+  src\styles.css:3711:  flex: 0 0 auto !important;
+  src\styles.css:3712:}
+  src\styles.css:3713:
+> src\styles.css:3714:.board-panel .board-frame {
+  src\styles.css:3715:  width: min(100%, calc(100vh - 400px), 520px) !important;
+  src\styles.css:3716:  min-width: 0 !important;
+  src\styles.css:3717:  flex: 0 1 auto !important;
+  src\styles.css:3718:}
+  src\styles.css:3719:
+> src\styles.css:3720:.board-panel .board-controls {
+  src\styles.css:3721:  display: flex !important;
+  src\styles.css:3722:  flex-wrap: nowrap !important;
+  src\styles.css:3723:  justify-content: center !important;
+  src\styles.css:3724:  align-items: stretch !important;
+  src\styles.css:3725:  gap: 4px !important;
+  src\styles.css:3726:  margin-top: 4px !important;
+  src\styles.css:3728:}
+  src\styles.css:3729:
+> src\styles.css:3730:.board-panel .board-controls button {
+  src\styles.css:3731:  flex: 1 1 0 !important;
+  src\styles.css:3732:  min-width: 0 !important;
+  src\styles.css:3733:  width: auto !important;
+  src\styles.css:3734:  min-height: 29px !important;
+  src\styles.css:3735:  height: 29px !important;
+  src\styles.css:3736:  padding: 3px 4px !important;
+  src\styles.css:3739:}
+  src\styles.css:3740:
+> src\styles.css:3741:.board-panel .turn-row {
+  src\styles.css:3742:  display: flex !important;
+  src\styles.css:3743:  flex-wrap: nowrap !important;
+  src\styles.css:3744:  gap: 4px !important;
+  src\styles.css:3745:  margin-top: 3px !important;
+  src\styles.css:3746:  padding: 4px !important;
+  src\styles.css:3747:}
+  src\styles.css:3748:
+> src\styles.css:3749:.board-panel .turn-row button {
+  src\styles.css:3750:  min-width: 0 !important;
+  src\styles.css:3751:  min-height: 29px !important;
+  src\styles.css:3752:  padding: 3px 5px !important;
+  src\styles.css:3753:  font-size: 10px !important;
+  src\styles.css:3754:}
+  src\styles.css:3755:
+> src\styles.css:3756:.board-panel .position-editor {
+  src\styles.css:3757:  margin-top: 3px !important;
+  src\styles.css:3758:}
+  src\styles.css:3759:
+> src\styles.css:3760:.board-panel .fen-entry {
+  src\styles.css:3761:  gap: 4px !important;
+  src\styles.css:3762:}
+  src\styles.css:3763:
+> src\styles.css:3764:.board-panel .fen-entry input,
+> src\styles.css:3765:.board-panel .fen-entry button {
+  src\styles.css:3766:  min-height: 27px !important;
+  src\styles.css:3767:  padding: 3px 6px !important;
+  src\styles.css:3768:  font-size: 10px !important;
+  src\styles.css:3769:}
+  src\styles.css:3770:
+> src\styles.css:3771:.board-panel .board-fen {
+  src\styles.css:3772:  margin-top: 3px !important;
+  src\styles.css:3773:  padding: 6px 8px !important;
+  src\styles.css:3774:  min-height: 34px !important;
+  src\styles.css:3775:}
+  src\styles.css:3776:
+> src\styles.css:3777:.board-panel .moves-panel {
+  src\styles.css:3778:  display: none !important;
+  src\styles.css:3779:}
+  src\styles.css:3780:
+  src\styles.css:3781:@media (max-height: 900px) {
+> src\styles.css:3782:  .board-panel .board-frame {
+  src\styles.css:3783:    width: min(100%, calc(100vh - 380px), 470px) !important;
+  src\styles.css:3784:  }
+  src\styles.css:3785:
+> src\styles.css:3786:  .board-panel .board-controls button,
+> src\styles.css:3787:  .board-panel .turn-row button {
+  src\styles.css:3788:    min-height: 26px !important;
+  src\styles.css:3789:    height: 26px !important;
+  src\styles.css:3790:    font-size: 9px !important;
+  src\styles.css:3791:  }
+  src\styles.css:3792:}
+  src\styles.css:3793:
+  src\styles.css:3794:@media (max-height: 760px) {
+> src\styles.css:3795:  .board-panel .board-frame {
+  src\styles.css:3796:    width: min(100%, calc(100vh - 330px), 400px) !important;
+  src\styles.css:3797:  }
+  src\styles.css:3798:}
+  src\styles.css:3799:
+  src\styles.css:3800:
+  src\styles.css:3801:/* Restore usable board controls and keep the move list visible */
+> src\styles.css:3802:.board-panel {
+  src\styles.css:3803:  display: flex !important;
+  src\styles.css:3804:  flex-direction: column !important;
+  src\styles.css:3805:  min-height: 0 !important;
+  src\styles.css:3806:  overflow-y: auto !important;
+  src\styles.css:3807:  gap: 4px !important;
+  src\styles.css:3808:}
+  src\styles.css:3809:
+> src\styles.css:3810:.board-panel .board-header {
+  src\styles.css:3811:  flex: 0 0 auto !important;
+  src\styles.css:3812:  margin-bottom: 2px !important;
+  src\styles.css:3813:}
+  src\styles.css:3814:
+> src\styles.css:3815:.board-panel .board-area {
+  src\styles.css:3816:  flex: 0 0 auto !important;
+  src\styles.css:3817:}
+  src\styles.css:3818:
+> src\styles.css:3819:.board-panel .board-frame {
+  src\styles.css:3820:  width: min(100%, calc(100vh - 365px), 520px) !important;
+  src\styles.css:3821:  min-width: 0 !important;
+  src\styles.css:3822:}
+  src\styles.css:3823:
+> src\styles.css:3824:.board-panel .board-controls {
+  src\styles.css:3825:  display: grid !important;
+  src\styles.css:3826:  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  src\styles.css:3827:  grid-auto-flow: row !important;
+  src\styles.css:3828:  align-items: stretch !important;
+  src\styles.css:3829:  gap: 6px !important;
+  src\styles.css:3830:  margin-top: 8px !important;
+  src\styles.css:3832:}
+  src\styles.css:3833:
+> src\styles.css:3834:.board-panel .board-controls button {
+  src\styles.css:3835:  width: 100% !important;
+  src\styles.css:3836:  min-width: 0 !important;
+  src\styles.css:3837:  min-height: 38px !important;
+  src\styles.css:3838:  height: 38px !important;
+  src\styles.css:3839:  padding: 6px 8px !important;
+  src\styles.css:3840:  font-size: 11px !important;
+  src\styles.css:3842:}
+  src\styles.css:3843:
+> src\styles.css:3844:.board-panel .turn-row {
+  src\styles.css:3845:  display: grid !important;
+  src\styles.css:3846:  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+  src\styles.css:3847:  gap: 5px !important;
+  src\styles.css:3848:  align-items: center !important;
+  src\styles.css:3849:  margin-top: 4px !important;
+  src\styles.css:3850:  padding: 5px !important;
+  src\styles.css:3851:}
+  src\styles.css:3852:
+> src\styles.css:3853:.board-panel .turn-row > * {
+  src\styles.css:3854:  min-width: 0 !important;
+  src\styles.css:3855:}
+  src\styles.css:3856:
+> src\styles.css:3857:.board-panel .turn-row button {
+  src\styles.css:3858:  width: 100% !important;
+  src\styles.css:3859:  min-width: 0 !important;
+  src\styles.css:3860:  min-height: 30px !important;
+  src\styles.css:3861:  height: 30px !important;
+  src\styles.css:3862:  padding: 4px 5px !important;
+  src\styles.css:3863:  font-size: 10px !important;
+  src\styles.css:3865:}
+  src\styles.css:3866:
+> src\styles.css:3867:.board-panel .board-fen {
+  src\styles.css:3868:  flex: 0 0 auto !important;
+  src\styles.css:3869:  margin-top: 3px !important;
+  src\styles.css:3870:  padding: 7px 9px !important;
+  src\styles.css:3871:}
+  src\styles.css:3872:
+  src\styles.css:3873:/* The move list belongs below the library, filling the remaining height */
+  src\styles.css:3919:
+  src\styles.css:3920:@media (max-height: 850px) {
+> src\styles.css:3921:  .board-panel .board-frame {
+  src\styles.css:3922:    width: min(100%, calc(100vh - 335px), 480px) !important;
+  src\styles.css:3923:  }
+  src\styles.css:3924:
+> src\styles.css:3925:  .board-panel .board-controls button {
+  src\styles.css:3926:    min-height: 35px !important;
+  src\styles.css:3927:    height: 35px !important;
+  src\styles.css:3928:  }
+  src\styles.css:3929:}
+  src\styles.css:3930:
+  src\styles.css:3931:@media (max-height: 720px) {
+> src\styles.css:3932:  .board-panel .board-frame {
+  src\styles.css:3933:    width: min(100%, calc(100vh - 305px), 400px) !important;
+  src\styles.css:3934:  }
+  src\styles.css:3935:
+> src\styles.css:3936:  .board-panel .board-controls button {
+  src\styles.css:3937:    min-height: 31px !important;
+  src\styles.css:3938:    height: 31px !important;
+  src\styles.css:3939:  }
+  src\styles.css:3940:}
+  src\styles.css:3941:
+  src\styles.css:3942:
+  src\styles.css:3977:
+  src\styles.css:3978:/* Compact the move-to-play status and place it alongside FEN/PGN */
+> src\styles.css:3979:.board-panel .turn-row {
+  src\styles.css:3980:  display: grid !important;
+  src\styles.css:3981:  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+  src\styles.css:3982:  gap: 5px !important;
+  src\styles.css:3983:  padding: 4px !important;
+  src\styles.css:3984:  margin-top: 2px !important;
+  src\styles.css:3985:}
+  src\styles.css:3986:
+> src\styles.css:3987:.board-panel .turn-row button {
+  src\styles.css:3988:  min-width: 0 !important;
+  src\styles.css:3989:  min-height: 29px !important;
+  src\styles.css:3990:  height: 29px !important;
+  src\styles.css:3991:  padding: 3px 5px !important;
+  src\styles.css:3992:  font-size: 10px !important;
+  src\styles.css:3993:}
+  src\styles.css:3994:
+> src\styles.css:3995:.board-panel .board-fen {
+  src\styles.css:3996:  margin-top: 2px !important;
+  src\styles.css:3997:  padding: 5px 8px !important;
+  src\styles.css:3998:  min-height: 30px !important;
+  src\styles.css:3999:}
+  src\styles.css:4000:
+  src\styles.css:4001:/* Reduce vertical gaps so the board and its controls sit higher */
+> src\styles.css:4002:.board-panel {
+  src\styles.css:4003:  gap: 2px !important;
+  src\styles.css:4004:  padding-top: 2px !important;
+  src\styles.css:4005:  padding-bottom: 3px !important;
+  src\styles.css:4006:}
+  src\styles.css:4007:
+> src\styles.css:4008:.board-panel .section-kicker {
+  src\styles.css:4009:  line-height: 1 !important;
+  src\styles.css:4010:  margin: 0 !important;
+  src\styles.css:4011:  padding: 0 !important;
+  src\styles.css:4012:}
+  src\styles.css:4013:
+> src\styles.css:4014:.board-panel .board-header {
+  src\styles.css:4015:  margin: 0 0 2px !important;
+  src\styles.css:4016:  gap: 4px !important;
+  src\styles.css:4017:}
+  src\styles.css:4018:
+> src\styles.css:4019:.board-panel .board-frame {
+  src\styles.css:4020:  width: min(100%, calc(100vh - 395px), 500px) !important;
+  src\styles.css:4021:  min-width: 0 !important;
+  src\styles.css:4022:}
+  src\styles.css:4023:
+> src\styles.css:4024:.board-panel .board-controls {
+  src\styles.css:4025:  gap: 4px !important;
+  src\styles.css:4026:  margin-top: 4px !important;
+  src\styles.css:4027:}
+  src\styles.css:4028:
+> src\styles.css:4029:.board-panel .board-controls button {
+  src\styles.css:4030:  min-height: 32px !important;
+  src\styles.css:4031:  height: 32px !important;
+  src\styles.css:4032:  padding: 4px 5px !important;
+  src\styles.css:4033:  font-size: 10px !important;
+  src\styles.css:4034:}
+  src\styles.css:4035:
+  src\styles.css:4036:@media (max-height: 820px) {
+> src\styles.css:4037:  .board-panel .board-frame {
+  src\styles.css:4038:    width: min(100%, calc(100vh - 355px), 460px) !important;
+  src\styles.css:4039:  }
+  src\styles.css:4040:}
+  src\styles.css:4041:
+  src\styles.css:4042:@media (max-height: 700px) {
+> src\styles.css:4043:  .board-panel .board-frame {
+  src\styles.css:4044:    width: min(100%, calc(100vh - 320px), 390px) !important;
+  src\styles.css:4045:  }
+  src\styles.css:4046:
+> src\styles.css:4047:  .board-panel .board-controls button {
+  src\styles.css:4048:    min-height: 28px !important;
+  src\styles.css:4049:    height: 28px !important;
+  src\styles.css:4050:  }
+  src\styles.css:4051:}
+  src\styles.css:4052:
+  src\styles.css:4053:
+  src\styles.css:4054:/* Place TO MOVE beside FEN/PGN on the same row */
+> src\styles.css:4055:.board-panel .board-controls {
+  src\styles.css:4056:  display: grid !important;
+  src\styles.css:4057:  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  src\styles.css:4058:  gap: 4px !important;
+  src\styles.css:4059:}
+  src\styles.css:4060:
+> src\styles.css:4061:.board-panel .board-controls button {
+  src\styles.css:4062:  min-width: 0 !important;
+  src\styles.css:4063:  padding-inline: 4px !important;
+  src\styles.css:4064:}
+  src\styles.css:4065:
+> src\styles.css:4066:.board-panel .turn-row {
+  src\styles.css:4067:  display: grid !important;
+  src\styles.css:4068:  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+  src\styles.css:4069:  gap: 4px !important;
+  src\styles.css:4070:}
+  src\styles.css:4071:
+  src\styles.css:4072:/* FEN, PGN, and the move-to-play controls share one horizontal row */
+> src\styles.css:4073:.board-panel .board-controls:has(button[title="FEN"]) {
+  src\styles.css:4074:  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  src\styles.css:4075:}
+  src\styles.css:4076:
+> src\styles.css:4077:.board-panel .board-controls button[title="FEN"],
+> src\styles.css:4078:.board-panel .board-controls button[title="PGN"] {
+  src\styles.css:4079:  grid-row: 3 !important;
+  src\styles.css:4080:}
+  src\styles.css:4081:
+> src\styles.css:4082:.board-panel .turn-row {
+  src\styles.css:4083:  grid-row: 3 !important;
+  src\styles.css:4084:  grid-column: 3 / 5 !important;
+  src\styles.css:4085:  align-self: stretch !important;
+  src\styles.css:4086:  margin: 0 !important;
+  src\styles.css:4087:  padding: 0 !important;
+  src\styles.css:4088:  min-width: 0 !important;
+  src\styles.css:4091:}
+  src\styles.css:4092:
+> src\styles.css:4093:.board-panel .turn-row button {
+  src\styles.css:4094:  min-width: 0 !important;
+  src\styles.css:4095:  height: 36px !important;
+  src\styles.css:4096:  min-height: 36px !important;
+  src\styles.css:4097:  padding: 3px !important;
+  src\styles.css:4098:  font-size: 10px !important;
+  src\styles.css:4099:  white-space: nowrap !important;
+  src\styles.css:4100:}
+  src\styles.css:4101:
+> src\styles.css:4102:.board-panel .turn-row > * {
+  src\styles.css:4103:  min-width: 0 !important;
+  src\styles.css:4104:}
+  src\styles.css:4105:
+  src\styles.css:4106:
+  src\styles.css:4107:/* In-app pawn promotion chooser */
+  src\styles.css:4108:.promotion-backdrop {
+  src\styles.css:4300:
+  src\styles.css:4301:/* Hide the extra section-label row above the board. */
+> src\styles.css:4302:.board-panel .section-eyebrow,
+> src\styles.css:4303:.board-panel .panel-eyebrow,
+> src\styles.css:4304:.board-panel .position-analysis-label,
+> src\styles.css:4305:.board-panel .engine-status,
+> src\styles.css:4306:.board-panel .engine-status-row {
+  src\styles.css:4307:  display: none !important;
+  src\styles.css:4308:}
+  src\styles.css:4309:
+  src\styles.css:4310:/* Collapse the header row so the board starts higher up. */
+> src\styles.css:4311:.board-panel .board-header,
+> src\styles.css:4312:.board-panel .analysis-header {
+  src\styles.css:4313:  padding-top: 0 !important;
+  src\styles.css:4314:  margin-top: 0 !important;
+  src\styles.css:4315:  row-gap: 0 !important;
+  src\styles.css:4316:}
+  src\styles.css:4317:
+  src\styles.css:4318:/* Hide the engine status indicator above the analysis board. */
+> src\styles.css:4319:.board-panel [class*="engine-status"],
+> src\styles.css:4320:.board-panel [class*="engine-indicator"],
+> src\styles.css:4321:.board-panel [class*="engine-state"],
+> src\styles.css:4322:.board-panel [class*="engine-label"],
+> src\styles.css:4323:.board-panel [class*="engine-badge"] {
+  src\styles.css:4324:  display: none !important;
+  src\styles.css:4325:}
+  src\styles.css:4326:
+  src\styles.css:4327:/* Hide the exact engine status text, wherever its wrapper is nested. */
+> src\styles.css:4328:.board-panel .engine-off,
+> src\styles.css:4329:.board-panel .engine-on,
+> src\styles.css:4330:.board-panel .engine-status-text {
+  src\styles.css:4331:  display: none !important;
+  src\styles.css:4332:}
+  src\styles.css:4333:
+  src\styles.css:4334:/* Stockfish analysis dock — clean grid, no overlapping or clipped controls. */
+  src\styles.css:4335:.analysis-strip {
+  src\styles.css:4336:  display: grid !important;
+  src\styles.css:5059:
+  src\styles.css:5060:/* Unified Chess.com-inspired analysis arrows */
+> src\styles.css:5061:.board-arrows {
+  src\styles.css:5062:  pointer-events: none !important;
+  src\styles.css:5063:}
+> src\styles.css:5064:.board-arrows .board-arrow {
+  src\styles.css:5065:  stroke-linecap: butt !important;
+  src\styles.css:5066:  stroke-linejoin: round !important;
+  src\styles.css:5067:  filter: none !important;
+  src\styles.css:5068:}
+> src\styles.css:5069:.board-arrows .board-arrow-user {
+  src\styles.css:5070:  opacity: 0.88 !important;
+  src\styles.css:5071:}
+> src\styles.css:5072:.board-arrows .board-arrow-engine {
+  src\styles.css:5073:  opacity: 0.88 !important;
+  src\styles.css:5074:}
+> src\styles.css:5075:.board-arrows .board-arrow-preview {
+  src\styles.css:5076:  opacity: 0.72 !important;
+  src\styles.css:5077:  stroke-dasharray: none !important;
+  src\styles.css:5078:}
+
+
+
+
+========== POTENTIAL SIZE CLIPPING AND ARROW RULES ==========
+
+  src\styles.css:13:  flex-direction: column;
+> src\styles.css:14:  overflow: hidden;
+  src\styles.css:15:}
+  src\styles.css:16:
+  src\styles.css:22:  max-height: none;
+> src\styles.css:23:  overflow: hidden;
+  src\styles.css:24:}
+  src\styles.css:25:
+  src\styles.css:42:  justify-content: center;
+> src\styles.css:43:  align-items: stretch;
+  src\styles.css:44:  width: 100%;
+  src\styles.css:45:  min-width: 0;
+  src\styles.css:50:.board-frame {
+> src\styles.css:51:  width: min(100%, 48vh, 440px);
+  src\styles.css:52:  min-width: 0;
+  src\styles.css:53:  flex: 0 1 auto;
+> src\styles.css:54:  aspect-ratio: 1 / 1;
+  src\styles.css:55:}
+  src\styles.css:56:
+  src\styles.css:60:  height: 100%;
+> src\styles.css:61:  overflow: hidden;
+  src\styles.css:62:}
+  src\styles.css:63:
+  src\styles.css:85:  .workspace {
+> src\styles.css:86:    grid-template-columns: 190px minmax(300px, 340px) minmax(0, 1fr);
+  src\styles.css:87:  }
+  src\styles.css:88:
+  src\styles.css:94:  .board-frame {
+> src\styles.css:95:    width: min(100%, 42vh, 340px);
+  src\styles.css:96:  }
+  src\styles.css:97:}
+  src\styles.css:101:  .workspace.library-collapsed {
+> src\styles.css:102:    grid-template-columns: minmax(0, 1fr);
+  src\styles.css:103:  }
+  src\styles.css:104:
+  src\styles.css:109:  .board-panel {
+> src\styles.css:110:    max-height: 48vh;
+  src\styles.css:111:  }
+  src\styles.css:112:
+  src\styles.css:113:  .board-frame {
+> src\styles.css:114:    width: min(100%, 38vh, 300px);
+  src\styles.css:115:  }
+  src\styles.css:116:}
+  src\styles.css:181:  min-width: 320px;
+> src\styles.css:182:  min-height: 100vh;
+  src\styles.css:183:  background: var(--bg-app);
+  src\styles.css:184:  color: var(--text-primary);
+  src\styles.css:186:  line-height: 1.45;
+> src\styles.css:187:  overflow: hidden;
+  src\styles.css:188:}
+  src\styles.css:189:
+  src\styles.css:224:button:active:not(:disabled) {
+> src\styles.css:225:  transform: translateY(1px);
+  src\styles.css:226:}
+  src\styles.css:227:
+  src\styles.css:330:.app-shell {
+> src\styles.css:331:  min-height: 100vh;
+> src\styles.css:332:  height: 100vh;
+  src\styles.css:333:  display: flex;
+  src\styles.css:334:  flex-direction: column;
+> src\styles.css:335:  overflow: hidden;
+  src\styles.css:336:  background: var(--bg-app);
+  src\styles.css:337:}
+  src\styles.css:394:.current-book strong {
+> src\styles.css:395:  overflow: hidden;
+  src\styles.css:396:  white-space: nowrap;
+  src\styles.css:397:  text-overflow: ellipsis;
+  src\styles.css:441:  display: grid;
+> src\styles.css:442:  grid-template-columns: minmax(190px, 220px) minmax(320px, 380px) minmax(0, 1fr);
+  src\styles.css:443:  background: var(--bg-app);
+> src\styles.css:444:  overflow: hidden;
+  src\styles.css:445:}
+  src\styles.css:446:
+  src\styles.css:447:.workspace.library-collapsed {
+> src\styles.css:448:  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  src\styles.css:449:}
+  src\styles.css:450:
+  src\styles.css:460:  flex-direction: column;
+> src\styles.css:461:  overflow: hidden;
+  src\styles.css:462:}
+  src\styles.css:463:
+  src\styles.css:588:  align-items: center;
+> src\styles.css:589:  position: relative;
+  src\styles.css:590:  border-radius: 6px;
+  src\styles.css:591:  margin-bottom: 3px;
+  src\styles.css:623:  justify-content: center;
+> src\styles.css:624:  position: relative;
+  src\styles.css:625:  color: #d6be90;
+  src\styles.css:626:  border-radius: 3px;
+  src\styles.css:636:  color: #a89470;
+> src\styles.css:637:  position: absolute;
+  src\styles.css:638:  bottom: 2px;
+  src\styles.css:639:}
+  src\styles.css:652:  text-overflow: ellipsis;
+> src\styles.css:653:  overflow: hidden;
+  src\styles.css:654:  font-size: 12px;
+  src\styles.css:655:  font-weight: 600;
+  src\styles.css:661:  white-space: nowrap;
+> src\styles.css:662:  overflow: hidden;
+  src\styles.css:663:  text-overflow: ellipsis;
+  src\styles.css:664:}
+  src\styles.css:679:.book-delete-button {
+> src\styles.css:680:  position: absolute;
+  src\styles.css:681:  right: 6px;
+  src\styles.css:682:  top: 50%;
+> src\styles.css:683:  transform: translateY(-50%);
+  src\styles.css:684:  z-index: 4;
+  src\styles.css:685:  width: 24px;
+  src\styles.css:855:  flex-direction: row;
+> src\styles.css:856:  align-items: stretch;
+  src\styles.css:857:  justify-content: center;
+  src\styles.css:858:  gap: 8px;
+  src\styles.css:872:  background: #201E1B;
+> src\styles.css:873:  overflow: hidden;
+  src\styles.css:874:  flex-direction: column;
+  src\styles.css:875:}
+  src\styles.css:890:  box-sizing: border-box;
+> src\styles.css:891:  width: min(100%, min(52vh, 480px));
+  src\styles.css:892:  max-width: 100%;
+  src\styles.css:893:  min-width: 220px;
+> src\styles.css:894:  aspect-ratio: 1 / 1;
+  src\styles.css:895:  padding: 3px;
+  src\styles.css:896:  background: #2D2822;
+  src\styles.css:905:  display: grid;
+> src\styles.css:906:  grid-template-columns: repeat(8, 1fr);
+  src\styles.css:907:  grid-template-rows: repeat(8, 1fr);
+  src\styles.css:908:  user-select: none;
+> src\styles.css:909:  position: relative;
+  src\styles.css:910:  touch-action: manipulation;
+  src\styles.css:911:}
+  src\styles.css:916:  margin: 0;
+> src\styles.css:917:  position: relative;
+  src\styles.css:918:  display: grid;
+  src\styles.css:919:  place-items: center;
+  src\styles.css:938:  content: "";
+> src\styles.css:939:  position: absolute;
+  src\styles.css:940:  inset: 0;
+  src\styles.css:941:  background: rgba(180, 205, 50, 0.45);
+  src\styles.css:946:  content: "";
+> src\styles.css:947:  position: absolute;
+  src\styles.css:948:  inset: 0;
+  src\styles.css:949:  background: rgba(205, 195, 45, 0.35);
+  src\styles.css:957:.piece {
+> src\styles.css:958:  position: relative;
+  src\styles.css:959:  z-index: 1;
+  src\styles.css:960:  display: flex;
+  src\styles.css:980:.legal-dot {
+> src\styles.css:981:  position: absolute;
+  src\styles.css:982:  width: 26%;
+  src\styles.css:983:  height: 26%;
+  src\styles.css:990:.legal-capture {
+> src\styles.css:991:  position: absolute;
+  src\styles.css:992:  inset: 4px;
+  src\styles.css:993:  z-index: 2;
+  src\styles.css:1000:.file-coordinate {
+> src\styles.css:1001:  position: absolute;
+  src\styles.css:1002:  z-index: 2;
+  src\styles.css:1003:  pointer-events: none;
+  src\styles.css:1284:  white-space: nowrap;
+> src\styles.css:1285:  overflow: hidden;
+  src\styles.css:1286:  text-overflow: ellipsis;
+  src\styles.css:1287:}
+  src\styles.css:1304:  background: #1C1B18;
+> src\styles.css:1305:  overflow: hidden;
+  src\styles.css:1306:}
+  src\styles.css:1307:
+  src\styles.css:1348:  color: var(--text-primary);
+> src\styles.css:1349:  overflow: hidden;
+  src\styles.css:1350:  text-overflow: ellipsis;
+  src\styles.css:1351:  white-space: nowrap;
+  src\styles.css:1471:  min-height: 0;
+> src\styles.css:1472:  position: relative;
+  src\styles.css:1473:  overflow: auto;
+  src\styles.css:1474:  display: flex;
+  src\styles.css:1522:.page-stage {
+> src\styles.css:1523:  position: relative;
+  src\styles.css:1524:  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  src\styles.css:1525:  background: #FFFFFF;
+  src\styles.css:1535:.diagram-overlay {
+> src\styles.css:1536:  position: absolute;
+  src\styles.css:1537:  box-sizing: border-box;
+  src\styles.css:1538:  border: 2px solid rgba(129, 182, 76, 0.7);
+  src\styles.css:1562:.crop-handle {
+> src\styles.css:1563:  position: absolute;
+  src\styles.css:1564:  width: 10px;
+  src\styles.css:1565:  height: 10px;
+  src\styles.css:1649:  color: var(--text-muted);
+> src\styles.css:1650:  overflow: hidden;
+  src\styles.css:1651:  text-overflow: ellipsis;
+  src\styles.css:1652:  white-space: nowrap;
+  src\styles.css:1785:  color: var(--text-secondary);
+> src\styles.css:1786:  overflow: hidden;
+  src\styles.css:1787:  text-overflow: ellipsis;
+  src\styles.css:1788:  white-space: nowrap;
+  src\styles.css:1810:  width: min(840px, 100%);
+> src\styles.css:1811:  max-height: calc(100vh - 32px);
+  src\styles.css:1812:  overflow-y: auto;
+  src\styles.css:1813:  padding: 20px 22px;
+  src\styles.css:1902:  display: grid;
+> src\styles.css:1903:  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr);
+  src\styles.css:1904:  gap: 16px;
+  src\styles.css:1905:  align-items: center;
+  src\styles.css:1944:@keyframes spin {
+> src\styles.css:1945:  to { transform: rotate(360deg); }
+  src\styles.css:1946:}
+  src\styles.css:1947:
+  src\styles.css:1950:  display: grid;
+> src\styles.css:1951:  grid-template-columns: minmax(280px, 340px) minmax(220px, 1fr);
+  src\styles.css:1952:  gap: 20px;
+  src\styles.css:1953:  align-items: start;
+  src\styles.css:1964:  width: 100%;
+> src\styles.css:1965:  aspect-ratio: 1;
+  src\styles.css:1966:  display: grid;
+> src\styles.css:1967:  grid-template-columns: repeat(8, 1fr);
+  src\styles.css:1968:  grid-template-rows: repeat(8, 1fr);
+  src\styles.css:1969:  border: 3px solid #332B21;
+  src\styles.css:1970:  border-radius: 4px;
+> src\styles.css:1971:  overflow: hidden;
+> src\styles.css:1972:  position: relative;
+  src\styles.css:1973:  user-select: none;
+  src\styles.css:1974:}
+  src\styles.css:1983:  border-radius: 0;
+> src\styles.css:1984:  position: relative;
+  src\styles.css:1985:  cursor: pointer;
+  src\styles.css:1986:}
+  src\styles.css:2059:  display: grid;
+> src\styles.css:2060:  grid-template-columns: repeat(6, 1fr);
+  src\styles.css:2061:  gap: 5px;
+  src\styles.css:2062:}
+  src\styles.css:2064:.palette-piece-btn {
+> src\styles.css:2065:  aspect-ratio: 1;
+  src\styles.css:2066:  padding: 3px;
+  src\styles.css:2067:  display: grid;
+  src\styles.css:2092:  box-shadow: 0 0 0 1px var(--green-primary);
+> src\styles.css:2093:  transform: translateY(-1px);
+  src\styles.css:2094:}
+  src\styles.css:2095:
+  src\styles.css:2173:  display: grid;
+> src\styles.css:2174:  grid-template-columns: 1fr 1fr;
+  src\styles.css:2175:  gap: 6px;
+  src\styles.css:2176:}
+  src\styles.css:2344:.startup {
+> src\styles.css:2345:  height: 100vh;
+  src\styles.css:2346:  display: flex;
+  src\styles.css:2347:  flex-direction: column;
+  src\styles.css:2370:  .workspace {
+> src\styles.css:2371:    grid-template-columns: 210px minmax(340px, 380px) minmax(0, 1fr);
+  src\styles.css:2372:  }
+  src\styles.css:2373:  .workspace.library-collapsed {
+> src\styles.css:2374:    grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+  src\styles.css:2375:  }
+  src\styles.css:2376:}
+  src\styles.css:2379:  .workspace {
+> src\styles.css:2380:    grid-template-columns: 200px minmax(320px, 360px) minmax(0, 1fr);
+  src\styles.css:2381:  }
+  src\styles.css:2382:  .workspace.library-collapsed {
+> src\styles.css:2383:    grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+  src\styles.css:2384:  }
+  src\styles.css:2385:}
+  src\styles.css:2388:  .workspace:not(.library-collapsed) {
+> src\styles.css:2389:    grid-template-columns: 100%;
+  src\styles.css:2390:  }
+  src\styles.css:2391:  .library-panel {
+  src\styles.css:2394:  .workspace.library-collapsed {
+> src\styles.css:2395:    grid-template-columns: 100%;
+  src\styles.css:2396:  }
+  src\styles.css:2397:  .manual-editor-workspace {
+> src\styles.css:2398:    grid-template-columns: 1fr;
+  src\styles.css:2399:  }
+  src\styles.css:2400:  .manual-chessboard {
+  src\styles.css:2404:  .recognition-layout {
+> src\styles.css:2405:    grid-template-columns: 1fr;
+  src\styles.css:2406:  }
+  src\styles.css:2407:}
+  src\styles.css:2447:  box-shadow: 0 3px 9px rgba(0, 0, 0, .22);
+> src\styles.css:2448:  transform: translateY(-1px);
+  src\styles.css:2449:}
+  src\styles.css:2450:
+  src\styles.css:2453:.board-panel .turn-row button:active {
+> src\styles.css:2454:  transform: translateY(0);
+  src\styles.css:2455:  box-shadow: none;
+  src\styles.css:2456:}
+  src\styles.css:2469:  cursor: not-allowed;
+> src\styles.css:2470:  transform: none;
+  src\styles.css:2471:  box-shadow: none;
+  src\styles.css:2472:}
+  src\styles.css:2528:  border-radius: 9px;
+> src\styles.css:2529:  overflow: hidden;
+  src\styles.css:2530:}
+  src\styles.css:2531:
+  src\styles.css:2578:  flex: 0 0 auto;
+> src\styles.css:2579:  width: min(100%, min(52vh, 480px));
+  src\styles.css:2580:  min-width: 0;
+  src\styles.css:2581:  max-width: 100%;
+  src\styles.css:2586:  display: grid;
+> src\styles.css:2587:  grid-template-columns: repeat(4, minmax(0, 1fr));
+> src\styles.css:2588:  align-items: stretch;
+  src\styles.css:2589:  gap: 7px;
+  src\styles.css:2590:  width: 100%;
+  src\styles.css:2615:  display: grid;
+> src\styles.css:2616:  grid-template-columns: auto repeat(2, minmax(0, 1fr)) minmax(0, 1.25fr);
+  src\styles.css:2617:  align-items: center;
+  src\styles.css:2618:  gap: 7px;
+  src\styles.css:2673:  border-radius: 9px;
+> src\styles.css:2674:  overflow: hidden;
+  src\styles.css:2675:}
+  src\styles.css:2676:
+  src\styles.css:2699:  .board-controls {
+> src\styles.css:2700:    grid-template-columns: repeat(4, minmax(0, 1fr));
+  src\styles.css:2701:  }
+  src\styles.css:2702:
+  src\styles.css:2703:  .turn-row {
+> src\styles.css:2704:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:2705:  }
+  src\styles.css:2706:
+  src\styles.css:2730:  .turn-row {
+> src\styles.css:2731:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:2732:    padding: 8px;
+  src\styles.css:2733:  }
+  src\styles.css:2755:  flex-direction: column;
+> src\styles.css:2756:  align-items: stretch;
+  src\styles.css:2757:  gap: 0;
+> src\styles.css:2758:  overflow: hidden;
+  src\styles.css:2759:}
+  src\styles.css:2760:
+  src\styles.css:2792:  flex-shrink: 0;
+> src\styles.css:2793:  aspect-ratio: 1;
+  src\styles.css:2794:  box-sizing: border-box;
+  src\styles.css:2795:}
+  src\styles.css:2798:  display: grid;
+> src\styles.css:2799:  grid-template-columns: repeat(4, minmax(0, 1fr));
+> src\styles.css:2800:  align-items: stretch;
+  src\styles.css:2801:  gap: 8px;
+  src\styles.css:2802:  width: 100%;
+  src\styles.css:2833:  display: grid;
+> src\styles.css:2834:  grid-template-columns: repeat(3, minmax(0, 1fr));
+  src\styles.css:2835:  align-items: center;
+  src\styles.css:2836:  gap: 8px;
+  src\styles.css:2930:  display: grid;
+> src\styles.css:2931:  grid-template-columns: 34px repeat(2, minmax(0, 1fr));
+  src\styles.css:2932:  align-items: center;
+  src\styles.css:2933:  gap: 6px;
+  src\styles.css:2962:  .board-controls {
+> src\styles.css:2963:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:2964:  }
+  src\styles.css:2965:
+  src\styles.css:2991:  .board-controls {
+> src\styles.css:2992:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:2993:    gap: 7px;
+  src\styles.css:2994:  }
+  src\styles.css:3002:  .turn-row {
+> src\styles.css:3003:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:3004:    gap: 7px;
+  src\styles.css:3005:    padding: 8px;
+  src\styles.css:3013:    flex-direction: column;
+> src\styles.css:3014:    align-items: stretch;
+  src\styles.css:3015:  }
+  src\styles.css:3016:
+  src\styles.css:3023:  .move-pair {
+> src\styles.css:3024:    grid-template-columns: 28px repeat(2, minmax(0, 1fr));
+  src\styles.css:3025:  }
+  src\styles.css:3026:}
+  src\styles.css:3039:  justify-content: center;
+> src\styles.css:3040:  align-items: stretch;
+  src\styles.css:3041:  width: 100%;
+  src\styles.css:3042:  min-width: 0;
+  src\styles.css:3045:.board-frame {
+> src\styles.css:3046:  width: min(100%, 42vh, 340px);
+  src\styles.css:3047:  min-width: 0;
+  src\styles.css:3048:  flex: 0 1 auto;
+  src\styles.css:3052:  display: grid !important;
+> src\styles.css:3053:  grid-template-columns: repeat(4, minmax(0, 1fr));
+> src\styles.css:3054:  align-items: stretch;
+  src\styles.css:3055:  gap: 6px !important;
+  src\styles.css:3056:  width: 100%;
+  src\styles.css:3089:  display: grid;
+> src\styles.css:3090:  grid-template-columns: repeat(3, minmax(0, 1fr));
+  src\styles.css:3091:  align-items: center;
+  src\styles.css:3092:  gap: 6px;
+  src\styles.css:3149:  .board-panel .board-controls {
+> src\styles.css:3150:    grid-template-columns: repeat(3, minmax(0, 1fr));
+  src\styles.css:3151:  }
+  src\styles.css:3152:
+  src\styles.css:3153:  .board-panel .turn-row {
+> src\styles.css:3154:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:3155:  }
+  src\styles.css:3156:}
+  src\styles.css:3159:  .board-panel .board-controls {
+> src\styles.css:3160:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:3161:  }
+  src\styles.css:3162:
+  src\styles.css:3181:  box-sizing: border-box;
+> src\styles.css:3182:  width: min(100%, 52vh, 440px);
+  src\styles.css:3183:  min-width: 0;
+> src\styles.css:3184:  aspect-ratio: 1 / 1;
+  src\styles.css:3185:  flex: 0 1 auto;
+  src\styles.css:3186:}
+  src\styles.css:3210:  .board-panel { padding-inline: 10px; }
+> src\styles.css:3211:  .board-frame { width: min(100%, 46vh, 390px); }
+  src\styles.css:3212:}
+  src\styles.css:3213:
+  src\styles.css:3215:.workspace {
+> src\styles.css:3216:  grid-template-columns: 220px minmax(450px, 36%) minmax(0, 1fr) !important;
+  src\styles.css:3217:}
+  src\styles.css:3218:
+  src\styles.css:3219:.workspace.library-collapsed {
+> src\styles.css:3220:  grid-template-columns: minmax(450px, 36%) minmax(0, 1fr) !important;
+  src\styles.css:3221:}
+  src\styles.css:3222:
+  src\styles.css:3257:.board-frame {
+> src\styles.css:3258:  width: min(100%, 58vh, 560px);
+  src\styles.css:3259:  max-width: 100%;
+  src\styles.css:3260:  min-width: 0;
+  src\styles.css:3261:  flex: 0 1 auto;
+> src\styles.css:3262:  aspect-ratio: 1 / 1;
+  src\styles.css:3263:}
+  src\styles.css:3264:
+  src\styles.css:3287:  .workspace {
+> src\styles.css:3288:    grid-template-columns: 200px minmax(410px, 38%) minmax(0, 1fr) !important;
+  src\styles.css:3289:  }
+  src\styles.css:3290:  .workspace.library-collapsed {
+> src\styles.css:3291:    grid-template-columns: minmax(410px, 38%) minmax(0, 1fr) !important;
+  src\styles.css:3292:  }
+  src\styles.css:3293:  .board-frame {
+> src\styles.css:3294:    width: min(100%, 54vh, 480px);
+  src\styles.css:3295:  }
+  src\styles.css:3296:}
+  src\styles.css:3300:  .workspace.library-collapsed {
+> src\styles.css:3301:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:3302:  }
+  src\styles.css:3303:  .board-frame {
+  src\styles.css:3314:  height: 100%;
+> src\styles.css:3315:  overflow: hidden;
+> src\styles.css:3316:  grid-template-columns: 220px minmax(470px, 39%) minmax(0, 1fr) !important;
+  src\styles.css:3317:}
+  src\styles.css:3318:
+  src\styles.css:3319:.workspace.library-collapsed {
+> src\styles.css:3320:  grid-template-columns: minmax(470px, 39%) minmax(0, 1fr) !important;
+  src\styles.css:3321:}
+  src\styles.css:3322:
+  src\styles.css:3383:  box-sizing: border-box;
+> src\styles.css:3384:  width: min(100%, calc(100vh - 340px), 560px);
+  src\styles.css:3385:  max-width: 100%;
+  src\styles.css:3386:  min-width: 0;
+  src\styles.css:3387:  flex: 0 1 auto;
+> src\styles.css:3388:  aspect-ratio: 1 / 1;
+  src\styles.css:3389:}
+  src\styles.css:3390:
+  src\styles.css:3431:  height: 100%;
+> src\styles.css:3432:  overflow: hidden;
+  src\styles.css:3433:}
+  src\styles.css:3434:
+  src\styles.css:3457:  .board-frame {
+> src\styles.css:3458:    width: min(100%, calc(100vh - 310px), 500px);
+  src\styles.css:3459:  }
+  src\styles.css:3460:
+  src\styles.css:3478:  .workspace {
+> src\styles.css:3479:    grid-template-columns: 205px minmax(430px, 40%) minmax(0, 1fr) !important;
+  src\styles.css:3480:  }
+  src\styles.css:3481:
+  src\styles.css:3482:  .workspace.library-collapsed {
+> src\styles.css:3483:    grid-template-columns: minmax(430px, 40%) minmax(0, 1fr) !important;
+  src\styles.css:3484:  }
+  src\styles.css:3485:}
+  src\styles.css:3489:  .workspace.library-collapsed {
+> src\styles.css:3490:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:3491:  }
+  src\styles.css:3492:
+  src\styles.css:3493:  .board-frame {
+> src\styles.css:3494:    width: min(100%, calc(100vh - 300px), 460px);
+  src\styles.css:3495:  }
+  src\styles.css:3496:
+  src\styles.css:3530:  display: grid !important;
+> src\styles.css:3531:  grid-template-columns: minmax(0, 1fr) auto !important;
+  src\styles.css:3532:  grid-template-rows: auto !important;
+  src\styles.css:3533:  align-items: center !important;
+  src\styles.css:3590:  padding: 0 9px 8px;
+> src\styles.css:3591:  overflow: hidden;
+  src\styles.css:3592:  border-top: 1px solid var(--border-subtle);
+  src\styles.css:3593:}
+  src\styles.css:3600:  margin: 0;
+> src\styles.css:3601:  overflow: hidden;
+  src\styles.css:3602:}
+  src\styles.css:3603:
+  src\styles.css:3621:  display: grid;
+> src\styles.css:3622:  grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr);
+  src\styles.css:3623:  gap: 2px;
+  src\styles.css:3624:  width: 100%;
+  src\styles.css:3630:  padding: 3px 4px;
+> src\styles.css:3631:  overflow: hidden;
+  src\styles.css:3632:  text-overflow: ellipsis;
+  src\styles.css:3633:}
+  src\styles.css:3644:  min-height: 0;
+> src\styles.css:3645:  overflow: hidden;
+  src\styles.css:3646:}
+  src\styles.css:3647:
+  src\styles.css:3653:  padding: 0 8px 6px !important;
+> src\styles.css:3654:  overflow: hidden !important;
+  src\styles.css:3655:}
+  src\styles.css:3656:
+  src\styles.css:3660:  height: 100% !important;
+> src\styles.css:3661:  overflow: hidden !important;
+  src\styles.css:3662:}
+  src\styles.css:3663:
+  src\styles.css:3714:.board-panel .board-frame {
+> src\styles.css:3715:  width: min(100%, calc(100vh - 400px), 520px) !important;
+  src\styles.css:3716:  min-width: 0 !important;
+  src\styles.css:3717:  flex: 0 1 auto !important;
+  src\styles.css:3723:  justify-content: center !important;
+> src\styles.css:3724:  align-items: stretch !important;
+  src\styles.css:3725:  gap: 4px !important;
+  src\styles.css:3726:  margin-top: 4px !important;
+  src\styles.css:3782:  .board-panel .board-frame {
+> src\styles.css:3783:    width: min(100%, calc(100vh - 380px), 470px) !important;
+  src\styles.css:3784:  }
+  src\styles.css:3785:
+  src\styles.css:3795:  .board-panel .board-frame {
+> src\styles.css:3796:    width: min(100%, calc(100vh - 330px), 400px) !important;
+  src\styles.css:3797:  }
+  src\styles.css:3798:}
+  src\styles.css:3819:.board-panel .board-frame {
+> src\styles.css:3820:  width: min(100%, calc(100vh - 365px), 520px) !important;
+  src\styles.css:3821:  min-width: 0 !important;
+  src\styles.css:3822:}
+  src\styles.css:3825:  display: grid !important;
+> src\styles.css:3826:  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  src\styles.css:3827:  grid-auto-flow: row !important;
+> src\styles.css:3828:  align-items: stretch !important;
+  src\styles.css:3829:  gap: 6px !important;
+  src\styles.css:3830:  margin-top: 8px !important;
+  src\styles.css:3845:  display: grid !important;
+> src\styles.css:3846:  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+  src\styles.css:3847:  gap: 5px !important;
+  src\styles.css:3848:  align-items: center !important;
+  src\styles.css:3879:  padding: 0 8px 8px !important;
+> src\styles.css:3880:  overflow: hidden !important;
+  src\styles.css:3881:}
+  src\styles.css:3882:
+  src\styles.css:3888:  height: 100% !important;
+> src\styles.css:3889:  overflow: hidden !important;
+  src\styles.css:3890:}
+  src\styles.css:3891:
+  src\styles.css:3909:  display: grid !important;
+> src\styles.css:3910:  grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) !important;
+  src\styles.css:3911:  width: 100% !important;
+  src\styles.css:3912:}
+  src\styles.css:3915:  min-width: 0 !important;
+> src\styles.css:3916:  overflow: hidden !important;
+  src\styles.css:3917:  text-overflow: ellipsis !important;
+  src\styles.css:3918:}
+  src\styles.css:3921:  .board-panel .board-frame {
+> src\styles.css:3922:    width: min(100%, calc(100vh - 335px), 480px) !important;
+  src\styles.css:3923:  }
+  src\styles.css:3924:
+  src\styles.css:3932:  .board-panel .board-frame {
+> src\styles.css:3933:    width: min(100%, calc(100vh - 305px), 400px) !important;
+  src\styles.css:3934:  }
+  src\styles.css:3935:
+  src\styles.css:3947:  min-height: 0 !important;
+> src\styles.css:3948:  overflow: hidden !important;
+  src\styles.css:3949:}
+  src\styles.css:3950:
+  src\styles.css:3956:  padding: 0 8px 8px !important;
+> src\styles.css:3957:  overflow: hidden !important;
+  src\styles.css:3958:}
+  src\styles.css:3959:
+  src\styles.css:3965:  height: 100% !important;
+> src\styles.css:3966:  overflow: hidden !important;
+  src\styles.css:3967:}
+  src\styles.css:3968:
+  src\styles.css:3980:  display: grid !important;
+> src\styles.css:3981:  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+  src\styles.css:3982:  gap: 5px !important;
+  src\styles.css:3983:  padding: 4px !important;
+  src\styles.css:4019:.board-panel .board-frame {
+> src\styles.css:4020:  width: min(100%, calc(100vh - 395px), 500px) !important;
+  src\styles.css:4021:  min-width: 0 !important;
+  src\styles.css:4022:}
+  src\styles.css:4037:  .board-panel .board-frame {
+> src\styles.css:4038:    width: min(100%, calc(100vh - 355px), 460px) !important;
+  src\styles.css:4039:  }
+  src\styles.css:4040:}
+  src\styles.css:4043:  .board-panel .board-frame {
+> src\styles.css:4044:    width: min(100%, calc(100vh - 320px), 390px) !important;
+  src\styles.css:4045:  }
+  src\styles.css:4046:
+  src\styles.css:4056:  display: grid !important;
+> src\styles.css:4057:  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  src\styles.css:4058:  gap: 4px !important;
+  src\styles.css:4059:}
+  src\styles.css:4067:  display: grid !important;
+> src\styles.css:4068:  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+  src\styles.css:4069:  gap: 4px !important;
+  src\styles.css:4070:}
+  src\styles.css:4073:.board-panel .board-controls:has(button[title="FEN"]) {
+> src\styles.css:4074:  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  src\styles.css:4075:}
+  src\styles.css:4076:
+  src\styles.css:4128:.promotion-dialog p { margin: 0 0 18px; color: #c3b9ad; font-size: 13px; }
+> src\styles.css:4129:.promotion-choices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  src\styles.css:4130:.promotion-choices button {
+  src\styles.css:4131:  display: flex; min-width: 0; min-height: 96px; flex-direction: column;
+  src\styles.css:4198:  display: grid;
+> src\styles.css:4199:  grid-template-columns: 1fr 1fr;
+  src\styles.css:4200:  gap: 10px;
+  src\styles.css:4201:}
+  src\styles.css:4222:@keyframes game-end-enter {
+> src\styles.css:4223:  from { opacity: 0; transform: translateY(8px) scale(.98); }
+> src\styles.css:4224:  to { opacity: 1; transform: translateY(0) scale(1); }
+  src\styles.css:4225:}
+  src\styles.css:4226:
+  src\styles.css:4238:  min-height: 0 !important;
+> src\styles.css:4239:  overflow: hidden !important;
+  src\styles.css:4240:}
+  src\styles.css:4241:
+  src\styles.css:4250:  padding-bottom: 0 !important;
+> src\styles.css:4251:  overflow: hidden !important;
+  src\styles.css:4252:}
+  src\styles.css:4253:
+  src\styles.css:4261:  margin: 0 !important;
+> src\styles.css:4262:  overflow: hidden !important;
+  src\styles.css:4263:}
+  src\styles.css:4264:
+  src\styles.css:4288:  min-height: 0 !important;
+> src\styles.css:4289:  max-height: 22vh !important;
+  src\styles.css:4290:  overflow-y: auto !important;
+  src\styles.css:4291:  overflow-x: hidden !important;
+  src\styles.css:4336:  display: grid !important;
+> src\styles.css:4337:  grid-template-columns:
+  src\styles.css:4338:    minmax(145px, 1.25fr)
+  src\styles.css:4339:    minmax(112px, .95fr)
+  src\styles.css:4353:  box-sizing: border-box !important;
+> src\styles.css:4354:  overflow: hidden !important;
+  src\styles.css:4355:  background: linear-gradient(180deg, #292724 0%, #23211f 100%) !important;
+  src\styles.css:4356:  border-top: 1px solid #3b3833 !important;
+  src\styles.css:4359:.analysis-strip > * {
+> src\styles.css:4360:  position: relative !important;
+  src\styles.css:4361:  min-width: 0 !important;
+  src\styles.css:4362:  max-width: 100% !important;
+  src\styles.css:4371:  min-width: 0 !important;
+> src\styles.css:4372:  overflow: hidden !important;
+  src\styles.css:4373:}
+  src\styles.css:4374:
+  src\styles.css:4388:  min-width: 0 !important;
+> src\styles.css:4389:  overflow: hidden !important;
+  src\styles.css:4390:}
+  src\styles.css:4391:
+  src\styles.css:4395:  white-space: nowrap !important;
+> src\styles.css:4396:  overflow: hidden !important;
+  src\styles.css:4397:  text-overflow: ellipsis !important;
+  src\styles.css:4398:}
+  src\styles.css:4403:  white-space: nowrap !important;
+> src\styles.css:4404:  overflow: hidden !important;
+  src\styles.css:4405:  text-overflow: ellipsis !important;
+  src\styles.css:4406:}
+  src\styles.css:4452:  min-width: 0 !important;
+> src\styles.css:4453:  overflow: hidden !important;
+  src\styles.css:4454:}
+  src\styles.css:4455:
+  src\styles.css:4472:  white-space: nowrap !important;
+> src\styles.css:4473:  overflow: hidden !important;
+  src\styles.css:4474:  text-overflow: ellipsis !important;
+  src\styles.css:4475:}
+  src\styles.css:4483:  max-width: 100% !important;
+> src\styles.css:4484:  overflow: hidden !important;
+  src\styles.css:4485:}
+  src\styles.css:4486:
+  src\styles.css:4499:  -webkit-line-clamp: 2 !important;
+> src\styles.css:4500:  overflow: hidden !important;
+  src\styles.css:4501:}
+  src\styles.css:4502:
+  src\styles.css:4504:  .analysis-strip {
+> src\styles.css:4505:    grid-template-columns:
+  src\styles.css:4506:      minmax(135px, 1.2fr)
+  src\styles.css:4507:      minmax(108px, 1fr)
+  src\styles.css:4516:    display: grid !important;
+> src\styles.css:4517:    grid-template-columns: minmax(130px, .35fr) minmax(0, 1fr) !important;
+  src\styles.css:4518:    align-items: center !important;
+  src\styles.css:4519:    gap: 12px !important;
+  src\styles.css:4530:  .analysis-strip {
+> src\styles.css:4531:    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  src\styles.css:4532:    gap: 10px !important;
+  src\styles.css:4533:    padding: 10px !important;
+  src\styles.css:4537:    grid-column: 1 / -1 !important;
+> src\styles.css:4538:    grid-template-columns: 1fr !important;
+  src\styles.css:4539:    gap: 5px !important;
+  src\styles.css:4540:  }
+  src\styles.css:4545:  display: grid !important;
+> src\styles.css:4546:  grid-template-columns: minmax(130px, 1.35fr) auto auto minmax(78px, .75fr) minmax(70px, .65fr) minmax(120px, 1.4fr) !important;
+  src\styles.css:4547:  align-items: center !important;
+  src\styles.css:4548:  gap: 8px !important;
+  src\styles.css:4570:  min-width: 0 !important;
+> src\styles.css:4571:  overflow: hidden !important;
+  src\styles.css:4572:}
+  src\styles.css:4573:
+  src\styles.css:4590:  white-space: nowrap !important;
+> src\styles.css:4591:  overflow: hidden !important;
+  src\styles.css:4592:  text-overflow: ellipsis !important;
+  src\styles.css:4593:}
+  src\styles.css:4598:  white-space: nowrap !important;
+> src\styles.css:4599:  overflow: hidden !important;
+  src\styles.css:4600:  text-overflow: ellipsis !important;
+  src\styles.css:4601:}
+  src\styles.css:4645:  min-width: 0 !important;
+> src\styles.css:4646:  overflow: hidden !important;
+  src\styles.css:4647:}
+  src\styles.css:4648:
+  src\styles.css:4662:  white-space: nowrap !important;
+> src\styles.css:4663:  overflow: hidden !important;
+  src\styles.css:4664:  text-overflow: ellipsis !important;
+  src\styles.css:4665:}
+  src\styles.css:4672:  min-width: 0 !important;
+> src\styles.css:4673:  overflow: hidden !important;
+  src\styles.css:4674:  padding-left: 8px !important;
+  src\styles.css:4675:  border-left: 1px solid #403c36 !important;
+  src\styles.css:4684:  white-space: nowrap !important;
+> src\styles.css:4685:  overflow: hidden !important;
+  src\styles.css:4686:  text-overflow: ellipsis !important;
+  src\styles.css:4687:  overflow-wrap: normal !important;
+  src\styles.css:4692:  .analysis-strip {
+> src\styles.css:4693:    grid-template-columns: minmax(105px, 1.2fr) auto minmax(62px, .65fr) minmax(68px, .7fr) minmax(58px, .6fr) !important;
+  src\styles.css:4694:    gap: 7px !important;
+  src\styles.css:4695:    padding: 7px 9px !important;
+  src\styles.css:4720:  .analysis-strip {
+> src\styles.css:4721:    grid-template-columns: minmax(0, 1fr) auto auto !important;
+  src\styles.css:4722:    gap: 8px !important;
+  src\styles.css:4723:  }
+  src\styles.css:4743:    display: grid !important;
+> src\styles.css:4744:    grid-template-columns: 110px minmax(0, 1fr) !important;
+  src\styles.css:4745:    align-items: center !important;
+  src\styles.css:4746:    gap: 8px !important;
+  src\styles.css:4760:  display: grid !important;
+> src\styles.css:4761:  grid-template-columns: minmax(125px, 1.35fr) minmax(112px, auto) minmax(76px, .65fr) minmax(74px, .7fr) minmax(74px, .7fr) minmax(120px, 1.5fr) !important;
+  src\styles.css:4762:  align-items: center !important;
+  src\styles.css:4763:  gap: 10px !important;
+  src\styles.css:4767:  padding: 8px 12px !important;
+> src\styles.css:4768:  overflow: hidden !important;
+  src\styles.css:4769:  box-sizing: border-box !important;
+  src\styles.css:4770:}
+  src\styles.css:4787:  min-width: 0 !important;
+> src\styles.css:4788:  overflow: hidden !important;
+  src\styles.css:4789:}
+  src\styles.css:4790:
+  src\styles.css:4799:  min-width: 0 !important;
+> src\styles.css:4800:  overflow: hidden !important;
+  src\styles.css:4801:}
+  src\styles.css:4802:
+  src\styles.css:4807:  white-space: nowrap !important;
+> src\styles.css:4808:  overflow: hidden !important;
+  src\styles.css:4809:  text-overflow: ellipsis !important;
+  src\styles.css:4810:}
+  src\styles.css:4855:  min-width: 0 !important;
+> src\styles.css:4856:  overflow: hidden !important;
+  src\styles.css:4857:}
+  src\styles.css:4858:
+  src\styles.css:4869:  white-space: nowrap !important;
+> src\styles.css:4870:  overflow: hidden !important;
+  src\styles.css:4871:  text-overflow: ellipsis !important;
+  src\styles.css:4872:}
+  src\styles.css:4879:  min-width: 0 !important;
+> src\styles.css:4880:  overflow: hidden !important;
+  src\styles.css:4881:  border-left: 1px solid #45413a !important;
+  src\styles.css:4882:  padding-left: 10px !important;
+  src\styles.css:4895:  white-space: nowrap !important;
+> src\styles.css:4896:  overflow: hidden !important;
+  src\styles.css:4897:  text-overflow: ellipsis !important;
+  src\styles.css:4898:  overflow-wrap: normal !important;
+  src\styles.css:4902:  .analysis-strip {
+> src\styles.css:4903:    grid-template-columns: minmax(100px, 1.2fr) minmax(100px, auto) 52px 65px 65px minmax(95px, 1fr) !important;
+  src\styles.css:4904:    gap: 7px !important;
+  src\styles.css:4905:    padding: 7px 9px !important;
+  src\styles.css:4927:  .analysis-strip {
+> src\styles.css:4928:    grid-template-columns: minmax(0, 1fr) auto auto !important;
+  src\styles.css:4929:    gap: 8px !important;
+  src\styles.css:4930:  }
+  src\styles.css:4947:    display: grid !important;
+> src\styles.css:4948:    grid-template-columns: 110px minmax(0, 1fr) !important;
+  src\styles.css:4949:    align-items: center !important;
+  src\styles.css:4950:    border-left: 0 !important;
+  src\styles.css:4986:  border-radius: 13px !important;
+> src\styles.css:4987:  overflow: hidden;
+  src\styles.css:4988:  background: linear-gradient(145deg, #293d2a, #18251d) !important;
+  src\styles.css:4989:  border: 1px solid rgba(129, 182, 76, .38) !important;
+  src\styles.css:5015:  background-color: #292a27 !important;
+> src\styles.css:5016:  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a7d76f' stroke-width='2.5' stroke-linecap='round' 
+stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  src\styles.css:5017:  background-repeat: no-repeat !important;
+  src\styles.css:5018:  background-position: right 11px center !important;
+
+
+
+
+========== GIT STATUS ==========
+ M src/App.tsx
+ M src/board-annotations.test.ts
+ M src/board-annotations.ts
+ M src/position-editor.test.ts
+ M src/position-editor.ts
+ M src/styles.css
+ M src/test-setup.ts
+?? BOARD_ARROW_DIAGNOSTIC.txt
+?? CHESSBOOKREADER_AUDIT.txt
+?? ChessBookReader-Repair-Preflight.txt
+?? ChessBookReader.bat
+?? Main-Board-Piece-Rendering.txt
+?? Piece-Sprite-Structure.txt
+?? board-overflow-diagnostic.txt
+?? build-diagnostic.txt
+?? evaluation-layout-review-20261017-213248.txt
+?? evaluation-layout-review.txt
+?? piece-render-diagnostic.txt
+?? recognition-board-diagnostic.txt
+?? recognition-piece-fix-check.txt
+?? research/
+?? scripts/
+?? src/App.test.tsx
+?? src/ManualBoardEditor.test.tsx
+?? src/ManualBoardEditor.tsx
+?? src/notation-detection.ts
+?? src/styles.css.layout-backup
+?? src/styles.css.step2c-backup-20261022-223555
+

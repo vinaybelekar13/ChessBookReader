@@ -1,0 +1,204 @@
+﻿CHESSBOOKREADER REPAIR PREFLIGHT - 10/17/2026 20:50:55
+
+==========================================================================================
+FILE: src\App.tsx
+==========================================================================================
+
+  src\App.tsx:45:  n: "Black knight", b: "Black bishop", r: "Black rook", q: "Black queen", k: "Black king",
+  src\App.tsx:46:};
+> src\App.tsx:47:const PIECE_ASSETS: Record<string, string> = {
+  src\App.tsx:48:  P: "wp", N: "wn", B: "wb", R: "wr", Q: "wq", K: "wk",
+  src\App.tsx:49:  p: "bp", n: "bn", b: "bb", r: "br", q: "bq", k: "bk",
+  src\App.tsx:50:};
+  src\App.tsx:1035:
+  src\App.tsx:1036:  async function expandBoard() {
+> src\App.tsx:1037:    const target = document.querySelector(".board-frame");
+  src\App.tsx:1038:    if (!target) return;
+  src\App.tsx:1039:    try {
+  src\App.tsx:1040:      if (document.fullscreenElement) await document.exitFullscreen();
+  src\App.tsx:1220:                      onDragEnd={() => setSelectedSquare(null)}
+  src\App.tsx:1221:                    >
+> src\App.tsx:1222:                      {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><svg viewBox="0 0 40 40" focusable="false"><use 
+href={`${import.meta.env.BASE_URL}assets/pieces/standard.svg#${piece.color}${piece.type}`} /></svg></span>}
+  src\App.tsx:1223:                      {legal && <span className={piece ? "legal-capture" : "legal-dot"} />}
+  src\App.tsx:1224:                      {session?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
+  src\App.tsx:1225:                      {session?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
+  src\App.tsx:1454:                  title={`${"abcdefgh"[col]}${8 - row} · ${PIECE_LABELS[piece]}`}
+  src\App.tsx:1455:                  onClick={() => editTransferSquare(row, col)}
+> src\App.tsx:1456:                >{piece && <svg viewBox="0 0 40 40" aria-hidden="true"><use href={`${import.meta.env.BASE_URL}assets/pieces/standard.svg#${PIECE_ASSETS[piece]}`} /></svg>}</button>;
+  src\App.tsx:1457:              }))}
+  src\App.tsx:1458:            </div>
+  src\App.tsx:1459:            <div className="recognition-edit-controls">
+
+
+
+
+==========================================================================================
+FILE: src\styles.css
+==========================================================================================
+
+  src\styles.css:41:.icon-button:hover { background: #2c3431; color: white; }
+  src\styles.css:42:.library-toggle { font-size: 17px; }
+> src\styles.css:43:.workspace { height: calc(100vh - 54px); display: grid; grid-template-columns: minmax(238px, 278px) minmax(400px, 40vw) minmax(420px, 1fr); min-height: 0; }
+> src\styles.css:44:.workspace.library-collapsed { grid-template-columns: minmax(400px, 40vw) minmax(420px, 1fr); }
+  src\styles.css:45:
+  src\styles.css:46:.library-panel { background: #1b1f1e; border-right: 1px solid var(--line); min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  src\styles.css:47:.library-heading { height: 55px; padding: 0 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line-soft); color: #87938c; font-size: 10px; 
+letter-spacing: 1.2px; font-weight: 700; }
+  src\styles.css:97:.mini-button { background: transparent; border: 1px solid #39423d; color: #9ca9a1; font-size: 10px; border-radius: 4px; padding: 5px 8px; }
+  src\styles.css:98:.mini-button:hover { color: #d8e4dc; border-color: #60836c; }
+> src\styles.css:99:.board-area { display: flex; gap: 8px; justify-content: center; min-height: 0; }
+  src\styles.css:100:.evaluation-bar { width: 10px; flex: 0 0 10px; border-radius: 2px; border: 1px solid #4a504d; overflow: hidden; display: flex; flex-direction: column; }
+  src\styles.css:101:.eval-white { flex: 1; background: #d4d1c4; }
+  src\styles.css:102:.eval-black { flex: 1; background: #353936; }
+> src\styles.css:103:.board-frame { width: min(100% - 18px, calc(100vh - 272px), 650px); min-width: 230px; aspect-ratio: 1; padding: 5px; background: #332b21; border: 1px solid #544532; box-shadow: 0 5px 17px #0004; }
+  src\styles.css:104:.chessboard { width: 100%; height: 100%; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); user-select: none; }
+  src\styles.css:105:.square { border: 0; padding: 0; margin: 0; position: relative; display: grid; place-items: center; }
+  src\styles.css:106:.light-square { background: #ead9b5; }
+  src\styles.css:227:.startup { min-height: 100vh; display: flex; justify-content: center; align-items: center; gap: 11px; color: #b6c2bb; background: var(--bg); font-size: 12px; }
+  src\styles.css:228:
+> src\styles.css:229:@media (max-width: 1180px) {
+> src\styles.css:230:  .workspace { grid-template-columns: minmax(215px, 250px) minmax(355px, 42vw) minmax(360px, 1fr); }
+> src\styles.css:231:  .workspace.library-collapsed { grid-template-columns: minmax(355px, 42vw) minmax(360px, 1fr); }
+  src\styles.css:232:  .board-panel { padding-left: 10px; padding-right: 10px; }
+  src\styles.css:233:  .analysis-strip { gap: 7px; padding: 8px; }
+  src\styles.css:234:  .analysis-name { min-width: 118px; }
+  src\styles.css:235:  .analysis-pv { display: none; }
+  src\styles.css:236:}
+> src\styles.css:237:@media (max-width: 900px) {
+  src\styles.css:238:  .app-shell { height: auto; min-height: 100vh; overflow: auto; }
+> src\styles.css:239:  .workspace, .workspace.library-collapsed { height: auto; min-height: calc(100vh - 54px); display: grid; grid-template-columns: minmax(300px, 42%) minmax(0, 1fr); }
+  src\styles.css:240:  .library-panel { position: fixed; z-index: 8; top: 54px; bottom: 0; width: 265px; box-shadow: 8px 0 24px #0008; }
+> src\styles.css:241:  .workspace:not(.library-collapsed) { padding-left: 265px; }
+> src\styles.css:242:  .workspace.library-collapsed { grid-template-columns: minmax(300px, 42%) minmax(0, 1fr); }
+  src\styles.css:243:  .board-panel { min-height: 690px; }
+  src\styles.css:244:  .reader-panel { min-height: 690px; }
+> src\styles.css:245:  .board-frame { width: min(100% - 18px, 410px); }
+  src\styles.css:246:}
+> src\styles.css:247:@media (max-width: 640px) {
+  src\styles.css:248:  .topbar { padding: 0 9px; gap: 8px; }
+  src\styles.css:249:  .brand-mark { display: none; }
+  src\styles.css:250:  .brand-name { font-size: 11px; }
+  src\styles.css:252:  .current-book { max-width: 40vw; margin-left: 4px; }
+  src\styles.css:253:  .current-book .muted { display: none; }
+> src\styles.css:254:  .workspace, .workspace.library-collapsed, .workspace:not(.library-collapsed) { display: flex; flex-direction: column; padding-left: 0; height: auto; }
+  src\styles.css:255:  .library-panel { width: min(285px, 86vw); }
+  src\styles.css:256:  .board-panel { order: 1; min-height: auto; max-height: none; padding: 12px; }
+  src\styles.css:257:  .reader-panel { order: 2; min-height: 78vh; }
+> src\styles.css:258:  .board-frame { width: min(calc(100% - 20px), 460px); }
+  src\styles.css:259:  .piece { font-size: clamp(28px, 11vw, 48px); }
+  src\styles.css:260:  .board-controls { flex-wrap: wrap; }
+  src\styles.css:261:  .turn-row { flex-wrap: wrap; }
+  src\styles.css:294:.section-kicker { font-size: 11px; }
+  src\styles.css:295:.engine-idle { font-size: 10px; }
+> src\styles.css:296:.board-area { width: 100%; min-width: 0; align-items: stretch; }
+> src\styles.css:297:.board-frame { min-width: 0; }
+> src\styles.css:298:.board-frame { padding: 4px; background: #202925; border: 1px solid #53665a; box-shadow: 0 8px 24px #0005; }
+  src\styles.css:299:.evaluation-bar { width: 12px; flex-basis: 12px; border-radius: 4px; border-color: #536057; }
+  src\styles.css:300:.evaluation-bar .eval-white, .evaluation-bar .eval-black { flex: 0 0 auto; transition: height 200ms ease; }
+  src\styles.css:301:.eval-white { background: #e4e6dc; }
+  src\styles.css:306:.square:hover { filter: brightness(1.04); }
+  src\styles.css:307:.piece { width: 100%; height: 100%; display: grid; place-items: center; font-size: inherit; }
+> src\styles.css:308:.piece svg { width: 90%; height: 90%; overflow: visible; }
+  src\styles.css:309:.white-piece, .black-piece { color: inherit; text-shadow: none; }
+  src\styles.css:310:.board-controls button { height: 36px; min-width: 36px; padding: 0 8px; border-radius: 6px; font-size: 13px; }
+  src\styles.css:311:.turn-row > span, .turn-row button, .position-editor, .fen-entry input, .fen-entry button { font-size: 12px; }
+  src\styles.css:380:.startup { font-size: 14px; }
+  src\styles.css:381:
+> src\styles.css:382:@media (max-width: 900px) {
+  src\styles.css:383:  .analysis-strip { gap: 8px; }
+  src\styles.css:384:}
+> src\styles.css:385:@media (max-width: 640px) {
+  src\styles.css:386:  .reader-actions { flex-wrap: wrap; }
+  src\styles.css:387:  .reader-actions button { min-width: 34px; height: 34px; }
+  src\styles.css:388:  .crop-actions { width: 100%; }
+  src\styles.css:391:}
+  src\styles.css:392:
+> src\styles.css:393:.board-frame { background: #33271c; border-color: #6b5138; }
+  src\styles.css:394:.light-square { background: #ead8b7; }
+  src\styles.css:395:.dark-square { background: #916744; }
+  src\styles.css:396:.coord-dark { color: #765438; }
+  src\styles.css:397:.coord-light { color: #f3e4c7; }
+  src\styles.css:398:.evaluation-bar { width: 15px; flex-basis: 15px; }
+> src\styles.css:399:.piece svg { width: 96%; height: 96%; }
+  src\styles.css:400:.chessboard { position: relative; touch-action: manipulation; }
+  src\styles.css:401:.annotation-mode { cursor: crosshair; }
+  src\styles.css:402:.board-arrows { position: absolute; z-index: 5; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  src\styles.css:427:.fen-validation.valid-fen { color: #a8d6b4; }
+  src\styles.css:428:.transfer-fen input { display: block; min-width: 0; max-width: 100%; }
+> src\styles.css:429:@media (max-width: 600px) { .modal-backdrop { padding: 8px; align-items: start; } .transfer-dialog { max-height: calc(100dvh - 16px); padding: 14px; } .recognition-layout, .recognized-position { 
+grid-template-columns: minmax(0, 1fr); } .crop-preview { max-height: 220px; margin-inline: auto; } .recognized-board { width: min(100%, 320px); margin-inline: auto; } .recognition-edit-controls { width: 100%; } }
+  src\styles.css:430:/* Recognition review layout refinements */
+  src\styles.css:431:.modal-backdrop {
+  src\styles.css:432:  padding: 16px;
+  src\styles.css:467:  box-sizing: border-box;
+  src\styles.css:468:}
+> src\styles.css:469:@media (max-width: 680px) {
+  src\styles.css:470:  .modal-backdrop {
+  src\styles.css:471:    padding: 8px;
+  src\styles.css:472:    align-items: start;
+  src\styles.css:658:}
+  src\styles.css:659:
+> src\styles.css:660:.board-frame {
+  src\styles.css:661:  background: #332b24;
+  src\styles.css:662:  border: 1px solid #55483b;
+  src\styles.css:663:  border-radius: 3px;
+  src\styles.css:792:}
+  src\styles.css:793:
+> src\styles.css:794:@media (max-width: 900px) {
+  src\styles.css:795:  .board-panel,
+  src\styles.css:796:  .reader-panel {
+  src\styles.css:797:    background: #2e2d2b;
+  src\styles.css:905:.toast { font-size: 14px; }
+  src\styles.css:906:
+> src\styles.css:907:@media (max-width: 640px) {
+  src\styles.css:908:  .library-nav-item { font-size: 14px; }
+  src\styles.css:909:  .board-header strong { font-size: 17px; }
+  src\styles.css:910:  .reader-title strong { font-size: 15px; }
+  src\styles.css:952:}
+  src\styles.css:953:
+> src\styles.css:954:@media (max-width: 640px) {
+  src\styles.css:955:  .rank-coordinate,
+  src\styles.css:956:  .file-coordinate {
+  src\styles.css:957:    font-size: 12px;
+
+
+
+
+==========================================================================================
+FILE: public\assets\pieces\standard.svg
+==========================================================================================
+
+  public\assets\pieces\standard.svg:25:    <desc>Chess pieces and markers for the cm-chessboard (https://shaack.com/projekte/cm-chessboard/).</desc>
+  public\assets\pieces\standard.svg:26:
+> public\assets\pieces\standard.svg:27:    <g id="wk" stroke-linecap="round" stroke-linejoin="round" transform="translate(5.000000, 5.000000)" stroke="#000000"
+  public\assets\pieces\standard.svg:28:       stroke-width="1.5">
+  public\assets\pieces\standard.svg:29:        <line x1="15" y1="4.96764706" x2="15" y2="0" id="Shape"/>
+  public\assets\pieces\standard.svg:30:        <line x1="12.8571429" y1="1.76470588" x2="17.1428571" y2="1.76470588" id="Shape"/>
+  public\assets\pieces\standard.svg:99:        <line x1="1.62962963" y1="4.33333333" x2="20.3703704" y2="4.33333333" id="Shape"/>
+  public\assets\pieces\standard.svg:100:    </g>
+> public\assets\pieces\standard.svg:101:    <g id="wp" transform="translate(10.000000, 9.000000)" fill="#FFFFFF" stroke="#000000" stroke-linecap="round"
+  public\assets\pieces\standard.svg:102:       stroke-width="1.5">
+  public\assets\pieces\standard.svg:103:        <path d="M10,0 C8.15833333,0 6.66666667,1.50129032 6.66666667,3.35483871 C6.66666667,4.10129032 6.90833333,4.78903226 7.31666667,5.35096774 C5.69166667,6.29032258 
+4.58333333,8.04322581 4.58333333,10.0645161 C4.58333333,11.7670968 5.36666667,13.2851613 6.59166667,14.2832258 C4.09166667,15.1722581 0.416666667,18.9380645 0.416666667,25.5806452 L19.5833333,25.5806452 
+C19.5833333,18.9380645 15.9083333,15.1722581 13.4083333,14.2832258 C14.6333333,13.2851613 15.4166667,11.7670968 15.4166667,10.0645161 C15.4166667,8.04322581 14.3083333,6.29032258 12.6833333,5.35096774 
+C13.0916667,4.78903226 13.3333333,4.10129032 13.3333333,3.35483871 C13.3333333,1.50129032 11.8416667,0 10,0 Z"
+  public\assets\pieces\standard.svg:104:              id="Shape"/>
+  public\assets\pieces\standard.svg:105:    </g>
+> public\assets\pieces\standard.svg:106:    <g id="bk" stroke-linecap="round" stroke-linejoin="round" transform="translate(5.000000, 5.000000)"
+  public\assets\pieces\standard.svg:107:       stroke-width="1.5">
+  public\assets\pieces\standard.svg:108:        <line x1="15" y1="4.96764706" x2="15" y2="0" id="Shape" stroke="#000000"/>
+  public\assets\pieces\standard.svg:109:        <path d="M15,16.7647059 C15,16.7647059 18.8571429,10.1470588 17.5714286,7.5 C17.5714286,7.5 16.7142857,5.29411765 15,5.29411765 C13.2857143,5.29411765 12.4285714,7.5 
+12.4285714,7.5 C11.1428571,10.1470588 15,16.7647059 15,16.7647059"
+  public\assets\pieces\standard.svg:185:        <line x1="1.62962963" y1="4.33333333" x2="20.3703704" y2="4.33333333" id="Shape" stroke="#FFFFFF"/>
+  public\assets\pieces\standard.svg:186:    </g>
+> public\assets\pieces\standard.svg:187:    <g id="bp" transform="translate(10.000000, 8.000000)" fill="#000000" stroke="#000000" stroke-linecap="round"
+  public\assets\pieces\standard.svg:188:       stroke-width="1.5">
+  public\assets\pieces\standard.svg:189:        <path d="M10,0 C8.15833333,0 6.66666667,1.50129032 6.66666667,3.35483871 C6.66666667,4.10129032 6.90833333,4.78903226 7.31666667,5.35096774 C5.69166667,6.29032258 
+4.58333333,8.04322581 4.58333333,10.0645161 C4.58333333,11.7670968 5.36666667,13.2851613 6.59166667,14.2832258 C4.09166667,15.1722581 0.416666667,18.9380645 0.416666667,25.5806452 L19.5833333,25.5806452 
+C19.5833333,18.9380645 15.9083333,15.1722581 13.4083333,14.2832258 C14.6333333,13.2851613 15.4166667,11.7670968 15.4166667,10.0645161 C15.4166667,8.04322581 14.3083333,6.29032258 12.6833333,5.35096774 
+C13.0916667,4.78903226 13.3333333,4.10129032 13.3333333,3.35483871 C13.3333333,1.50129032 11.8416667,0 10,0 Z"
+  public\assets\pieces\standard.svg:190:              id="Shape"/>
+
+
+

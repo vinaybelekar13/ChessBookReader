@@ -1,0 +1,339 @@
+﻿========== REVIEW MODAL COMPONENTS ==========
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1420:            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1421:            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1422:            <div className="analysis-result"><span>Evaluation · White</span><strong>{engineScore ? formatEvaluation(engineScore) : "—"}</strong></div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1423:            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ?? "—"}</strong></div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1424:            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv?.join(" ") ?? (engineEnabled ? "Waiting for first valid score…" : "Enable Stockfish to analyze this position.")}</strong></div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1425:          </div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1426:        </section>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1427:      </div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1428:
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1429:      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1430:      {transferCandidate && <div className="modal-backdrop" role="presentation">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1431:        <section className="transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1432:          <header><div><h2 id="transfer-title">Review recognized position</h2><p>The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits.</p></div><button aria-label="Close crop preview" onClick={closeTransfer}>×</button></header>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1433:          <div className="recognition-layout">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1434:            {transferPreview && <img className="crop-preview" src={transferPreview} alt="Exact selected chess diagram crop" />}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1435:            <div className="recognition-summary" role="status">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1436:              {recognitionStatus === "loading" && <><span className="spinner" /> Recognizing pieces…</>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1437:              {recognitionStatus === "complete" && <>
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1438:                <strong>{recognitionEdited ? "Model result · Manually corrected" : "Model-generated position"}</strong>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1439:                <span>{recognitionResult?.piece_count ?? 0} pieces · board score {recognitionResult?.board_confidence.toFixed(2)} · piece scores are uncalibrated</span>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1440:                <span>Orientation: {recognitionResult?.orientation ?? "unknown"}; confirm against the source crop.</span>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1441:              </>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1442:              {recognitionStatus === "failed" && <><strong>Automatic recognition did not complete.</strong><span>{recognitionError}</span><span>Review the source crop and enter or correct its FEN manually.</span></>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1443:            </div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1444:          </div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1445:          {recognitionStatus === "complete" && transferBoard && <div className="recognized-position">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1446:            <div className="recognized-board" role="group" aria-label="Editable recognized chess position">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1447:              {transferBoard.flatMap((rank, row) => rank.map((piece, col) => {
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1448:                const light = (row + col) % 2 === 1;
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1449:                return <button
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1450:                  key={`${row}-${col}`}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1451:                  type="button"
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1452:                  className={`recognized-square ${light ? "light-square" : "dark-square"}`}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1453:                  aria-label={`Rank ${8 - row}, file ${"abcdefgh"[col]}: ${PIECE_LABELS[piece]}`}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1454:                  title={`${"abcdefgh"[col]}${8 - row} · ${PIECE_LABELS[piece]}`}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1455:                  onClick={() => editTransferSquare(row, col)}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1456:                >{piece && <svg viewBox="0 0 40 40" aria-hidden="true"><use href={`${import.meta.env.BASE_URL}assets/pieces/standard.svg#${PIECE_ASSETS[piece]}`} /></svg>}</button>;
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1457:              }))}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1458:            </div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1459:            <div className="recognition-edit-controls">
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1460:              <label>Piece to place
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1461:                <select value={transferPiece} onChange={(event) => setTransferPiece(event.target.value)}>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1462:                  {Object.entries(PIECE_LABELS).map(([code, label]) => <option key={code || "empty"} value={code}>{label}</option>)}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1463:                </select>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1464:              </label>
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1465:              <button type="button" onClick={flipTransferPosition}>Flip position 180°</button>
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1466:              <button type="button" onClick={() => void openTransfer(transferCandidate)}>Retry recognition</button>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1467:            </div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1468:          </div>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1469:          {recognitionResult?.warnings.map((warning) => <p className="recognition-warning" key={warning}>{warning}</p>)}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1470:          {recognitionError && recognitionStatus !== "failed" && <p className="recognition-error" role="alert">{recognitionError}</p>}
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1471:          {recognitionStatus === "failed" && <div className="recognition-retry"><button type="button" onClick={() => void openTransfer(transferCandidate)}>Retry recognition</button></div>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1472:          <label className="transfer-fen">FEN · edit manually if needed
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1473:            <input value={transferFen} onChange={(event) => { setTransferFen(event.target.value); setRecognitionEdited(true); setRecognitionError(""); }} placeholder="Paste a six-field FEN position" autoComplete="off" spellCheck={false} />
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1474:          </label>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1475:          {transferFen && <p className={transferFenValid ? "fen-validation valid-fen" : "fen-validation"}>{transferFenValid ? "Syntactically valid chess position · visually verify it against the diagram." : "FEN is not a valid chess position yet."}</p>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1476:          <footer><button onClick={closeTransfer}>Cancel</button><button className="green-button" disabled={!transferFenValid} onClick={confirmTransfer}>Use on Board</button></footer>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1477:        </section>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1478:      </div>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1479:      {(error || notice) && <div className={`toast ${error ? "toast-error" : ""}`} role={error ? "alert" : "status"}><span>{error || notice}</span><button aria-label="Dismiss message" onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1480:    </main>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1481:  );
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1482:}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1483:
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1484:function LibraryNavItem({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: string; label: string }) {
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1485:  return <button className={`library-nav-item ${active ? "nav-active" : ""}`} onClick={onClick}><span>{icon}</span>{label}</button>;
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1486:}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1487:
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1488:function formatSize(bytes: number): string {
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1489:  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1490:  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1491:}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1492:
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1493:function isTypingTarget(target: EventTarget | null): boolean {
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1494:  return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1495:}
+
+========== BOARD AND PIECE RENDERING ==========
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:685:      setError("");
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:686:    } catch {
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:687:      const piece = game.get(to);
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:688:      if (piece && piece.color === game.turn()) setSelectedSquare(to);
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:689:      else setSelectedSquare(null);
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:690:    }
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:691:  }
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:692:
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:693:  function handleSquareClick(square: Square) {
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1203:                    <button
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1204:                      key={square}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1205:                      className={`square ${light ? "light-square" : "dark-square"} ${selectedSquare === square ? "selected-square" : ""} ${isLast ? "last-square" : ""}`}
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1206:                      aria-label={`${square}${piece ? ` ${piece.color === "w" ? "white" : "black"} ${piece.type}` : ""}`}
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1207:                      draggable={Boolean(piece && piece.color === game.turn())}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1208:                      onClick={() => handleSquareClick(square)}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1209:                      onDragStart={(event) => {
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1210:                        const image = event.currentTarget.querySelector("img");
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1211:                        if (image) {
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1212:                          const bounds = event.currentTarget.getBoundingClientRect();
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1213:                          event.dataTransfer.setDragImage(image, bounds.width / 2, bounds.height / 2);
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1214:                        }
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1215:                        event.dataTransfer.setData("text/plain", square);
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1219:                      onDrop={(event) => { event.preventDefault(); const from = event.dataTransfer.getData("text/plain") as Square; if (from) makeMove(from, square); }}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1220:                      onDragEnd={() => setSelectedSquare(null)}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1221:                    >
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1222:                      {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece.color}${piece.type}.svg`} /></span>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1223:                      {legal && <span className={piece ? "legal-capture" : "legal-dot"} />}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1224:                      {session?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1225:                      {session?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1226:                    </button>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1227:                  );
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1453:                  aria-label={`Rank ${8 - row}, file ${"abcdefgh"[col]}: ${PIECE_LABELS[piece]}`}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1454:                  title={`${"abcdefgh"[col]}${8 - row} · ${PIECE_LABELS[piece]}`}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1455:                  onClick={() => editTransferSquare(row, col)}
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1456:                >{piece && <svg viewBox="0 0 40 40" aria-hidden="true"><use href={`${import.meta.env.BASE_URL}assets/pieces/standard.svg#${PIECE_ASSETS[piece]}`} /></svg>}</button>;
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1457:              }))}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1458:            </div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1459:            <div className="recognition-edit-controls">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1460:              <label>Piece to place
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1461:                <select value={transferPiece} onChange={(event) => setTransferPiece(event.target.value)}>
+
+========== BOARD CSS ==========
+  D:\chess\BookChess\ChessBookReader\src\styles.css:101:.eval-white { flex: 1; background: #d4d1c4; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:102:.eval-black { flex: 1; background: #353936; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:103:.board-frame { width: min(100% - 18px, calc(100vh - 272px), 650px); min-width: 230px; aspect-ratio: 1; padding: 5px; background: #332b21; border: 1px solid #544532; box-shadow: 0 5px 17px #0004; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:104:.chessboard { width: 100%; height: 100%; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); user-select: none; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:105:.square { border: 0; padding: 0; margin: 0; position: relative; display: grid; place-items: center; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:106:.light-square { background: #ead9b5; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:107:.dark-square { background: #96704c; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:108:.square:hover { filter: brightness(1.08); }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:109:.selected-square::after { content: ""; position: absolute; inset: 0; background: #c5d96d88; pointer-events: none; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:110:.last-square::after { content: ""; position: absolute; inset: 0; background: #d8d05b68; pointer-events: none; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:111:.selected-square.last-square::after { background: #b4c74c99; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:112:.piece { position: relative; z-index: 1; line-height: 1; font-family: "DejaVu Sans", "Segoe UI Symbol", "Noto Sans Symbols 2", serif; font-size: clamp(24px, 4.2vw, 53px); pointer-events: none; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:113:.white-piece { color: #fffdf4; text-shadow: -1px -1px 1px #38352c, 1px 1px 2px #343126, 0 2px 3px #4a402d; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:114:.black-piece { color: #282822; text-shadow: 0 1px 1px #ede3cc, 0 2px 2px #5e533f; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:115:.legal-dot { position: absolute; width: 23%; height: 23%; border-radius: 50%; background: #2834267a; z-index: 2; pointer-events: none; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:116:.legal-capture { position: absolute; inset: 4px; z-index: 2; border-radius: 50%; border: 4px solid #2834268f; pointer-events: none; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:117:.rank-coordinate, .file-coordinate { position: absolute; z-index: 3; pointer-events: none; font: 9px "DM Mono", monospace; font-weight: 500; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:118:.rank-coordinate { left: 3px; top: 2px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:119:.file-coordinate { right: 3px; bottom: 1px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:243:  .board-panel { min-height: 690px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:244:  .reader-panel { min-height: 690px; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:245:  .board-frame { width: min(100% - 18px, 410px); }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:246:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:247:@media (max-width: 640px) {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:248:  .topbar { padding: 0 9px; gap: 8px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:249:  .brand-mark { display: none; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:250:  .brand-name { font-size: 11px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:256:  .board-panel { order: 1; min-height: auto; max-height: none; padding: 12px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:257:  .reader-panel { order: 2; min-height: 78vh; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:258:  .board-frame { width: min(calc(100% - 20px), 460px); }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:259:  .piece { font-size: clamp(28px, 11vw, 48px); }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:260:  .board-controls { flex-wrap: wrap; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:261:  .turn-row { flex-wrap: wrap; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:262:  .page-navigation { flex-wrap: wrap; min-height: 48px; padding: 5px 8px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:263:  .detection-status { display: none; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:264:  .analysis-strip { flex-wrap: wrap; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:295:.engine-idle { font-size: 10px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:296:.board-area { width: 100%; min-width: 0; align-items: stretch; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:297:.board-frame { min-width: 0; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:298:.board-frame { padding: 4px; background: #202925; border: 1px solid #53665a; box-shadow: 0 8px 24px #0005; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:299:.evaluation-bar { width: 12px; flex-basis: 12px; border-radius: 4px; border-color: #536057; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:300:.evaluation-bar .eval-white, .evaluation-bar .eval-black { flex: 0 0 auto; transition: height 200ms ease; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:301:.eval-white { background: #e4e6dc; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:302:.eval-black { background: #28312d; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:303:.evaluation-ready { background: #28312d; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:305:.dark-square { background: #B58863; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:306:.square:hover { filter: brightness(1.04); }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:307:.piece { width: 100%; height: 100%; display: grid; place-items: center; font-size: inherit; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:308:.piece svg { width: 90%; height: 90%; overflow: visible; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:309:.white-piece, .black-piece { color: inherit; text-shadow: none; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:310:.board-controls button { height: 36px; min-width: 36px; padding: 0 8px; border-radius: 6px; font-size: 13px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:311:.turn-row > span, .turn-row button, .position-editor, .fen-entry input, .fen-entry button { font-size: 12px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:312:.turn-row button { min-height: 36px; padding: 0 10px; border-radius: 5px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:313:.fen-entry input { min-height: 38px; padding: 7px 9px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:314:.moves-heading, .new-line, .move-pair button { font-size: 12px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:360:.engine-analyzing i, .engine-loading i { background: var(--amber); }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:361:.engine-error i { background: #d77e70; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:362:.modal-backdrop { position: fixed; z-index: 30; inset: 0; display: grid; place-items: center; padding: 20px; background: #090d0be0; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:363:.transfer-dialog { width: min(560px, 100%); max-height: min(90vh, 760px); overflow: auto; padding: 22px; border: 1px solid #4a5a4e; border-radius: 10px; background: #202824; box-shadow: 0 18px 60px #0009; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:364:.transfer-dialog header, .transfer-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:365:.transfer-dialog header { margin-bottom: 16px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:366:.transfer-dialog h2 { margin: 0; color: #e5ebe6; font-size: 20px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:367:.transfer-dialog p { margin: 6px 0 0; color: #a8b2ab; font-size: 14px; line-height: 1.5; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:368:.transfer-dialog header button { width: 40px; height: 40px; border: 1px solid #45534a; border-radius: 6px; background: #29332d; font-size: 22px; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:369:.crop-preview { display: block; width: min(100%, 360px); max-height: 45vh; object-fit: contain; margin: 0 auto 14px; border: 1px solid #526057; background: #101512; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:370:.recognition-note { padding: 11px 12px; border-left: 3px solid var(--amber); background: #383225; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:371:.transfer-fen { display: grid; gap: 7px; margin: 16px 0; color: #d7dfd9; font-size: 13px; font-weight: 600; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:372:.transfer-fen input { min-height: 42px; width: 100%; padding: 8px 10px; border: 1px solid #48574d; border-radius: 5px; background: #151a18; color: var(--text); font: 13px "DM Mono", monospace; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:373:.transfer-dialog footer { justify-content: flex-end; padding-top: 14px; border-top: 1px solid var(--line); }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:374:.transfer-dialog footer button { min-height: 40px; padding: 0 14px; border: 1px solid #48574d; border-radius: 5px; background: #29332d; font-size: 13px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:375:.transfer-dialog footer .green-button { background: #3b6749; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:391:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:392:
+> D:\chess\BookChess\ChessBookReader\src\styles.css:393:.board-frame { background: #33271c; border-color: #6b5138; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:394:.light-square { background: #ead8b7; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:395:.dark-square { background: #916744; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:396:.coord-dark { color: #765438; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:397:.coord-light { color: #f3e4c7; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:398:.evaluation-bar { width: 15px; flex-basis: 15px; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:399:.piece svg { width: 96%; height: 96%; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:400:.chessboard { position: relative; touch-action: manipulation; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:401:.annotation-mode { cursor: crosshair; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:402:.board-arrows { position: absolute; z-index: 5; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:403:.board-arrow { filter: drop-shadow(0 1px 1px #1b1710aa); }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:404:.board-arrow-engine { stroke-dasharray: none; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:405:.board-arrow-preview { stroke-dasharray: .18 .12; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:406:.board-controls button.annotation-active { color: #f1d395; background: #493a27; border-color: #967343; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:407:
+> D:\chess\BookChess\ChessBookReader\src\styles.css:408:/* Recognition review dialog: readable, responsive layout */
+> D:\chess\BookChess\ChessBookReader\src\styles.css:409:.modal-backdrop { overflow-y: auto; align-items: center; justify-items: center; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:410:.transfer-dialog { width: min(760px, 100%); max-width: 100%; max-height: calc(100dvh - 32px); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:411:.transfer-dialog, .transfer-dialog * { min-width: 0; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:412:.transfer-dialog header { align-items: flex-start; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:413:.transfer-dialog header > div { flex: 1; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:414:.recognition-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 16px; margin-bottom: 16px; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:415:.crop-preview { width: 100%; max-width: 100%; max-height: 300px; margin: 0; object-fit: contain; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:416:.recognition-summary { display: flex; flex-direction: column; gap: 9px; overflow-wrap: anywhere; color: #cbd5ce; font-size: 13px; line-height: 1.5; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:417:.recognition-summary strong { color: #e5ebe6; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:418:.recognized-position { display: grid; grid-template-columns: minmax(180px, 320px) minmax(0, 1fr); align-items: start; gap: 16px; margin: 16px 0; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:419:.recognized-board { width: 100%; max-width: 320px; aspect-ratio: 1; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr)); border: 4px solid #332b21; overflow: hidden; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:420:.recognized-square { min-width: 0; min-height: 0; display: grid; place-items: center; padding: 0; border: 0; border-radius: 0; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:421:.recognized-square svg { display: block; width: 92%; height: 92%; pointer-events: none; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:422:.recognition-edit-controls { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:423:.recognition-edit-controls label { display: grid; gap: 6px; color: #d7dfd9; font-size: 13px; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:424:.recognition-edit-controls select, .recognition-edit-controls button { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #48574d; border-radius: 5px; background: #29332d; color: #e2e8e3; font-size: 12px; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:425:.recognition-warning, .recognition-error, .fen-validation { overflow-wrap: anywhere; line-height: 1.5; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:426:.recognition-error { color: #f0aaa0; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:427:.fen-validation.valid-fen { color: #a8d6b4; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:428:.transfer-fen input { display: block; min-width: 0; max-width: 100%; }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:429:@media (max-width: 600px) { .modal-backdrop { padding: 8px; align-items: start; } .transfer-dialog { max-height: calc(100dvh - 16px); padding: 14px; } .recognition-layout, .recognized-position { grid-template-columns: minmax(0, 1fr); } .crop-preview { max-height: 220px; margin-inline: auto; } .recognized-board { width: min(100%, 320px); margin-inline: auto; } .recognition-edit-controls { width: 100%; } }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:430:/* Recognition review layout refinements */
+> D:\chess\BookChess\ChessBookReader\src\styles.css:431:.modal-backdrop {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:432:  padding: 16px;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:433:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:434:.transfer-dialog {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:435:  width: min(960px, 100%);
+  D:\chess\BookChess\ChessBookReader\src\styles.css:436:  max-height: calc(100dvh - 32px);
+  D:\chess\BookChess\ChessBookReader\src\styles.css:438:  overflow-y: auto;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:439:}
+> D:\chess\BookChess\ChessBookReader\src\styles.css:440:.recognition-layout {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:441:  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr);
+  D:\chess\BookChess\ChessBookReader\src\styles.css:442:  gap: 20px;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:443:}
+> D:\chess\BookChess\ChessBookReader\src\styles.css:444:.crop-preview {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:445:  max-height: 260px;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:446:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:447:.recognized-position {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:448:  grid-template-columns: minmax(0, 320px) minmax(200px, 1fr);
+  D:\chess\BookChess\ChessBookReader\src\styles.css:449:  gap: 20px;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:453:  justify-self: center;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:454:}
+> D:\chess\BookChess\ChessBookReader\src\styles.css:455:.recognition-edit-controls {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:456:  min-width: 0;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:457:  gap: 12px;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:458:}
+> D:\chess\BookChess\ChessBookReader\src\styles.css:459:.recognition-edit-controls button,
+> D:\chess\BookChess\ChessBookReader\src\styles.css:460:.recognition-edit-controls select {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:461:  min-height: 44px;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:462:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:463:.transfer-fen {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:464:  overflow-wrap: anywhere;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:465:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:468:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:469:@media (max-width: 680px) {
+> D:\chess\BookChess\ChessBookReader\src\styles.css:470:  .modal-backdrop {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:471:    padding: 8px;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:472:    align-items: start;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:473:  }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:474:  .transfer-dialog {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:475:    max-height: calc(100dvh - 16px);
+  D:\chess\BookChess\ChessBookReader\src\styles.css:476:    padding: 14px;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:477:  }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:478:  .recognition-layout,
+  D:\chess\BookChess\ChessBookReader\src\styles.css:479:  .recognized-position {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:480:    grid-template-columns: minmax(0, 1fr);
+  D:\chess\BookChess\ChessBookReader\src\styles.css:481:  }
+> D:\chess\BookChess\ChessBookReader\src\styles.css:482:  .crop-preview {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:483:    max-height: 220px;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:484:    margin-inline: auto;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:485:  }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:486:  .recognized-board {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:487:    width: min(100%, 320px);
+  D:\chess\BookChess\ChessBookReader\src\styles.css:658:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:659:
+> D:\chess\BookChess\ChessBookReader\src\styles.css:660:.board-frame {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:661:  background: #332b24;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:662:  border: 1px solid #55483b;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:663:  border-radius: 3px;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:664:  box-shadow: 0 6px 18px #0003;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:665:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:916:  .engine-toggle { font-size: 14px; }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:917:}
+> D:\chess\BookChess\ChessBookReader\src\styles.css:918:/* CHESSBOARD POLISH PASS 1 — visual-only overrides */
+  D:\chess\BookChess\ChessBookReader\src\styles.css:919:.rank-coordinate,
+  D:\chess\BookChess\ChessBookReader\src\styles.css:920:.file-coordinate {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:921:  z-index: 2;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:922:  font-size: clamp(12px, 1.05vw, 15px);
+  D:\chess\BookChess\ChessBookReader\src\styles.css:923:  font-weight: 800;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:948:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:949:
+> D:\chess\BookChess\ChessBookReader\src\styles.css:950:.board-arrow-preview {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:951:  stroke: rgba(52, 120, 184, 0.78);
+  D:\chess\BookChess\ChessBookReader\src\styles.css:952:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:953:
+  D:\chess\BookChess\ChessBookReader\src\styles.css:954:@media (max-width: 640px) {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:955:  .rank-coordinate,
+  D:\chess\BookChess\ChessBookReader\src\styles.css:958:  }
+  D:\chess\BookChess\ChessBookReader\src\styles.css:959:}
+> D:\chess\BookChess\ChessBookReader\src\styles.css:960:/* END CHESSBOARD POLISH PASS 1 */
+  D:\chess\BookChess\ChessBookReader\src\styles.css:961:.clear-scan-button {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:962:  padding: 8px 13px;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:963:  border: 1px solid #5a655e;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:964:  border-radius: 5px;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:965:  color: #e3e9e5;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1090:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1091:/* Main analysis board: standalone chess piece images */
+> D:\chess\BookChess\ChessBookReader\src\styles.css:1092:.piece img {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1093:  display: block;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1094:  width: 96%;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1095:  height: 96%;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1096:  object-fit: contain;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1097:  pointer-events: none;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1111:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1112:
+> D:\chess\BookChess\ChessBookReader\src\styles.css:1113:.board-frame {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1114:  box-sizing: border-box;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1115:  width: min(100%,  min(58vh, 650px));
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1116:  max-width: 100%;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1117:  min-width: 0;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1118:  aspect-ratio: 1 / 1;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1120:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1121:
+> D:\chess\BookChess\ChessBookReader\src\styles.css:1122:.chessboard {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1123:  width: 100%;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1124:  height: 100%;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1125:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1126:
+  D:\chess\BookChess\ChessBookReader\src\styles.css:1127:.board-controls,

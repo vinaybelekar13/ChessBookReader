@@ -1,0 +1,548 @@
+=== BOARD JSX AND EVALUATION MARKUP ===
+
+  src\App.tsx:5:import { fenWithTurn, makePosition } from "./chess-state";
+  src\App.tsx:6:import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+  src\App.tsx:7:import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+  src\App.tsx:8:import { flipFenPlacement, parseFenPlacement, setFenPiece, withFenPlacement } from "./position-editor";
+> src\App.tsx:9:import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+  src\App.tsx:10:import {
+  src\App.tsx:11:  getActiveBookId,
+  src\App.tsx:12:  getBooks,
+  src\App.tsx:13:  getSession,
+  src\App.tsx:14:  getSession as getStoredSession,
+  src\App.tsx:15:  putBook,
+  src\App.tsx:102:  const [recognitionEdited, setRecognitionEdited] = useState(false);
+  src\App.tsx:103:  const [transferPiece, setTransferPiece] = useState("P");
+  src\App.tsx:104:  const [engineEnabled, setEngineEnabled] = useState(false);
+  src\App.tsx:105:  const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
+> src\App.tsx:106:  const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+  src\App.tsx:107:  const [engineMessage, setEngineMessage] = useState("");
+  src\App.tsx:108:  const [engineDepth, setEngineDepth] = useState(14);
+  src\App.tsx:109:  const fileInput = useRef<HTMLInputElement>(null);
+  src\App.tsx:110:  const canvasRef = useRef<HTMLCanvasElement>(null);
+  src\App.tsx:111:  const pageStageRef = useRef<HTMLDivElement>(null);
+  src\App.tsx:112:  const boardRef = useRef<HTMLDivElement>(null);
+  src\App.tsx:305:  const highlightedMove = lastMove ?? (moveHistory.length
+  src\App.tsx:306:    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+  src\App.tsx:307:    : null);
+  src\App.tsx:308:  const engineArrow = useMemo(
+> src\App.tsx:309:    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+> src\App.tsx:310:    [engineEnabled, engineScore?.bestMove],
+  src\App.tsx:311:  );
+  src\App.tsx:312:
+  src\App.tsx:313:  useEffect(() => {
+  src\App.tsx:314:    setUserArrows([]);
+  src\App.tsx:315:    setArrowStart(null);
+  src\App.tsx:316:    setArrowHover(null);
+  src\App.tsx:330:      engineRef.current?.dispose();
+  src\App.tsx:331:      engineRef.current = null;
+  src\App.tsx:332:      setEngineEnabled(false);
+  src\App.tsx:333:      setEngineStatus("off");
+> src\App.tsx:334:      setEngineScore(null);
+  src\App.tsx:335:      setEngineMessage("");
+  src\App.tsx:336:      return;
+  src\App.tsx:337:    }
+  src\App.tsx:338:    try {
+> src\App.tsx:339:      setEngineScore(null);
+  src\App.tsx:340:      setEngineMessage("");
+  src\App.tsx:341:      const client = new StockfishEngine(
+  src\App.tsx:342:        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+  src\App.tsx:343:        (status, message) => {
+  src\App.tsx:344:          setEngineStatus(status);
+  src\App.tsx:345:          if (status === "error") {
+  src\App.tsx:346:            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+  src\App.tsx:347:            setEngineEnabled(false);
+> src\App.tsx:348:            setEngineScore(null);
+  src\App.tsx:349:            engineRef.current?.dispose();
+  src\App.tsx:350:            engineRef.current = null;
+  src\App.tsx:351:          }
+  src\App.tsx:352:        },
+> src\App.tsx:353:        setEngineScore,
+  src\App.tsx:354:      );
+  src\App.tsx:355:      engineRef.current = client;
+  src\App.tsx:356:      setEngineEnabled(true);
+  src\App.tsx:357:    } catch (cause) {
+  src\App.tsx:358:      setEngineStatus("error");
+  src\App.tsx:359:      setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+  src\App.tsx:1028:    }
+  src\App.tsx:1029:  }
+  src\App.tsx:1030:
+  src\App.tsx:1031:  async function expandBoard() {
+> src\App.tsx:1032:    const target = document.querySelector(".board-frame");
+  src\App.tsx:1033:    if (!target) return;
+  src\App.tsx:1034:    try {
+  src\App.tsx:1035:      if (document.fullscreenElement) await document.exitFullscreen();
+  src\App.tsx:1036:      else await target.requestFullscreen();
+  src\App.tsx:1037:    } catch (cause) {
+> src\App.tsx:1038:      setError(`Could not expand chessboard: ${messageOf(cause)}`);
+  src\App.tsx:1039:    }
+  src\App.tsx:1040:  }
+  src\App.tsx:1041:
+  src\App.tsx:1042:  function saveBookmark() {
+  src\App.tsx:1043:    if (!session) return;
+  src\App.tsx:1044:    patchSession((current) => ({
+  src\App.tsx:1153:            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 
+0))}</span></div>
+  src\App.tsx:1154:          </aside>
+  src\App.tsx:1155:        )}
+  src\App.tsx:1156:
+> src\App.tsx:1157:        <section className="board-panel" aria-label="Chessboard analysis">
+  src\App.tsx:1158:          <div className="section-kicker"><span>POSITION ANALYSIS</span><span className={`engine-idle engine-${engineStatus}`}><i /> {engineStatus === "off" ? "ENGINE OFF" : `ENGINE 
+${engineStatus.toUpperCase()}`}</span></div>
+  src\App.tsx:1159:          <div className="board-header">
+  src\App.tsx:1160:            <div><strong>{session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} · 
+${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+  src\App.tsx:1161:            <button className="mini-button" onClick={() => patchSession({ flipped: !session?.flipped })} title="Flip board">↻ Flip</button>
+  src\App.tsx:1162:          </div>
+  src\App.tsx:1163:          <div className="board-area">
+  src\App.tsx:1164:            <div
+> src\App.tsx:1165:              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+> src\App.tsx:1166:              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine 
+evaluation"}
+> src\App.tsx:1167:              title={engineScore ? `White's perspective · depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+  src\App.tsx:1168:            >
+> src\App.tsx:1169:              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+> src\App.tsx:1170:              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+  src\App.tsx:1171:            </div>
+> src\App.tsx:1172:            <div className="board-frame">
+  src\App.tsx:1173:              <div
+> src\App.tsx:1174:                className={`chessboard ${session?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+  src\App.tsx:1175:                ref={boardRef}
+  src\App.tsx:1176:                onPointerDown={boardArrowPointerDown}
+  src\App.tsx:1177:                onPointerMove={boardArrowPointerMove}
+  src\App.tsx:1178:                onPointerUp={boardArrowPointerUp}
+  src\App.tsx:1179:                onPointerCancel={cancelBoardArrowGesture}
+  src\App.tsx:1180:                onContextMenu={(event) => {
+  src\App.tsx:1408:              <button onClick={cancelCandidateSelection}>Cancel</button>
+  src\App.tsx:1409:            </div>}
+  src\App.tsx:1410:            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+  src\App.tsx:1411:          </div>
+> src\App.tsx:1412:          <div className="analysis-strip">
+  src\App.tsx:1413:            <div className="analysis-name"><span className="stockfish-mark">♞</span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === 
+"off" ? "Engine off" : engineStatus === "loading" ? "Loading engine…" : engineStatus === "analyzing" ? "Analyzing current position…" : "Ready · White-positive scores"}</span></div></div>
+  src\App.tsx:1414:            <div className="analysis-divider" />
+  src\App.tsx:1415:            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : 
+"Analyze position"}</button>
+  src\App.tsx:1416:            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option 
+value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+> src\App.tsx:1417:            <div className="analysis-result"><span>Evaluation · White</span><strong>{engineScore ? formatEvaluation(engineScore) : "—"}</strong></div>
+> src\App.tsx:1418:            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ?? "—"}</strong></div>
+> src\App.tsx:1419:            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv?.join(" ") ?? (engineEnabled ? "Waiting for first valid 
+score…" : "Enable Stockfish to analyze this position.")}</strong></div>
+  src\App.tsx:1420:          </div>
+  src\App.tsx:1421:        </section>
+  src\App.tsx:1422:      </div>
+  src\App.tsx:1423:
+  src\App.tsx:1424:      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally 
+in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+  src\App.tsx:1425:      {transferCandidate && <div className="modal-backdrop" role="presentation">
+  src\board-annotations.test.ts:1:import { describe, expect, it } from "vitest";
+  src\board-annotations.test.ts:2:import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow } from "./board-annotations";
+  src\board-annotations.test.ts:3:
+> src\board-annotations.test.ts:4:describe("chessboard annotation geometry", () => {
+  src\board-annotations.test.ts:5:  const board = { left: 100, top: 50, width: 400, height: 400 };
+  src\board-annotations.test.ts:6:
+  src\board-annotations.test.ts:7:  it("maps pointer coordinates to board squares at any displayed size", () => {
+  src\board-annotations.test.ts:8:    expect(boardSquareAtPoint(125, 75, board)).toBe("a8");
+  src\board-annotations.test.ts:9:    expect(boardSquareAtPoint(475, 425, board)).toBe("h1");
+  src\board-annotations.test.ts:10:    expect(boardSquareAtPoint(500, 100, board)).toBeNull();
+  src\position-editor.ts:41:
+  src\position-editor.ts:42:export function setFenPiece(placement: string, row: number, col: number, piece: string): string {
+  src\position-editor.ts:43:  const board = parseFenPlacement(placement);
+  src\position-editor.ts:44:  if (!board || row < 0 || row > 7 || col < 0 || col > 7) {
+> src\position-editor.ts:45:    throw new Error("Cannot edit an invalid chessboard position.");
+  src\position-editor.ts:46:  }
+  src\position-editor.ts:47:  if (piece && !PIECE_CODES.test(piece)) throw new Error(`Invalid chess piece code: ${piece}`);
+  src\position-editor.ts:48:  board[row][col] = piece;
+  src\position-editor.ts:49:  return serializeFenPlacement(board);
+  src\position-editor.ts:50:}
+  src\position-editor.ts:51:
+  src\position-editor.ts:52:export function flipFenPlacement(placement: string): string {
+  src\position-editor.ts:53:  const board = parseFenPlacement(placement);
+> src\position-editor.ts:54:  if (!board) throw new Error("Cannot flip an invalid chessboard position.");
+  src\position-editor.ts:55:  return serializeFenPlacement(board.reverse().map((rank) => rank.reverse()));
+  src\position-editor.ts:56:}
+  src\position-editor.ts:57:
+  src\position-editor.ts:58:export function withFenPlacement(fen: string, placement: string): string {
+  src\position-editor.ts:59:  const fields = fen.trim().split(/\s+/);
+  src\position-editor.ts:60:  if (fields.length !== 6 || !parseFenPlacement(placement)) {
+  src\stockfish.test.ts:1:import { afterEach, describe, expect, it, vi } from "vitest";
+> src\stockfish.test.ts:2:import { formatEvaluation, parseUciInfo, StockfishEngine, whiteScoreShare } from "./stockfish";
+  src\stockfish.test.ts:3:
+  src\stockfish.test.ts:4:class FakeWorker {
+  src\stockfish.test.ts:5:  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  src\stockfish.test.ts:6:  onerror: ((event: ErrorEvent) => void) | null = null;
+  src\stockfish.test.ts:7:  commands: string[] = [];
+  src\stockfish.test.ts:8:  terminated = false;
+  src\stockfish.test.ts:24:  it("orients mate scores and represents a checkmated side-to-move", () => {
+  src\stockfish.test.ts:25:    expect(parseUciInfo("info depth 20 score mate 3 pv e2e4", "w")?.value).toBe(3);
+  src\stockfish.test.ts:26:    expect(parseUciInfo("info depth 20 score mate 3 pv e7e5", "b")?.value).toBe(-3);
+  src\stockfish.test.ts:27:    expect(parseUciInfo("info depth 20 score mate 0", "w")?.value).toBe(-1);
+> src\stockfish.test.ts:28:    expect(formatEvaluation({ kind: "mate", value: -3, depth: 20 })).toBe("#-3");
+  src\stockfish.test.ts:29:  });
+  src\stockfish.test.ts:30:
+  src\stockfish.test.ts:31:  it("keeps the evaluation bar bounded and consistent around equality", () => {
+  src\stockfish.test.ts:32:    const whiteAdvantage = { kind: "cp" as const, value: 250, depth: 12 };
+  src\stockfish.test.ts:33:    const blackAdvantage = { kind: "cp" as const, value: -250, depth: 12 };
+> src\stockfish.test.ts:34:    expect(formatEvaluation(whiteAdvantage)).toBe("+2.50");
+  src\stockfish.test.ts:35:    expect(whiteScoreShare(whiteAdvantage)).toBeGreaterThan(0.5);
+  src\stockfish.test.ts:36:    expect(whiteScoreShare(blackAdvantage)).toBeLessThan(0.5);
+  src\stockfish.test.ts:37:    expect(whiteScoreShare({ kind: "cp", value: 0, depth: 1 })).toBe(0.5);
+  src\stockfish.test.ts:38:    expect(whiteScoreShare({ kind: "cp", value: 9999, depth: 1 })).toBeLessThanOrEqual(0.96);
+  src\stockfish.test.ts:39:    expect(whiteScoreShare({ kind: "mate", value: -1, depth: 1 })).toBe(0.04);
+  src\stockfish.test.ts:40:  });
+  src\stockfish.ts:1:export type EngineStatus = "off" | "loading" | "ready" | "analyzing" | "error";
+> src\stockfish.ts:2:export type EngineScore = { kind: "cp" | "mate"; value: number; depth: number; bestMove?: string; pv?: string[] };
+  src\stockfish.ts:3:
+  src\stockfish.ts:4:type UciRequest = { fen: string; depth: number };
+  src\stockfish.ts:5:
+> src\stockfish.ts:6:export function parseUciInfo(line: string, sideToMove: "w" | "b"): Omit<EngineScore, "bestMove"> | null {
+  src\stockfish.ts:7:  if (!line.startsWith("info ")) return null;
+  src\stockfish.ts:8:  const depth = Number(line.match(/\bdepth (\d+)/)?.[1]);
+  src\stockfish.ts:9:  const score = line.match(/\bscore (cp|mate) (-?\d+)/);
+  src\stockfish.ts:10:  if (!score || !Number.isFinite(depth)) return null;
+  src\stockfish.ts:11:  const value = Number(score[2]);
+  src\stockfish.ts:12:  const whiteValue = sideToMove === "w" ? value : -value;
+  src\stockfish.ts:22:    ...(pv?.length ? { pv } : {}),
+  src\stockfish.ts:23:  };
+  src\stockfish.ts:24:}
+  src\stockfish.ts:25:
+> src\stockfish.ts:26:export function formatEvaluation(score: EngineScore): string {
+  src\stockfish.ts:27:  if (score.kind === "mate") return `#${score.value > 0 ? "+" : ""}${score.value}`;
+  src\stockfish.ts:28:  const pawns = score.value / 100;
+  src\stockfish.ts:29:  return `${pawns > 0 ? "+" : ""}${pawns.toFixed(2)}`;
+  src\stockfish.ts:30:}
+  src\stockfish.ts:31:
+> src\stockfish.ts:32:export function whiteScoreShare(score: EngineScore): number {
+  src\stockfish.ts:33:  if (score.kind === "mate") return score.value > 0 ? 0.96 : 0.04;
+  src\stockfish.ts:34:  const bounded = Math.max(-1000, Math.min(1000, score.value));
+  src\stockfish.ts:35:  return Math.max(0.04, Math.min(0.96, 1 / (1 + 10 ** (-bounded / 400))));
+  src\stockfish.ts:36:}
+  src\stockfish.ts:37:
+  src\stockfish.ts:38:export class StockfishEngine {
+  src\stockfish.ts:41:  private searching = false;
+  src\stockfish.ts:42:  private awaitingStop = false;
+  src\stockfish.ts:43:  private queued: UciRequest | null = null;
+  src\stockfish.ts:44:  private currentSide: "w" | "b" = "w";
+> src\stockfish.ts:45:  private latestScore: EngineScore | null = null;
+  src\stockfish.ts:46:
+  src\stockfish.ts:47:  constructor(
+  src\stockfish.ts:48:    workerUrl: string,
+  src\stockfish.ts:49:    private readonly onStatus: (status: EngineStatus, message?: string) => void,
+> src\stockfish.ts:50:    private readonly onScore: (score: EngineScore | null) => void,
+  src\stockfish.ts:51:  ) {
+  src\stockfish.ts:52:    this.worker = new Worker(workerUrl);
+  src\stockfish.ts:53:    this.worker.onmessage = (event: MessageEvent<string>) => this.handleLine(String(event.data));
+  src\stockfish.ts:54:    this.worker.onerror = (event) => {
+  src\stockfish.ts:55:      this.onStatus("error", event.message || "The Stockfish worker failed to load.");
+  src\stockfish.ts:56:      this.dispose();
+
+
+
+
+=== BOARD AND ENGINE CSS ===
+
+  src\styles.css:86:.library-footer { height: 36px; border-top: 1px solid var(--line-soft); padding: 0 13px; color: #77847d; font-size: 9px; display: flex; align-items: center; gap: 7px; }
+  src\styles.css:87:.footer-size { margin-left: auto; font-family: "DM Mono", monospace; }
+  src\styles.css:88:
+> src\styles.css:89:.board-panel { min-width: 0; background: #202423; border-right: 1px solid var(--line); padding: 13px 16px 8px; overflow-y: auto; display: flex; flex-direction: column; }
+  src\styles.css:90:.section-kicker { color: #7d8882; font-size: 9px; font-weight: 700; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px 
+solid #2c3330; }
+  src\styles.css:91:.engine-idle { font-size: 8px; color: #758079; letter-spacing: .6px; display: flex; align-items: center; gap: 5px; }
+  src\styles.css:92:.engine-idle i { width: 5px; height: 5px; border-radius: 50%; background: #bd805d; }
+  src\styles.css:93:.board-header { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; }
+  src\styles.css:94:.board-header div { display: flex; flex-direction: column; gap: 3px; }
+  src\styles.css:95:.board-header strong { color: #d1d8d3; font-size: 12px; font-weight: 600; }
+  src\styles.css:97:.mini-button { background: transparent; border: 1px solid #39423d; color: #9ca9a1; font-size: 10px; border-radius: 4px; padding: 5px 8px; }
+  src\styles.css:98:.mini-button:hover { color: #d8e4dc; border-color: #60836c; }
+  src\styles.css:99:.board-area { display: flex; gap: 8px; justify-content: center; min-height: 0; }
+> src\styles.css:100:.evaluation-bar { width: 10px; flex: 0 0 10px; border-radius: 2px; border: 1px solid #4a504d; overflow: hidden; display: flex; flex-direction: column; }
+  src\styles.css:101:.eval-white { flex: 1; background: #d4d1c4; }
+  src\styles.css:102:.eval-black { flex: 1; background: #353936; }
+> src\styles.css:103:.board-frame { width: min(100% - 18px, calc(100vh - 272px), 650px); min-width: 230px; aspect-ratio: 1; padding: 5px; background: #332b21; border: 1px solid #544532; box-shadow: 0 5px 17px #0004; }
+> src\styles.css:104:.chessboard { width: 100%; height: 100%; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); user-select: none; }
+  src\styles.css:105:.square { border: 0; padding: 0; margin: 0; position: relative; display: grid; place-items: center; }
+  src\styles.css:106:.light-square { background: #ead9b5; }
+  src\styles.css:107:.dark-square { background: #96704c; }
+  src\styles.css:108:.square:hover { filter: brightness(1.08); }
+  src\styles.css:109:.selected-square::after { content: ""; position: absolute; inset: 0; background: #c5d96d88; pointer-events: none; }
+  src\styles.css:110:.last-square::after { content: ""; position: absolute; inset: 0; background: #d8d05b68; pointer-events: none; }
+  src\styles.css:201:.diagram-strip button.strip-selected { background: #60783d; color: white; border-color: #91b75a; }
+  src\styles.css:202:.diagram-strip > span:not(.strip-label) { font-size: 9px; }
+  src\styles.css:203:.scan-hint { color: #76837b; font-size: 9px; margin-left: auto; text-align: right; }
+> src\styles.css:204:.analysis-strip { min-height: 74px; display: flex; align-items: center; gap: 12px; padding: 9px 14px; background: #202523; border-top: 1px solid #323a36; }
+  src\styles.css:205:.analysis-name { display: flex; align-items: center; gap: 8px; min-width: 135px; }
+  src\styles.css:206:.stockfish-mark { display: grid; place-items: center; width: 27px; height: 27px; color: #9bcaab; border: 1px solid #476451; background: #29382f; border-radius: 5px; font-size: 16px; }
+> src\styles.css:207:.analysis-name div, .analysis-result { display: flex; flex-direction: column; gap: 3px; }
+  src\styles.css:208:.analysis-name strong { color: #c4cec8; font-size: 10px; }
+> src\styles.css:209:.analysis-name div span, .analysis-result span { color: #77837c; font-size: 8px; }
+  src\styles.css:210:.analysis-divider { width: 1px; height: 30px; background: #38413c; }
+  src\styles.css:211:.analysis-disabled { height: 25px; padding: 0 9px; color: #87928b; background: #292e2c; border: 1px solid #3b413e; border-radius: 3px; font-size: 9px; }
+  src\styles.css:212:.depth-control { display: flex; align-items: center; gap: 5px; color: #7b8780; font-size: 9px; }
+  src\styles.css:213:.depth-control select { width: 43px; background: #252b29; border: 1px solid #38413c; border-radius: 3px; color: #818d85; font-size: 9px; }
+> src\styles.css:214:.analysis-result { border-left: 1px solid #343d38; padding-left: 10px; min-width: 52px; }
+> src\styles.css:215:.analysis-result strong { font: 12px "DM Mono", monospace; color: #8b968e; }
+  src\styles.css:216:.analysis-pv { margin-left: auto; max-width: 185px; display: flex; flex-direction: column; gap: 4px; }
+  src\styles.css:217:.analysis-pv span { color: #76827b; font-size: 8px; letter-spacing: .6px; }
+  src\styles.css:218:.analysis-pv strong { color: #8b9690; font-size: 9px; font-weight: 400; }
+  src\styles.css:219:
+  src\styles.css:220:.settings-popover { position: absolute; z-index: 10; right: 14px; top: 48px; width: 245px; display: flex; flex-direction: column; gap: 9px; padding: 13px; background: #252c29; border: 1px solid 
+#48554c; border-radius: 5px; box-shadow: 0 10px 30px #0009; }
+  src\styles.css:221:.settings-popover strong { font-size: 11px; color: #d6ded8; }
+  src\styles.css:229:@media (max-width: 1180px) {
+  src\styles.css:230:  .workspace { grid-template-columns: minmax(215px, 250px) minmax(355px, 42vw) minmax(360px, 1fr); }
+  src\styles.css:231:  .workspace.library-collapsed { grid-template-columns: minmax(355px, 42vw) minmax(360px, 1fr); }
+> src\styles.css:232:  .board-panel { padding-left: 10px; padding-right: 10px; }
+> src\styles.css:233:  .analysis-strip { gap: 7px; padding: 8px; }
+  src\styles.css:234:  .analysis-name { min-width: 118px; }
+  src\styles.css:235:  .analysis-pv { display: none; }
+  src\styles.css:236:}
+  src\styles.css:237:@media (max-width: 900px) {
+  src\styles.css:238:  .app-shell { height: auto; min-height: 100vh; overflow: auto; }
+  src\styles.css:239:  .workspace, .workspace.library-collapsed { height: auto; min-height: calc(100vh - 54px); display: grid; grid-template-columns: minmax(300px, 42%) minmax(0, 1fr); }
+  src\styles.css:240:  .library-panel { position: fixed; z-index: 8; top: 54px; bottom: 0; width: 265px; box-shadow: 8px 0 24px #0008; }
+  src\styles.css:241:  .workspace:not(.library-collapsed) { padding-left: 265px; }
+  src\styles.css:242:  .workspace.library-collapsed { grid-template-columns: minmax(300px, 42%) minmax(0, 1fr); }
+> src\styles.css:243:  .board-panel { min-height: 690px; }
+  src\styles.css:244:  .reader-panel { min-height: 690px; }
+> src\styles.css:245:  .board-frame { width: min(100% - 18px, 410px); }
+  src\styles.css:246:}
+  src\styles.css:247:@media (max-width: 640px) {
+  src\styles.css:248:  .topbar { padding: 0 9px; gap: 8px; }
+  src\styles.css:249:  .brand-mark { display: none; }
+  src\styles.css:250:  .brand-name { font-size: 11px; }
+  src\styles.css:251:  .top-divider, .storage-label { display: none; }
+  src\styles.css:253:  .current-book .muted { display: none; }
+  src\styles.css:254:  .workspace, .workspace.library-collapsed, .workspace:not(.library-collapsed) { display: flex; flex-direction: column; padding-left: 0; height: auto; }
+  src\styles.css:255:  .library-panel { width: min(285px, 86vw); }
+> src\styles.css:256:  .board-panel { order: 1; min-height: auto; max-height: none; padding: 12px; }
+  src\styles.css:257:  .reader-panel { order: 2; min-height: 78vh; }
+> src\styles.css:258:  .board-frame { width: min(calc(100% - 20px), 460px); }
+  src\styles.css:259:  .piece { font-size: clamp(28px, 11vw, 48px); }
+  src\styles.css:260:  .board-controls { flex-wrap: wrap; }
+  src\styles.css:261:  .turn-row { flex-wrap: wrap; }
+  src\styles.css:262:  .page-navigation { flex-wrap: wrap; min-height: 48px; padding: 5px 8px; }
+  src\styles.css:263:  .detection-status { display: none; }
+> src\styles.css:264:  .analysis-strip { flex-wrap: wrap; }
+  src\styles.css:265:  .analysis-name { flex: 1; }
+  src\styles.css:266:  .page-scroll { padding: 10px 8px; }
+  src\styles.css:267:  .reader-footer { align-items: flex-start; padding: 7px 9px; flex-wrap: wrap; }
+  src\styles.css:268:  .scan-hint { width: 100%; text-align: left; margin-left: 0; }
+  src\styles.css:269:}
+  src\styles.css:270:
+  src\styles.css:294:.section-kicker { font-size: 11px; }
+  src\styles.css:295:.engine-idle { font-size: 10px; }
+  src\styles.css:296:.board-area { width: 100%; min-width: 0; align-items: stretch; }
+> src\styles.css:297:.board-frame { min-width: 0; }
+> src\styles.css:298:.board-frame { padding: 4px; background: #202925; border: 1px solid #53665a; box-shadow: 0 8px 24px #0005; }
+> src\styles.css:299:.evaluation-bar { width: 12px; flex-basis: 12px; border-radius: 4px; border-color: #536057; }
+> src\styles.css:300:.evaluation-bar .eval-white, .evaluation-bar .eval-black { flex: 0 0 auto; transition: height 200ms ease; }
+  src\styles.css:301:.eval-white { background: #e4e6dc; }
+  src\styles.css:302:.eval-black { background: #28312d; }
+  src\styles.css:303:.evaluation-ready { background: #28312d; }
+  src\styles.css:304:.light-square { background: #F0D9B5; }
+  src\styles.css:305:.dark-square { background: #B58863; }
+  src\styles.css:306:.square:hover { filter: brightness(1.04); }
+  src\styles.css:345:.crop-handle.handle-s { left: calc(50% - 7px); bottom: -8px; cursor: ns-resize; }
+  src\styles.css:346:.crop-handle.handle-sw { left: -8px; bottom: -8px; cursor: nesw-resize; }
+  src\styles.css:347:.crop-handle.handle-w { left: -8px; top: calc(50% - 7px); cursor: ew-resize; }
+> src\styles.css:348:.analysis-strip { min-height: 88px; gap: 10px; flex-wrap: wrap; }
+  src\styles.css:349:.analysis-name strong { font-size: 13px; }
+> src\styles.css:350:.analysis-name div span, .analysis-result span { font-size: 11px; }
+  src\styles.css:351:.engine-toggle { border: 1px solid #64816a; background: #354d3c; color: #e0ebe2; }
+  src\styles.css:352:.engine-toggle.engine-active { background: #2b3530; border-color: #55645a; }
+> src\styles.css:353:.depth-control, .analysis-result strong { font-size: 12px; }
+  src\styles.css:354:.depth-control select { width: 52px; min-height: 34px; font-size: 12px; }
+> src\styles.css:355:.analysis-result strong { color: #d8e2d9; }
+  src\styles.css:356:.analysis-pv { max-width: 260px; }
+  src\styles.css:357:.analysis-pv span { font-size: 10px; }
+  src\styles.css:358:.analysis-pv strong { font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+  src\styles.css:359:.engine-ready i { background: var(--green); }
+  src\styles.css:360:.engine-analyzing i, .engine-loading i { background: var(--amber); }
+  src\styles.css:361:.engine-error i { background: #d77e70; }
+  src\styles.css:380:.startup { font-size: 14px; }
+  src\styles.css:381:
+  src\styles.css:382:@media (max-width: 900px) {
+> src\styles.css:383:  .analysis-strip { gap: 8px; }
+  src\styles.css:384:}
+  src\styles.css:385:@media (max-width: 640px) {
+  src\styles.css:386:  .reader-actions { flex-wrap: wrap; }
+  src\styles.css:387:  .reader-actions button { min-width: 34px; height: 34px; }
+  src\styles.css:388:  .crop-actions { width: 100%; }
+  src\styles.css:389:  .scan-hint { font-size: 11px; }
+  src\styles.css:390:  .transfer-dialog { padding: 16px; }
+  src\styles.css:391:}
+  src\styles.css:392:
+> src\styles.css:393:.board-frame { background: #33271c; border-color: #6b5138; }
+  src\styles.css:394:.light-square { background: #ead8b7; }
+  src\styles.css:395:.dark-square { background: #916744; }
+  src\styles.css:396:.coord-dark { color: #765438; }
+  src\styles.css:397:.coord-light { color: #f3e4c7; }
+> src\styles.css:398:.evaluation-bar { width: 15px; flex-basis: 15px; }
+  src\styles.css:399:.piece svg { width: 96%; height: 96%; }
+> src\styles.css:400:.chessboard { position: relative; touch-action: manipulation; }
+  src\styles.css:401:.annotation-mode { cursor: crosshair; }
+  src\styles.css:402:.board-arrows { position: absolute; z-index: 5; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  src\styles.css:403:.board-arrow { filter: drop-shadow(0 1px 1px #1b1710aa); }
+  src\styles.css:404:.board-arrow-engine { stroke-dasharray: none; }
+  src\styles.css:405:.board-arrow-preview { stroke-dasharray: .18 .12; }
+  src\styles.css:406:.board-controls button.annotation-active { color: #f1d395; background: #493a27; border-color: #967343; }
+  src\styles.css:532:  border-color: var(--line);
+  src\styles.css:533:}
+  src\styles.css:534:
+> src\styles.css:535:.board-panel {
+  src\styles.css:536:  background: #2e2d2b;
+  src\styles.css:537:  border-color: var(--line);
+  src\styles.css:538:}
+  src\styles.css:539:
+  src\styles.css:540:.reader-panel {
+  src\styles.css:541:  background: #302f2d;
+  src\styles.css:657:  font-size: 13px;
+  src\styles.css:658:}
+  src\styles.css:659:
+> src\styles.css:660:.board-frame {
+  src\styles.css:661:  background: #332b24;
+  src\styles.css:662:  border: 1px solid #55483b;
+  src\styles.css:663:  border-radius: 3px;
+  src\styles.css:664:  box-shadow: 0 6px 18px #0003;
+  src\styles.css:665:}
+  src\styles.css:666:
+  src\styles.css:755:  font-size: 12px;
+  src\styles.css:756:}
+  src\styles.css:757:
+> src\styles.css:758:.analysis-strip {
+  src\styles.css:759:  background: #272624;
+  src\styles.css:760:  border-color: #403e3a;
+  src\styles.css:761:}
+  src\styles.css:762:
+  src\styles.css:763:.stockfish-mark {
+  src\styles.css:764:  background: #363d30;
+  src\styles.css:792:}
+  src\styles.css:793:
+  src\styles.css:794:@media (max-width: 900px) {
+> src\styles.css:795:  .board-panel,
+  src\styles.css:796:  .reader-panel {
+  src\styles.css:797:    background: #2e2d2b;
+  src\styles.css:798:  }
+  src\styles.css:799:}
+  src\styles.css:800:
+  src\styles.css:801:/* READABILITY PASS 1 — larger interface typography */
+  src\styles.css:892:
+  src\styles.css:893:.analysis-name strong { font-size: 14px; }
+  src\styles.css:894:.analysis-name div span,
+> src\styles.css:895:.analysis-result span { font-size: 12px; }
+  src\styles.css:896:.depth-control,
+> src\styles.css:897:.analysis-result strong { font-size: 13px; }
+  src\styles.css:898:.analysis-pv span { font-size: 12px; }
+  src\styles.css:899:.analysis-pv strong { font-size: 13px; }
+  src\styles.css:900:
+  src\styles.css:901:.settings-popover strong { font-size: 15px; }
+  src\styles.css:902:.settings-popover span { font-size: 13px; }
+  src\styles.css:903:.settings-popover button { font-size: 13px; }
+  src\styles.css:915:  .manual-button,
+  src\styles.css:916:  .engine-toggle { font-size: 14px; }
+  src\styles.css:917:}
+> src\styles.css:918:/* CHESSBOARD POLISH PASS 1 — visual-only overrides */
+  src\styles.css:919:.rank-coordinate,
+  src\styles.css:920:.file-coordinate {
+  src\styles.css:921:  z-index: 2;
+  src\styles.css:922:  font-size: clamp(12px, 1.05vw, 15px);
+  src\styles.css:923:  font-weight: 800;
+  src\styles.css:924:  line-height: 1;
+  src\styles.css:957:    font-size: 12px;
+  src\styles.css:958:  }
+  src\styles.css:959:}
+> src\styles.css:960:/* END CHESSBOARD POLISH PASS 1 */
+  src\styles.css:961:.clear-scan-button {
+  src\styles.css:962:  padding: 8px 13px;
+  src\styles.css:963:  border: 1px solid #5a655e;
+  src\styles.css:964:  border-radius: 5px;
+  src\styles.css:965:  color: #e3e9e5;
+  src\styles.css:966:  background: #343a36;
+  src\styles.css:1098:}
+  src\styles.css:1099:
+  src\styles.css:1100:/* BOARD OVERFLOW FIX: keep the board inside its layout column */
+> src\styles.css:1101:.board-panel {
+  src\styles.css:1102:  min-width: 0;
+  src\styles.css:1103:  min-height: 0;
+  src\styles.css:1104:  overflow-y: auto;
+  src\styles.css:1105:}
+  src\styles.css:1106:
+  src\styles.css:1107:.board-area {
+  src\styles.css:1110:  align-items: center;
+  src\styles.css:1111:}
+  src\styles.css:1112:
+> src\styles.css:1113:.board-frame {
+  src\styles.css:1114:  box-sizing: border-box;
+  src\styles.css:1115:  width: min(100%,  min(58vh, 650px));
+  src\styles.css:1116:  max-width: 100%;
+  src\styles.css:1117:  min-width: 0;
+  src\styles.css:1118:  aspect-ratio: 1 / 1;
+  src\styles.css:1119:  flex: 0 1 auto;
+  src\styles.css:1120:}
+  src\styles.css:1121:
+> src\styles.css:1122:.chessboard {
+  src\styles.css:1123:  width: 100%;
+  src\styles.css:1124:  height: 100%;
+  src\styles.css:1125:}
+  src\styles.css:1126:
+  src\styles.css:1127:.board-controls,
+  src\styles.css:1128:.turn-row,
+  src\styles.css:1150:    grid-template-columns: minmax(340px, 40%) minmax(0, 1fr);
+  src\styles.css:1151:  }
+  src\styles.css:1152:
+> src\styles.css:1153:  .board-panel {
+  src\styles.css:1154:    min-width: 0;
+  src\styles.css:1155:    min-height: 0;
+  src\styles.css:1156:    padding-top: 8px;
+  src\styles.css:1157:    padding-bottom: 8px;
+  src\styles.css:1158:  }
+  src\styles.css:1159:
+  src\styles.css:1162:    min-height: 0;
+  src\styles.css:1163:  }
+  src\styles.css:1164:
+> src\styles.css:1165:  .board-frame {
+  src\styles.css:1166:    width: min(100%, min(50vh, 560px));
+  src\styles.css:1167:    max-width: 100%;
+  src\styles.css:1168:  }
+  src\styles.css:1169:
+  src\styles.css:1170:  .section-kicker {
+  src\styles.css:1171:    margin-top: 2px;
+  src\styles.css:1188:    font-size: 11px;
+  src\styles.css:1189:  }
+  src\styles.css:1190:
+> src\styles.css:1191:  .board-panel {
+  src\styles.css:1192:    padding: 8px 10px 6px;
+  src\styles.css:1193:  }
+  src\styles.css:1194:
+  src\styles.css:1195:  .section-kicker {
+  src\styles.css:1196:    padding-bottom: 6px;
+  src\styles.css:1197:    margin-bottom: 0;
+  src\styles.css:1199:    letter-spacing: 1.1px;
+  src\styles.css:1200:  }
+  src\styles.css:1201:
+> src\styles.css:1202:  .board-panel h2,
+> src\styles.css:1203:  .board-panel h3 {
+  src\styles.css:1204:    margin-top: 7px;
+  src\styles.css:1205:    margin-bottom: 4px;
+  src\styles.css:1206:  }
+  src\styles.css:1207:
+> src\styles.css:1208:  .board-panel .board-frame {
+  src\styles.css:1209:    margin-top: 4px;
+  src\styles.css:1210:    margin-bottom: 6px;
+  src\styles.css:1211:  }
+  src\styles.css:1212:
+  src\styles.css:1213:  .reader-panel button {
+  src\styles.css:1214:    font-size: 11px;
+  src\styles.css:1225:/* Glass header and compact library refinement */
+  src\styles.css:1226:@media (min-width: 1200px) {
+  src\styles.css:1227:  /* Keep the analysis column compact without shrinking the board itself. */
+> src\styles.css:1228:  .board-panel {
+  src\styles.css:1229:    min-width: 0;
+  src\styles.css:1230:  }
+  src\styles.css:1231:
+  src\styles.css:1232:  /* The section label becomes a distinct, glass-like dark header strip. */
+  src\styles.css:1233:  .section-kicker {
+  src\styles.css:1234:    box-sizing: border-box;
+
+

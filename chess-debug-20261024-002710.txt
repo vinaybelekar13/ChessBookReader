@@ -1,0 +1,695 @@
+﻿=== BOARD COORDINATE AND ARROW HELPERS ===
+
+  src\App.tsx:1:import { useEffect, useMemo, useRef, useState } from "react";
+  src\App.tsx:2:import { Chess, type Square } from "chess.js";
+  src\App.tsx:3:import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+  src\App.tsx:4:import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+  src\App.tsx:5:import { fenWithTurn, makePosition } from "./chess-state";
+> src\App.tsx:6:import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+  src\App.tsx:7:import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+  src\App.tsx:8:import { ManualBoardEditor } from "./ManualBoardEditor";
+  src\App.tsx:9:import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+  src\App.tsx:10:import {
+  src\App.tsx:11:  getActiveBookId,
+  src\App.tsx:12:  getBooks,
+  src\App.tsx:13:  getSession,
+  src\App.tsx:14:  getSession as getStoredSession,
+  src\App.tsx:15:  putBook,
+  src\App.tsx:16:  putSession,
+  src\App.tsx:17:  removeBook,
+  src\App.tsx:18:  removeSession,
+  src\App.tsx:109:  const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  src\App.tsx:110:  const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+  src\App.tsx:111:  const renderTaskRef = useRef<RenderTask | null>(null);
+  src\App.tsx:112:  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  src\App.tsx:113:  const dragCurrentRef = useRef<{ x: number; y: number; x2: number; y2: number } | null>(null);
+> src\App.tsx:114:  const arrowGestureRef = useRef<Square | null>(null);
+> src\App.tsx:115:  const suppressBoardContextMenuRef = useRef(false);
+  src\App.tsx:116:const scanAbortControllerRef = useRef<AbortController | null>(null);
+  src\App.tsx:117:  const scanRequestIdRef = useRef(0);
+  src\App.tsx:118:  const transferRequestRef = useRef(0);
+  src\App.tsx:119:  const cropEditStartRef = useRef<{ candidate: Candidate; handle: CropHandle; point: { x: number; y: number } } | null>(null);
+  src\App.tsx:120:  const cropBaselineRef = useRef<Candidate | null>(null);
+  src\App.tsx:121:  const engineRef = useRef<StockfishEngine | null>(null);
+  src\App.tsx:122:
+  src\App.tsx:123:  useEffect(() => {
+  src\App.tsx:124:    let cancelled = false;
+  src\App.tsx:125:    async function initialize() {
+  src\App.tsx:126:      try {
+  src\App.tsx:127:        const [storedBooks, activeId] = await Promise.all([getBooks(), getActiveBookId()]);
+  src\App.tsx:712:    const piece = game.get(square);
+  src\App.tsx:713:    if (piece?.color === game.turn()) setSelectedSquare(square);
+  src\App.tsx:714:    else setSelectedSquare(null);
+  src\App.tsx:715:  }
+  src\App.tsx:716:
+> src\App.tsx:717:  function boardArrowPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+  src\App.tsx:718:  if (event.button !== 2 || !boardRef.current) return;
+  src\App.tsx:719:
+  src\App.tsx:720:  event.preventDefault();
+  src\App.tsx:721:
+  src\App.tsx:722:  const bounds = boardRef.current.getBoundingClientRect();
+> src\App.tsx:723:  const square = boardSquareAtPoint(
+  src\App.tsx:724:    event.clientX,
+  src\App.tsx:725:    event.clientY,
+  src\App.tsx:726:    bounds,
+  src\App.tsx:727:    Boolean(session?.flipped),
+  src\App.tsx:728:  );
+  src\App.tsx:729:
+  src\App.tsx:730:  if (!square) return;
+  src\App.tsx:731:
+  src\App.tsx:732:  // Only suppress the context menu if an arrow is actually drawn.
+> src\App.tsx:733:  suppressBoardContextMenuRef.current = false;
+> src\App.tsx:734:  arrowGestureRef.current = square;
+  src\App.tsx:735:  setArrowStart(square);
+  src\App.tsx:736:  setArrowHover(square);
+  src\App.tsx:737:
+  src\App.tsx:738:  event.currentTarget.setPointerCapture(event.pointerId);
+  src\App.tsx:739:}
+  src\App.tsx:740:
+> src\App.tsx:741:  function boardArrowPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+> src\App.tsx:742:    if (!arrowGestureRef.current || !boardRef.current) return;
+  src\App.tsx:743:    const bounds = boardRef.current.getBoundingClientRect();
+> src\App.tsx:744:    setArrowHover(boardSquareAtPoint(event.clientX, event.clientY, bounds, Boolean(session?.flipped)));
+  src\App.tsx:745:  }
+  src\App.tsx:746:
+> src\App.tsx:747:  function boardArrowPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+> src\App.tsx:748:  const from = arrowGestureRef.current;
+  src\App.tsx:749:
+  src\App.tsx:750:  if (!from || !boardRef.current) return;
+  src\App.tsx:751:
+  src\App.tsx:752:  const bounds = boardRef.current.getBoundingClientRect();
+> src\App.tsx:753:  const to = boardSquareAtPoint(
+  src\App.tsx:754:    event.clientX,
+  src\App.tsx:755:    event.clientY,
+  src\App.tsx:756:    bounds,
+  src\App.tsx:757:    Boolean(session?.flipped),
+  src\App.tsx:758:  );
+  src\App.tsx:759:
+  src\App.tsx:760:  if (to && to !== from) {
+  src\App.tsx:761:    setUserArrows((arrows) => toggleArrow(arrows, { from, to }));
+> src\App.tsx:762:    suppressBoardContextMenuRef.current = true;
+  src\App.tsx:763:  } else {
+> src\App.tsx:764:    suppressBoardContextMenuRef.current = false;
+  src\App.tsx:765:  }
+  src\App.tsx:766:
+> src\App.tsx:767:  arrowGestureRef.current = null;
+  src\App.tsx:768:  setArrowStart(null);
+  src\App.tsx:769:  setArrowHover(null);
+  src\App.tsx:770:}
+  src\App.tsx:771:
+> src\App.tsx:772:  function cancelBoardArrowGesture() {
+> src\App.tsx:773:    arrowGestureRef.current = null;
+  src\App.tsx:774:    setArrowStart(null);
+  src\App.tsx:775:    setArrowHover(null);
+  src\App.tsx:776:  }
+  src\App.tsx:777:
+  src\App.tsx:778:  function jumpToMove(index: number) {
+  src\App.tsx:779:    if (!session) return;
+  src\App.tsx:780:    try {
+  src\App.tsx:781:      const next = makePosition(session.lineBaseFen, session.moves, index);
+  src\App.tsx:782:      const last = next.history({ verbose: true }).at(-1);
+  src\App.tsx:783:      patchSession({ moveIndex: index, currentFen: next.fen() });
+  src\App.tsx:784:      setLastMove(last ? { from: last.from, to: last.to } : null);
+  src\App.tsx:785:      setSelectedSquare(null);
+  src\App.tsx:1207:            </div>
+  src\App.tsx:1208:            <div className="board-frame">
+  src\App.tsx:1209:              <div
+  src\App.tsx:1210:                className={`chessboard ${session?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+  src\App.tsx:1211:                ref={boardRef}
+> src\App.tsx:1212:                onPointerDown={boardArrowPointerDown}
+> src\App.tsx:1213:                onPointerMove={boardArrowPointerMove}
+> src\App.tsx:1214:                onPointerUp={boardArrowPointerUp}
+> src\App.tsx:1215:                onPointerCancel={cancelBoardArrowGesture}
+  src\App.tsx:1216:                onContextMenu={(event) => {
+  src\App.tsx:1217:  event.preventDefault();
+  src\App.tsx:1218:
+> src\App.tsx:1219:  if (suppressBoardContextMenuRef.current) {
+  src\App.tsx:1220:    // The right-drag already created an arrow. Keep it.
+> src\App.tsx:1221:    suppressBoardContextMenuRef.current = false;
+  src\App.tsx:1222:    return;
+  src\App.tsx:1223:  }
+  src\App.tsx:1224:
+  src\App.tsx:1225:  // A plain right-click clears annotations, not the chess position.
+  src\App.tsx:1226:  setUserArrows([]);
+  src\App.tsx:1227:  setArrowStart(null);
+  src\App.tsx:1228:  setArrowHover(null);
+  src\App.tsx:1229:  setSelectedSquare(null);
+  src\App.tsx:1230:  setLastMove(null);
+  src\App.tsx:1231:}}
+  src\App.tsx:1232:              >
+  src\App.tsx:1233:                {Array.from({ length: 64 }, (_, index) => {
+
+
+
+=== BOARD JSX AND SQUARE EVENTS ===
+
+  src\App.tsx:1205:              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+  src\App.tsx:1206:              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+  src\App.tsx:1207:            </div>
+  src\App.tsx:1208:            <div className="board-frame">
+  src\App.tsx:1209:              <div
+> src\App.tsx:1210:                className={`chessboard ${session?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+  src\App.tsx:1211:                ref={boardRef}
+> src\App.tsx:1212:                onPointerDown={boardArrowPointerDown}
+  src\App.tsx:1213:                onPointerMove={boardArrowPointerMove}
+  src\App.tsx:1214:                onPointerUp={boardArrowPointerUp}
+  src\App.tsx:1215:                onPointerCancel={cancelBoardArrowGesture}
+> src\App.tsx:1216:                onContextMenu={(event) => {
+  src\App.tsx:1217:  event.preventDefault();
+  src\App.tsx:1218:
+  src\App.tsx:1219:  if (suppressBoardContextMenuRef.current) {
+  src\App.tsx:1220:    // The right-drag already created an arrow. Keep it.
+  src\App.tsx:1221:    suppressBoardContextMenuRef.current = false;
+  src\App.tsx:1222:    return;
+  src\App.tsx:1223:  }
+  src\App.tsx:1224:
+  src\App.tsx:1225:  // A plain right-click clears annotations, not the chess position.
+  src\App.tsx:1226:  setUserArrows([]);
+  src\App.tsx:1227:  setArrowStart(null);
+  src\App.tsx:1228:  setArrowHover(null);
+  src\App.tsx:1265:                      {session?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
+  src\App.tsx:1266:                      {session?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
+  src\App.tsx:1267:                    </button>
+  src\App.tsx:1268:                  );
+  src\App.tsx:1269:                })}
+> src\App.tsx:1270:                <svg className="board-arrows" viewBox="0 0 8 8" aria-hidden="true">
+  src\App.tsx:1271:                  <defs>
+  src\App.tsx:1272:
+  src\App.tsx:1273:                    <marker id="user-arrowhead" markerWidth="0.72" markerHeight="0.62" refX="0.72" refY="0.31" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0,0 L 0.72,0.31 L 0,0.62 Z" fill="#81b64c" /></marker>
+  src\App.tsx:1274:
+  src\App.tsx:1275:                    <marker id="engine-arrowhead" markerWidth="0.72" markerHeight="0.62" refX="0.72" refY="0.31" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0,0 L 0.72,0.31 L 0,0.62 Z" fill="#f0a23b" /></marker>
+  src\App.tsx:1276:
+  src\App.tsx:1277:                  </defs>
+  src\App.tsx:1278:                  {[
+  src\App.tsx:1279:                    ...userArrows.map((arrow) => ({ arrow, kind: "user" as const })),
+  src\App.tsx:1280:                    ...(engineArrow ? [{ arrow: engineArrow, kind: "engine" as const }] : []),
+  src\App.tsx:1281:                    ...(arrowStart && arrowHover && arrowStart !== arrowHover
+  src\App.tsx:1282:                      ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
+
+
+
+=== BOARD CSS: BASE RULES ===
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.board-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.board-header-actions .setup-position-btn {
+  color: #BEE5C8;
+  border-color: rgba(129, 182, 76, 0.35);
+  background: rgba(129, 182, 76, 0.12);
+}
+
+.board-header-actions .setup-position-btn:hover {
+  background: rgba(129, 182, 76, 0.22);
+  border-color: var(--green-primary);
+}
+
+/* Board frame and evaluation bar */
+.board-area {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.evaluation-bar {
+  display: flex;
+  flex: 0 0 14px;
+  width: 14px;
+  align-self: stretch;
+  min-height: 0;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #201E1B;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+.eval-white {
+  width: 100%;
+  background: #FFFFFF;
+  transition: height 0.2s ease;
+}
+
+.eval-black {
+  width: 100%;
+  background: #2B2824;
+  transition: height 0.2s ease;
+}
+
+.board-frame {
+  box-sizing: border-box;
+  width: min(100%, min(52vh, 480px));
+  max-width: 100%;
+  min-width: 220px;
+  aspect-ratio: 1 / 1;
+  padding: 3px;
+  background: #2D2822;
+  border: 2px solid #3E372F;
+  border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.chessboard {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  user-select: none;
+  position: relative;
+  touch-action: manipulation;
+}
+
+.square {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: 0;
+  cursor: pointer;
+  background: transparent;
+}
+
+.light-square {
+  background: var(--board-light);
+}
+
+.dark-square {
+
+=== BOARD CSS: LATER OVERRIDES ===
+  box-sizing: border-box;
+}
+
+.board-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  overflow: hidden;
+}
+
+.board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: 12px;
+}
+
+.board-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.board-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.board-frame {
+  width: min(100%, 480px);
+  min-width: 0;
+  flex-shrink: 0;
+  aspect-ratio: 1;
+  box-sizing: border-box;
+}
+
+.board-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.board-controls .controls-separator,
+.board-controls .controls-spacer {
+  display: none;
+}
+
+.board-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 42px;
+  height: auto;
+  margin: 0;
+  padding: 9px 8px;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+
+  }
+
+  .turn-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    padding: 8px;
+  }
+
+  .turn-row > span {
+    grid-column: 1 / -1;
+  }
+
+  .fen-entry {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fen-entry input,
+  .fen-entry button {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .move-pair {
+    grid-template-columns: 28px repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+
+/* FIX: analysis controls stay aligned beneath the chessboard at 100% zoom */
+.board-panel {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.board-area {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
+.board-frame {
+  width: min(100%, 42vh, 340px);
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.board-controls {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 6px !important;
+  width: 100%;
+  min-width: 0;
+  margin: 10px 0 0 !important;
+}
+
+.board-panel .board-controls .controls-separator,
+.board-panel .board-controls .controls-spacer {
+  display: none !important;
+}
+
+.board-panel .board-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  height: auto;
+  margin: 0;
+
+.board-header h2,
+.board-header h3,
+.board-header p {
+  margin: 0;
+}
+
+.board-header-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin: 0;
+}
+
+.board-header-actions button {
+  padding: 5px 9px;
+  min-height: 30px;
+  white-space: nowrap;
+}
+
+.board-area {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.board-frame {
+  box-sizing: border-box;
+  width: min(100%, calc(100vh - 340px), 560px);
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
+  aspect-ratio: 1 / 1;
+}
+
+.board-controls {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  margin-top: 5px;
+}
+
+.board-controls button {
+  min-height: 32px;
+  padding: 5px 9px;
+  flex: 0 1 auto;
+}
+
+.turn-row {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+
+  overflow: hidden !important;
+  border-left: 1px solid #45413a !important;
+  padding-left: 10px !important;
+}
+
+.analysis-strip .analysis-pv span {
+  font-size: 9px !important;
+  line-height: 1.25 !important;
+  letter-spacing: .35px !important;
+}
+
+.analysis-strip .analysis-pv strong {
+  display: block !important;
+  max-width: 100% !important;
+  font: 11px/1.4 Consolas, monospace !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  overflow-wrap: normal !important;
+}
+
+@media (max-width: 1100px) {
+  .analysis-strip {
+    grid-template-columns: minmax(100px, 1.2fr) minmax(100px, auto) 52px 65px 65px minmax(95px, 1fr) !important;
+    gap: 7px !important;
+    padding: 7px 9px !important;
+  }
+
+  .analysis-strip .analysis-name strong {
+    font-size: 11px !important;
+  }
+
+  .analysis-strip .analysis-name span,
+  .analysis-strip .analysis-result span {
+    font-size: 9px !important;
+  }
+
+  .analysis-strip .analysis-pv {
+    padding-left: 7px !important;
+  }
+
+  .analysis-strip .analysis-pv strong {
+    font-size: 10px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .analysis-strip {
+    grid-template-columns: minmax(0, 1fr) auto auto !important;
+    gap: 8px !important;
+  }
+
+  .analysis-strip .analysis-name {
+    grid-column: 1 / 2 !important;
+  }
+
+  .analysis-strip .engine-toggle {
+    grid-column: 2 / 3 !important;
+    width: auto !important;
+  }
+
+  .analysis-strip .depth-control {
+    grid-column: 3 / 4 !important;
+  }
+
+  .analysis-strip .analysis-pv {
+    grid-column: 1 / -1 !important;
+    display: grid !important;
+    grid-template-columns: 110px minmax(0, 1fr) !important;
+    align-items: center !important;
+    border-left: 0 !important;
+    border-top: 1px solid #45413a !important;
+    padding: 7px 0 0 !important;
+  }
+}
+
+
+
+
+
+
+.board-controls button.annotation-active,
+.board-controls button[aria-pressed="true"] {
+  background: #81b64c !important;
+  color: #172313 !important;
+  border-color: #a3d160 !important;
+  box-shadow: 0 0 0 2px rgba(129, 182, 76, .22) !important;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* --- Stockfish engine status badge --- */
+.engine-status-icon,
+.stockfish-icon,
+.engine-logo,
+.stockfish-logo {
+  border-radius: 13px !important;
+  overflow: hidden;
+  background: linear-gradient(145deg, #293d2a, #18251d) !important;
+  border: 1px solid rgba(129, 182, 76, .38) !important;
+
+=== ARROW AND COORDINATE TESTS ===
+
+  src\board-annotations.test.ts:1:import { describe, expect, it } from "vitest";
+  src\board-annotations.test.ts:2:import {
+> src\board-annotations.test.ts:3:  ANNOTATION_COLORS,
+> src\board-annotations.test.ts:4:  boardSquareAtPoint,
+> src\board-annotations.test.ts:5:  getAnnotationColor,
+  src\board-annotations.test.ts:6:  getArrowPath,
+  src\board-annotations.test.ts:7:  parseBestMove,
+  src\board-annotations.test.ts:8:  squareCenter,
+> src\board-annotations.test.ts:9:  toggleArrow,
+  src\board-annotations.test.ts:10:  toggleSquareHighlight,
+> src\board-annotations.test.ts:11:} from "./board-annotations";
+  src\board-annotations.test.ts:12:
+> src\board-annotations.test.ts:13:describe("chessboard annotation geometry", () => {
+  src\board-annotations.test.ts:14:  const board = { left: 100, top: 50, width: 400, height: 400 };
+  src\board-annotations.test.ts:15:
+> src\board-annotations.test.ts:16:  it("maps pointer coordinates to board squares at any displayed size", () => {
+> src\board-annotations.test.ts:17:    expect(boardSquareAtPoint(125, 75, board)).toBe("a8");
+> src\board-annotations.test.ts:18:    expect(boardSquareAtPoint(475, 425, board)).toBe("h1");
+> src\board-annotations.test.ts:19:    expect(boardSquareAtPoint(500, 100, board)).toBeNull();
+  src\board-annotations.test.ts:20:  });
+  src\board-annotations.test.ts:21:
+  src\board-annotations.test.ts:22:  it("maps squares consistently when the board is flipped", () => {
+> src\board-annotations.test.ts:23:    expect(boardSquareAtPoint(125, 75, board, true)).toBe("h1");
+  src\board-annotations.test.ts:24:    expect(squareCenter("a1", false)).toEqual({ x: 0.5, y: 7.5 });
+  src\board-annotations.test.ts:25:    expect(squareCenter("a1", true)).toEqual({ x: 7.5, y: 0.5 });
+  src\board-annotations.test.ts:26:  });
+  src\board-annotations.test.ts:27:
+  src\board-annotations.test.ts:28:  it("accepts valid UCI best moves and rejects absent or invalid moves", () => {
+> src\board-annotations.test.ts:29:    expect(parseBestMove("e2e4")).toEqual({ from: "e2", to: "e4", color: ANNOTATION_COLORS.engine });
+> src\board-annotations.test.ts:30:    expect(parseBestMove("a7a8q")).toEqual({ from: "a7", to: "a8", color: ANNOTATION_COLORS.engine });
+  src\board-annotations.test.ts:31:    expect(parseBestMove("(none)")).toBeNull();
+  src\board-annotations.test.ts:32:    expect(parseBestMove(undefined)).toBeNull();
+  src\board-annotations.test.ts:33:  });
+  src\board-annotations.test.ts:34:
+  src\board-annotations.test.ts:35:  it("toggles identical user arrows while preserving distinct arrows", () => {
+  src\board-annotations.test.ts:36:    const first = { from: "e2" as const, to: "e4" as const };
+  src\board-annotations.test.ts:37:    const second = { from: "d2" as const, to: "d4" as const };
+> src\board-annotations.test.ts:38:    expect(toggleArrow([first], second)).toEqual([first, second]);
+> src\board-annotations.test.ts:39:    expect(toggleArrow([first, second], first)).toEqual([second]);
+  src\board-annotations.test.ts:40:  });
+  src\board-annotations.test.ts:41:
+  src\board-annotations.test.ts:42:  it("toggles arrow colors when repeated with a different color", () => {
+  src\board-annotations.test.ts:43:    const red = { from: "e2" as const, to: "e4" as const, color: "#EF5350" };
+  src\board-annotations.test.ts:44:    const green = { from: "e2" as const, to: "e4" as const, color: "#8BC34A" };
+> src\board-annotations.test.ts:45:    expect(toggleArrow([red], green)).toEqual([green]);
+> src\board-annotations.test.ts:46:    expect(toggleArrow([green], green)).toEqual([]);
+  src\board-annotations.test.ts:47:  });
+  src\board-annotations.test.ts:48:
+  src\board-annotations.test.ts:49:  it("toggles square highlights correctly", () => {
+> src\board-annotations.test.ts:50:    expect(toggleSquareHighlight([], "e4")).toEqual([{ square: "e4", color: ANNOTATION_COLORS.red }]);
+> src\board-annotations.test.ts:51:    expect(toggleSquareHighlight([{ square: "e4", color: ANNOTATION_COLORS.red }], "e4")).toEqual([]);
+  src\board-annotations.test.ts:52:    expect(
+> src\board-annotations.test.ts:53:      toggleSquareHighlight([{ square: "e4", color: ANNOTATION_COLORS.red }], "e4", ANNOTATION_COLORS.yellow),
+> src\board-annotations.test.ts:54:    ).toEqual([{ square: "e4", color: ANNOTATION_COLORS.yellow }]);
+  src\board-annotations.test.ts:55:  });
+  src\board-annotations.test.ts:56:
+  src\board-annotations.test.ts:57:  it("resolves modifier key colors accurately", () => {
+> src\board-annotations.test.ts:58:    expect(getAnnotationColor({ shiftKey: true })).toBe(ANNOTATION_COLORS.green);
+> src\board-annotations.test.ts:59:    expect(getAnnotationColor({ ctrlKey: true })).toBe(ANNOTATION_COLORS.yellow);
+> src\board-annotations.test.ts:60:    expect(getAnnotationColor({ altKey: true })).toBe(ANNOTATION_COLORS.blue);
+> src\board-annotations.test.ts:61:    expect(getAnnotationColor({})).toBe(ANNOTATION_COLORS.red);
+  src\board-annotations.test.ts:62:  });
+  src\board-annotations.test.ts:63:
+  src\board-annotations.test.ts:64:  it("generates clean SVG arrow paths with triangular arrowhead and rounded base", () => {
+  src\board-annotations.test.ts:65:    const path = getArrowPath("e2", "e4");
+  src\board-annotations.test.ts:66:    expect(path).toContain("M ");
+
+
+
+=== REPORT LOCATION ===
+D:\chess\BookChess\ChessBookReader\chess-debug-20261024-002710.txt

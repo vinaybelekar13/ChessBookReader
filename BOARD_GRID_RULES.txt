@@ -1,0 +1,341 @@
+CHESSBOARD GRID RULES — READ ONLY
+
+===== CSS LINES 49-63 =====
+  49: 
+  50: .board-frame {
+  51:   width: min(100%, 48vh, 440px);
+  52:   min-width: 0;
+  53:   flex: 0 1 auto;
+  54:   aspect-ratio: 1 / 1;
+  55: }
+  56: 
+  57: .reader-panel {
+  58:   display: flex;
+  59:   flex-direction: column;
+  60:   height: 100%;
+  61:   overflow: hidden;
+  62: }
+  63: 
+
+===== CSS LINES 93-107 =====
+  93: 
+  94:   .board-frame {
+  95:     width: min(100%, 42vh, 340px);
+  96:   }
+  97: }
+  98: 
+  99: @media (max-width: 820px) {
+ 100:   .workspace,
+ 101:   .workspace.library-collapsed {
+ 102:     grid-template-columns: minmax(0, 1fr);
+ 103:   }
+ 104: 
+ 105:   .library-panel {
+ 106:     display: none;
+ 107:   }
+
+===== CSS LINES 112-126 =====
+ 112: 
+ 113:   .board-frame {
+ 114:     width: min(100%, 38vh, 300px);
+ 115:   }
+ 116: }
+ 117: 
+ 118: 
+ 119: /* ==========================================================
+ 120:    1. CHESS.COM INSPIRED DESIGN TOKENS & SYSTEM
+ 121:    ========================================================== */
+ 122: 
+ 123: :root {
+ 124:   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+ 125:   color-scheme: dark;
+ 126:   font-synthesis: none;
+
+===== CSS LINES 888-902 =====
+ 888: 
+ 889: .board-frame {
+ 890:   box-sizing: border-box;
+ 891:   width: min(100%, min(52vh, 480px));
+ 892:   max-width: 100%;
+ 893:   min-width: 220px;
+ 894:   aspect-ratio: 1 / 1;
+ 895:   padding: 3px;
+ 896:   background: #2D2822;
+ 897:   border: 2px solid #3E372F;
+ 898:   border-radius: 4px;
+ 899:   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+ 900: }
+ 901: 
+ 902: .chessboard {
+
+===== CSS LINES 901-915 =====
+ 901: 
+ 902: .chessboard {
+ 903:   width: 100%;
+ 904:   height: 100%;
+ 905:   display: grid;
+ 906:   grid-template-columns: repeat(8, 1fr);
+ 907:   grid-template-rows: repeat(8, 1fr);
+ 908:   user-select: none;
+ 909:   position: relative;
+ 910:   touch-action: manipulation;
+ 911: }
+ 912: 
+ 913: .square {
+ 914:   border: 0;
+ 915:   padding: 0;
+
+===== CSS LINES 912-926 =====
+ 912: 
+ 913: .square {
+ 914:   border: 0;
+ 915:   padding: 0;
+ 916:   margin: 0;
+ 917:   position: relative;
+ 918:   display: grid;
+ 919:   place-items: center;
+ 920:   border-radius: 0;
+ 921:   cursor: pointer;
+ 922:   background: transparent;
+ 923: }
+ 924: 
+ 925: .light-square {
+ 926:   background: var(--board-light);
+
+===== CSS LINES 2576-2590 =====
+2576: 
+2577: .board-frame {
+2578:   flex: 0 0 auto;
+2579:   width: min(100%, min(52vh, 480px));
+2580:   min-width: 0;
+2581:   max-width: 100%;
+2582:   box-sizing: border-box;
+2583: }
+2584: 
+2585: .board-controls {
+2586:   display: grid;
+2587:   grid-template-columns: repeat(4, minmax(0, 1fr));
+2588:   align-items: stretch;
+2589:   gap: 7px;
+2590:   width: 100%;
+
+===== CSS LINES 2716-2730 =====
+2716: 
+2717:   .board-frame {
+2718:     width: min(100%, 460px);
+2719:   }
+2720: 
+2721:   .board-controls {
+2722:     gap: 6px;
+2723:   }
+2724: 
+2725:   .board-controls button {
+2726:     min-height: 38px;
+2727:     font-size: 12px;
+2728:   }
+2729: 
+2730:   .turn-row {
+
+===== CSS LINES 2788-2802 =====
+2788: 
+2789: .board-frame {
+2790:   width: min(100%, 480px);
+2791:   min-width: 0;
+2792:   flex-shrink: 0;
+2793:   aspect-ratio: 1;
+2794:   box-sizing: border-box;
+2795: }
+2796: 
+2797: .board-controls {
+2798:   display: grid;
+2799:   grid-template-columns: repeat(4, minmax(0, 1fr));
+2800:   align-items: stretch;
+2801:   gap: 8px;
+2802:   width: 100%;
+
+===== CSS LINES 2985-2999 =====
+2985: 
+2986:   .board-frame {
+2987:     width: 100%;
+2988:     max-width: 460px;
+2989:   }
+2990: 
+2991:   .board-controls {
+2992:     grid-template-columns: repeat(2, minmax(0, 1fr));
+2993:     gap: 7px;
+2994:   }
+2995: 
+2996:   .board-controls button {
+2997:     min-height: 40px;
+2998:     padding: 8px 6px;
+2999:     font-size: 12px;
+
+===== CSS LINES 3044-3058 =====
+3044: 
+3045: .board-frame {
+3046:   width: min(100%, 42vh, 340px);
+3047:   min-width: 0;
+3048:   flex: 0 1 auto;
+3049: }
+3050: 
+3051: .board-controls {
+3052:   display: grid !important;
+3053:   grid-template-columns: repeat(4, minmax(0, 1fr));
+3054:   align-items: stretch;
+3055:   gap: 6px !important;
+3056:   width: 100%;
+3057:   min-width: 0;
+3058:   margin: 10px 0 0 !important;
+
+===== CSS LINES 3179-3193 =====
+3179: }
+3180: .board-frame {
+3181:   box-sizing: border-box;
+3182:   width: min(100%, 52vh, 440px);
+3183:   min-width: 0;
+3184:   aspect-ratio: 1 / 1;
+3185:   flex: 0 1 auto;
+3186: }
+3187: .board-controls {
+3188:   display: flex;
+3189:   flex-wrap: wrap;
+3190:   align-items: center;
+3191:   justify-content: center;
+3192:   gap: 6px;
+3193:   width: 100%;
+
+===== CSS LINES 3210-3224 =====
+3210:   .board-panel { padding-inline: 10px; }
+3211:   .board-frame { width: min(100%, 46vh, 390px); }
+3212: }
+3213: 
+3214: /* ChessBookReader: wider analysis board and compact PDF reader */
+3215: .workspace {
+3216:   grid-template-columns: 220px minmax(450px, 36%) minmax(0, 1fr) !important;
+3217: }
+3218: 
+3219: .workspace.library-collapsed {
+3220:   grid-template-columns: minmax(450px, 36%) minmax(0, 1fr) !important;
+3221: }
+3222: 
+3223: .board-panel {
+3224:   min-width: 0;
+
+===== CSS LINES 3256-3270 =====
+3256: 
+3257: .board-frame {
+3258:   width: min(100%, 58vh, 560px);
+3259:   max-width: 100%;
+3260:   min-width: 0;
+3261:   flex: 0 1 auto;
+3262:   aspect-ratio: 1 / 1;
+3263: }
+3264: 
+3265: .board-controls {
+3266:   width: 100%;
+3267:   display: flex;
+3268:   flex-wrap: wrap;
+3269:   justify-content: center;
+3270:   align-items: center;
+
+===== CSS LINES 3292-3306 =====
+3292:   }
+3293:   .board-frame {
+3294:     width: min(100%, 54vh, 480px);
+3295:   }
+3296: }
+3297: 
+3298: @media (max-width: 900px) {
+3299:   .workspace,
+3300:   .workspace.library-collapsed {
+3301:     grid-template-columns: minmax(0, 1fr) !important;
+3302:   }
+3303:   .board-frame {
+3304:     width: min(100%, 68vw, 480px);
+3305:   }
+3306:   .board-header-actions {
+
+===== CSS LINES 3302-3316 =====
+3302:   }
+3303:   .board-frame {
+3304:     width: min(100%, 68vw, 480px);
+3305:   }
+3306:   .board-header-actions {
+3307:     flex-wrap: wrap;
+3308:   }
+3309: }
+3310: 
+3311: /* Compact, viewport-fitted analysis layout */
+3312: .workspace {
+3313:   min-height: 0;
+3314:   height: 100%;
+3315:   overflow: hidden;
+3316:   grid-template-columns: 220px minmax(470px, 39%) minmax(0, 1fr) !important;
+
+===== CSS LINES 3381-3395 =====
+3381: 
+3382: .board-frame {
+3383:   box-sizing: border-box;
+3384:   width: min(100%, calc(100vh - 340px), 560px);
+3385:   max-width: 100%;
+3386:   min-width: 0;
+3387:   flex: 0 1 auto;
+3388:   aspect-ratio: 1 / 1;
+3389: }
+3390: 
+3391: .board-controls {
+3392:   display: flex;
+3393:   flex: 0 0 auto;
+3394:   flex-wrap: wrap;
+3395:   align-items: center;
+
+===== CSS LINES 3456-3470 =====
+3456: 
+3457:   .board-frame {
+3458:     width: min(100%, calc(100vh - 310px), 500px);
+3459:   }
+3460: 
+3461:   .board-controls {
+3462:     margin-top: 4px;
+3463:     gap: 4px;
+3464:   }
+3465: 
+3466:   .board-controls button {
+3467:     min-height: 29px;
+3468:     padding: 4px 8px;
+3469:   }
+3470: 
+
+===== CSS LINES 3492-3506 =====
+3492: 
+3493:   .board-frame {
+3494:     width: min(100%, calc(100vh - 300px), 460px);
+3495:   }
+3496: 
+3497:   .board-header {
+3498:     flex-wrap: wrap;
+3499:   }
+3500: }
+3501: 
+3502: /* Keep Flip and Set Up Position together on the same header row */
+3503: .board-header {
+3504:   display: flex;
+3505:   flex-direction: row;
+3506:   flex-wrap: nowrap;
+
+===== CSS LINES 5060-5074 =====
+5060: /* Unified Chess.com-inspired analysis arrows */
+5061: .board-arrows {
+5062:   pointer-events: none !important;
+5063: }
+5064: .board-arrows .board-arrow {
+5065:   stroke-linecap: butt !important;
+5066:   stroke-linejoin: round !important;
+5067:   filter: none !important;
+5068: }
+5069: .board-arrows .board-arrow-user {
+5070:   opacity: 0.88 !important;
+5071: }
+5072: .board-arrows .board-arrow-engine {
+5073:   opacity: 0.88 !important;
+5074: }
