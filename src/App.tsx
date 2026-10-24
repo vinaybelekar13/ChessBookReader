@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Search, Bookmark, BookmarkCheck, Library, History, BookMarked, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
-  FolderOpen, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+  Search, History, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
 import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { fenWithTurn, makePosition } from "./chess-state";
@@ -24,7 +24,7 @@ import { newSession, START_FEN, type BookRecord, type BookSession, type Candidat
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-type LibraryTab = "all" | "recent" | "bookmarks" | "positions" | "progress" | "local";
+type LibraryTab = "all" | "recent";
 
 const FILE_LIMIT = 100 * 1024 * 1024;
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
@@ -69,12 +69,16 @@ export default function App() {
   const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
   const [book, setBook] = useState<BookRecord | null>(null);
   const [session, setSession] = useState<BookSession | null>(null);
+  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  const [studyMode, setStudyMode] = useState(false);
+  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
   const [bookSearch, setBookSearch] = useState("");
+
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [rendering, setRendering] = useState(false);
@@ -275,33 +279,29 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
   const visibleBooks = useMemo(() => {
     const needle = bookSearch.trim().toLowerCase();
     return sortedBooks.filter((item) => {
-      const saved = sessionIndex[item.id];
-      const matchesTab =
-        libraryTab === "all" || libraryTab === "recent" || libraryTab === "local" ||
-        (libraryTab === "bookmarks" && (saved?.bookmarks.length ?? 0) > 0) ||
-        (libraryTab === "positions" && (saved?.positions.length ?? 0) > 0) ||
-        (libraryTab === "progress" && (saved?.page ?? 1) > 1);
+      const matchesTab = libraryTab === "all" || libraryTab === "recent";
       return matchesTab && item.title.toLowerCase().includes(needle);
     });
   }, [bookSearch, libraryTab, sessionIndex, sortedBooks]);
 
+  const boardSession: StudyBoardState | null = studyMode ? studyBoard : session;
   const game = useMemo(() => {
-    if (!session) return new Chess();
+    if (!boardSession) return new Chess();
     try {
-      return makePosition(session.lineBaseFen, session.moves, session.moveIndex);
+      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
     } catch {
-      try { return new Chess(session.currentFen); } catch { return new Chess(); }
+      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
     }
-  }, [session]);
+  }, [boardSession]);
   const legalTargets = useMemo(() => {
     if (!selectedSquare) return new Set<string>();
     return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
   }, [game, selectedSquare]);
   const pieceSquares = game.board();
   const moveHistory = useMemo(() => {
-    try { return makePosition(session?.lineBaseFen ?? START_FEN, session?.moves ?? [], session?.moveIndex ?? 0).history({ verbose: true }); }
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
     catch { return []; }
-  }, [session]);
+  }, [boardSession]);
   const highlightedMove = lastMove ?? (moveHistory.length
     ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
     : null);
@@ -318,8 +318,10 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
   }, [book?.id, session?.currentFen]);
 
   useEffect(() => {
-    if (engineEnabled) engineRef.current?.analyze(game.fen(), engineDepth);
-  }, [engineEnabled, session?.currentFen, session?.moveIndex, engineDepth]);
+    if (engineEnabled && boardSession) {
+      engineRef.current?.analyze(game.fen(), engineDepth);
+    }
+  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
 
   function messageOf(cause: unknown): string {
     return cause instanceof Error ? cause.message : String(cause);
@@ -367,6 +369,55 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
       return typeof change === "function" ? change(current) : { ...current, ...change };
     });
   }
+
+  function patchBoardSession(change: Partial<StudyBoardState>) {
+    if (studyMode) setStudyBoard((current) => current ? { ...current, ...change } : current);
+    else patchSession(change);
+  }
+
+  async function toggleStudyMode() {
+    if (!studyMode) {
+      if (!session) {
+        setError("Open a book before entering study mode.");
+        return;
+      }
+      setStudyBoard({
+        lineBaseFen: session.lineBaseFen,
+        currentFen: session.currentFen,
+        moves: [...session.moves],
+        moveIndex: session.moveIndex,
+        flipped: session.flipped,
+        coordinates: session.coordinates,
+      });
+      setStudyMode(true);
+    } else {
+      // Preserve the latest Focus Mode board when returning to normal mode.
+      if (studyBoard) {
+        patchSession({
+          lineBaseFen: studyBoard.lineBaseFen,
+          currentFen: studyBoard.currentFen,
+          moves: [...studyBoard.moves],
+          moveIndex: studyBoard.moveIndex,
+          flipped: studyBoard.flipped,
+          coordinates: studyBoard.coordinates,
+        });
+      }
+      setStudyMode(false);
+    }
+    setLastMove(null);
+    setSelectedSquare(null);
+    setPromotionRequest(null);
+  
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // Focus layout still works when browser fullscreen is blocked.
+    }
+}
 
   async function openBook(item: BookRecord) {
     try {
@@ -637,16 +688,17 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
   }
 
   function completePromotion(piece: "q" | "r" | "b" | "n") {
-    if (!promotionRequest || !session) return;
+    if (!promotionRequest || !boardSession) return;
+    const activeBoard = boardSession;
     try {
-      const currentGame = new Chess(session.currentFen);
+      const currentGame = new Chess(activeBoard.currentFen);
       const result = currentGame.move({
         from: promotionRequest.from,
         to: promotionRequest.to,
         promotion: piece,
       });
-      const nextMoves = [...session.moves.slice(0, session.moveIndex), result.san];
-      patchSession({
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+      patchBoardSession({
         currentFen: currentGame.fen(),
         moves: nextMoves,
         moveIndex: nextMoves.length,
@@ -663,9 +715,10 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
   }
 
   function makeMove(from: Square, to: Square) {
-    if (!session) return;
+    if (!boardSession) return;
+    const activeBoard = boardSession;
     try {
-      const currentGame = new Chess(session.currentFen);
+      const currentGame = new Chess(activeBoard.currentFen);
       const mover = currentGame.get(from);
       const promote = mover?.type === "p" && (to.endsWith("8") || to.endsWith("1"));
       if (promote) {
@@ -673,8 +726,8 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
         return;
       }
       const result = currentGame.move({ from, to });
-      const nextMoves = [...session.moves.slice(0, session.moveIndex), result.san];
-      patchSession({
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+      patchBoardSession({
         currentFen: currentGame.fen(),
         moves: nextMoves,
         moveIndex: nextMoves.length,
@@ -693,14 +746,14 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
   function handleSquareClick(square: Square) {
     // A left-click removes the red highlight from that square.
     setRedSquares([]);
-    
+
     if (!annotationMode && (userArrows.length > 0 || arrowStart !== null)) {
       setUserArrows([]);
       setArrowStart(null);
       setArrowHover(null);
       return;
     }
-if (!session) return;
+if (!boardSession) return;
     if (annotationMode) {
       if (!arrowStart) {
         setArrowStart(square);
@@ -730,7 +783,7 @@ if (!session) return;
     event.clientX,
     event.clientY,
     bounds,
-    Boolean(session?.flipped),
+    Boolean(boardSession?.flipped),
   );
 
   if (!square) return;
@@ -748,7 +801,7 @@ if (!session) return;
   function boardArrowPointerMove(event: React.PointerEvent<HTMLDivElement>) {
     if (!arrowGestureRef.current || !boardRef.current) return;
     const bounds = boardRef.current.getBoundingClientRect();
-    const square = boardSquareAtPoint(event.clientX, event.clientY, bounds, Boolean(session?.flipped));
+    const square = boardSquareAtPoint(event.clientX, event.clientY, bounds, Boolean(boardSession?.flipped));
     if (square && square !== arrowGestureRef.current) arrowGestureMovedRef.current = true;
     setArrowHover(square);
   }
@@ -763,7 +816,7 @@ if (!session) return;
     event.clientX,
     event.clientY,
     bounds,
-    Boolean(session?.flipped),
+    Boolean(boardSession?.flipped),
   );
 
   if (to && to !== from) {
@@ -786,11 +839,11 @@ if (!session) return;
   }
 
   function jumpToMove(index: number) {
-    if (!session) return;
+    if (!boardSession) return;
     try {
-      const next = makePosition(session.lineBaseFen, session.moves, index);
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
       const last = next.history({ verbose: true }).at(-1);
-      patchSession({ moveIndex: index, currentFen: next.fen() });
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
       setLastMove(last ? { from: last.from, to: last.to } : null);
       setSelectedSquare(null);
     } catch (cause) {
@@ -1097,16 +1150,29 @@ if (
   }
 
   function resetBoard() {
-    if (!session) return;
-    const original = new Chess(session.originalFen);
-    patchSession({
-      lineBaseFen: original.fen(),
-      currentFen: original.fen(),
-      moves: [],
-      moveIndex: 0,
-    });
+    if (studyMode) {
+      if (!studyBoard) return;
+      const original = new Chess(studyBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else {
+      if (!session) return;
+      const original = new Chess(session.originalFen);
+      patchSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    }
     setLastMove(null);
     setSelectedSquare(null);
+    setPromotionRequest(null);
+    setError("");
   }
 
   const currentCandidates = session?.candidatesByPage[String(session.page)] ?? [];
@@ -1119,10 +1185,10 @@ if (
   }
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${studyMode ? "study-focus-mode" : ""}`}>
       <header className="topbar">
-        <div className="brand-mark">♟</div>
-        <button className="icon-button library-toggle" aria-label="Toggle library" onClick={() => setLibraryOpen((value) => !value)}>☰</button>
+        <div className="brand-mark">&#9822;</div>
+        <button className="icon-button library-toggle" aria-label="Toggle library" onClick={() => setLibraryOpen((value) => !value)}>&#9776;</button>
         <div className="brand-name">ChessBook <span>Reader</span></div>
         <div className="top-divider" />
         <div className="current-book" title={book?.title ?? "No book open"}>
@@ -1132,13 +1198,13 @@ if (
         </div>
         <div className="top-spacer" />
         <span className="storage-label"><i /> LOCAL LIBRARY</span>
-        <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>⚙</button>
+        <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
       </header>
 
       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"}`}>
         {libraryOpen && (
           <aside className="library-panel">
-            <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>➕ Add Book</button></div>
+            <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
             <input
               ref={fileInput}
               className="hidden-input"
@@ -1148,32 +1214,27 @@ if (
             />
             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
             <nav className="library-nav" aria-label="Library sections">
-              <LibraryNavItem active={libraryTab === "all"} onClick={() => setLibraryTab("all")} icon={Library} label="All Books" />
-              <LibraryNavItem active={libraryTab === "recent"} onClick={() => setLibraryTab("recent")} icon={History} label="Recently Opened" />
-              <LibraryNavItem active={libraryTab === "bookmarks"} onClick={() => setLibraryTab("bookmarks")} icon={Bookmark} label="Bookmarks" />
-              <LibraryNavItem active={libraryTab === "positions"} onClick={() => setLibraryTab("positions")} icon={BookmarkCheck} label="Saved Positions" />
-              <LibraryNavItem active={libraryTab === "progress"} onClick={() => setLibraryTab("progress")} icon={BookMarked} label="Reading Progress" />
-              <LibraryNavItem active={libraryTab === "local"} onClick={() => setLibraryTab("local")} icon={FolderOpen} label="Local Books" />
+                            <LibraryNavItem active={libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => setLibraryTab("all")} />
+              <LibraryNavItem active={libraryTab === "recent"} icon={History} label="Recently Opened" onClick={() => setLibraryTab("recent")} />
             </nav>
-            <div className="library-list-title"><span>{libraryTab === "recent" ? "RECENTLY OPENED" : libraryTab.toUpperCase()}</span><span>{visibleBooks.length}</span></div>
+            <div className="library-list-title"><span>{libraryTab === "recent" ? "RECENTLY OPENED" : "ALL BOOKS"}</span><span>{visibleBooks.length}</span></div>
             <div className="book-list">
-              {visibleBooks.map((item, index) => {
-                const saved = sessionIndex[item.id];
-                const progress = saved?.pageCount ? Math.min(100, Math.round((saved.page / saved.pageCount) * 100)) : 0;
-                return (
-                  <div key={item.id} className={`book-row ${book?.id === item.id ? "active" : ""}`}>
-                    <button className="book-open" onClick={() => void openBook(item)} aria-label={`Open ${item.title}`}>
-                      <div className="book-cover"><span>♟</span><small>{index + 1}</small></div>
-                      <span className="book-meta"><strong>{item.title}</strong><small>Page {saved?.page ?? 1}{saved?.pageCount ? ` of ${saved.pageCount}` : ""} · {readableDate(item.lastOpenedAt)}</small><span className="progress-track"><i style={{ width: `${progress}%` }} /></span></span>
-                    </button>
-                    <button type="button" className="book-delete-button" title={"Delete " + item.title} aria-label={"Delete " + item.title} onClick={(event) => { event.stopPropagation(); void deleteBook(item); }}>×</button>
-                    <details className="book-menu"><summary aria-label={`Options for ${item.title}`}>⋯</summary><div className="book-menu-items"><button onClick={() => void renameBook(item)}>Rename</button><button onClick={() => void deleteBook(item)}>Delete book</button></div></details>
-                  </div>
-                );
-              })}
-              {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
-            </div>
-
+                {visibleBooks.map((item, index) => {
+                  const saved = sessionIndex[item.id];
+                  const progress = saved?.pageCount ? Math.min(100, Math.round((saved.page / saved.pageCount) * 100)) : 0;
+                  return (
+                    <div key={item.id} className={`book-row ${book?.id === item.id ? "active" : ""}`}>
+                      <button className="book-open" onClick={() => void openBook(item)} aria-label={`Open ${item.title}`}>
+                        <div className="book-cover"><span><BookOpenText size={16} aria-hidden="true" /></span><small>{index + 1}</small></div>
+                        <span className="book-meta"><strong>{item.title}</strong><small>Page {saved?.page ?? 1}{saved?.pageCount ? ` of ${saved.pageCount}` : ""} &#183; {readableDate(item.lastOpenedAt)}</small><span className="progress-track"><i style={{ width: `${progress}%` }} /></span></span>
+                      </button>
+                      <button type="button" className="book-delete-button" title={"Delete " + item.title} aria-label={"Delete " + item.title} onClick={(event) => { event.stopPropagation(); void deleteBook(item); }}>&#215;</button>
+                      <details className="book-menu"><summary aria-label={`Options for ${item.title}`}>&#8942;</summary><div className="book-menu-items"><button onClick={() => void renameBook(item)}>Rename</button><button onClick={() => void deleteBook(item)}>Delete book</button></div></details>
+                    </div>
+                  );
+                })}
+                {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+              </div>
             <section className="sidebar-moves-panel" aria-label="Move list">
 <div className="moves-panel">
             <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
@@ -1186,8 +1247,8 @@ if (
               {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
                 <div className="move-pair" key={row}>
                   <span className="move-number">{row + 1}.</span>
-                  {moveHistory[row * 2] && <button className={session?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && session?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
-                  {moveHistory[row * 2 + 1] && <button className={session?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && session?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
                 </div>
               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
             </div>
@@ -1199,23 +1260,24 @@ if (
 
         <section className="board-panel" aria-label="Chessboard analysis">
           <div className="board-header">
-            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} · ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} &#183; ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
             <div className="board-header-actions">
-              <button className="mini-button flip-board-button" onClick={() => patchSession({ flipped: !session?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
             </div>
           </div>
           <div className="board-area">
             <div
               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
-              title={engineScore ? `White's perspective · depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+              title={engineScore ? `White's perspective &#183; depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
             >
               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
             </div>
             <div className="board-frame">
               <div
-                className={`chessboard ${session?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
                 ref={boardRef}
                 onPointerDown={boardArrowPointerDown}
                 onPointerMove={boardArrowPointerMove}
@@ -1236,7 +1298,7 @@ if (
     event.clientX,
     event.clientY,
     bounds,
-    Boolean(session?.flipped),
+    Boolean(boardSession?.flipped),
   );
   if (!square) return;
 
@@ -1250,8 +1312,8 @@ if (
                 {Array.from({ length: 64 }, (_, index) => {
                   const visibleRow = Math.floor(index / 8);
                   const visibleCol = index % 8;
-                  const fileIndex = session?.flipped ? 7 - visibleCol : visibleCol;
-                  const rankIndex = session?.flipped ? visibleRow : 7 - visibleRow;
+                  const fileIndex = boardSession?.flipped ? 7 - visibleCol : visibleCol;
+                  const rankIndex = boardSession?.flipped ? visibleRow : 7 - visibleRow;
                   const square = squareName(fileIndex, rankIndex);
                   const piece = pieceSquares[7 - rankIndex]?.[fileIndex];
                   const legal = legalTargets.has(square);
@@ -1279,8 +1341,8 @@ if (
                     >
                       {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece.color}${piece.type}.svg`} /></span>}
                       {legal && <span className={piece ? "legal-capture" : "legal-dot"} />}
-                      {session?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
-                      {session?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
+                      {boardSession?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
+                      {boardSession?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
                     </button>
                   );
                 })}
@@ -1292,8 +1354,8 @@ if (
                       ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
                       : []),
                   ].map(({ arrow, kind }, index) => {
-                    const from = squareCenter(arrow.from, Boolean(session?.flipped));
-                    const to = squareCenter(arrow.to, Boolean(session?.flipped));
+                    const from = squareCenter(arrow.from, Boolean(boardSession?.flipped));
+                    const to = squareCenter(arrow.to, Boolean(boardSession?.flipped));
                     const dx = to.x - from.x;
                     const dy = to.y - from.y;
                     const length = Math.hypot(dx, dy);
@@ -1342,9 +1404,9 @@ if (
           </div>
           <div className="board-controls">
             <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
-            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (session?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
-            <button title="Next move" onClick={() => jumpToMove(Math.min(session?.moves.length ?? 0, (session?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
-            <button title="Last move" onClick={() => jumpToMove(session?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+            <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
             <span className="controls-separator" />
             <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
             <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
@@ -1364,32 +1426,32 @@ if (
             <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
               try {
                 const fen = fenWithTurn(game.fen(), "w");
-                patchSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
                 setLastMove(null);
               } catch (cause) { setError(messageOf(cause)); }
             }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
             <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
               try {
                 const fen = fenWithTurn(game.fen(), "b");
-                patchSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
                 setLastMove(null);
               } catch (cause) { setError(messageOf(cause)); }
             }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
             <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
           </div>
           <details className="position-editor">
-            <summary>Board position · enter FEN to correct selected diagram</summary>
+            <summary>Board position &#183; enter FEN to correct selected diagram</summary>
             <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
           </details>
-          <div className="board-fen"><span>{game.fen()}</span><span>{session?.moveIndex ? `MOVE ${session.moveIndex}` : "BOOK POSITION"}</span></div>
+          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
         </section>
 
         <section className="reader-panel" aria-label="PDF book reader">
           <div className="reader-toolbar">
-            <div className="reader-title"><div className="document-icon" aria-hidden="true"><BookOpenText size={20} strokeWidth={1.8} /></div><div><strong>{book?.title ?? "Book reader"}</strong><span>{pdf ? `${session?.pageCount} pages · PDF document` : "Add a PDF book to begin"}</span></div></div>
+            <div className="reader-title"><div className="document-icon" aria-hidden="true"><BookOpenText size={20} strokeWidth={1.8} /></div><div><strong>{book?.title ?? "Book reader"}</strong><span>{pdf ? `${session?.pageCount} pages \u00b7 PDF document` : "Add a PDF book to begin"}</span></div></div>
             <div className="reader-actions">
-              <button className={session?.bookmarks.includes(session.page) ? "active-action" : ""} title="Bookmark this page" disabled={!book} onClick={saveBookmark}>☆</button>
-              <button title="Zoom out" disabled={!session} onClick={() => patchSession({ zoom: Math.max(0.65, (session?.zoom ?? 1) - 0.1) })}>−</button>
+              <button className={session?.bookmarks.includes(session.page) ? "active-action" : ""} title="Bookmark this page" disabled={!book} onClick={saveBookmark}>&#9734;</button>
+              <button title="Zoom out" disabled={!session} onClick={() => patchSession({ zoom: Math.max(0.65, (session?.zoom ?? 1) - 0.1) })}>&#8722;</button>
               <span className="zoom-value">{Math.round((session?.zoom ?? 1) * 100)}%</span>
               <button title="Zoom in" disabled={!session} onClick={() => patchSession({ zoom: Math.min(1.8, (session?.zoom ?? 1) + 0.1) })}><Plus size={15} aria-hidden="true" /></button>
               <button title="Fit to width" disabled={!pdf} onClick={() => void fitPage("width")}>Fit width</button>
@@ -1398,10 +1460,10 @@ if (
           </div>
           <div className="page-navigation">
             <button aria-label="Previous page" disabled={!pdf || session?.page === 1} onClick={() => changePage(-1)}>&#8249;</button>
-            <label>PAGE <input aria-label="Current page" type="number" min="1" max={session?.pageCount || 1} value={session?.page ?? 1} disabled={!pdf} onChange={(event) => goToPage(Number(event.target.value))} /> <span>of {session?.pageCount || "—"}</span></label>
+            <label>PAGE <input aria-label="Current page" type="number" min="1" max={session?.pageCount || 1} value={session?.page ?? 1} disabled={!pdf} onChange={(event) => goToPage(Number(event.target.value))} /> <span>of {session?.pageCount || "&#8212;"}</span></label>
             <button aria-label="Next page" disabled={!pdf || (session?.page ?? 1) >= (session?.pageCount ?? 1)} onClick={() => changePage(1)}>&#8250;</button>
             <span className="nav-separator" />
-            <button className={`scan-button ${detecting ? "scan-active" : ""}`} disabled={!pdf || rendering} onClick={() => void detectBoards()}>{detecting ? "–  Stop scan" : "Detect boards Detect boards"}</button>
+            <button className={`scan-button ${detecting ? "scan-active" : ""}`} disabled={!pdf || rendering} onClick={() => void detectBoards()}>{detecting ? "&#8211;Â  Stop scan" : "Detect boards"}</button>
             <button
               type="button"
               className="clear-scan-button"
@@ -1412,7 +1474,7 @@ if (
             <span className="detection-status">{detecting ? "Scanning current page..." : currentCandidates.length ? `${currentCandidates.length} candidate${currentCandidates.length === 1 ? "" : "s"}` : detectionAttempted ? "No boards found" : "Not scanned"}</span>
           </div>
           <div className="page-workspace">
-            {!book && <div className="reader-empty"><div className="empty-glyph">âš </div><strong>Open a chess book</strong><span>Import a PDF to read pages and mark chess diagrams.</span><button className="green-button" onClick={() => fileInput.current?.click()}>Add a book</button></div>}
+            {!book && <div className="reader-empty"><div className="empty-glyph">&#128218;</div><strong>Open a chess book</strong><span>Import a PDF to read pages and mark chess diagrams.</span><button className="green-button" onClick={() => fileInput.current?.click()}>Add a book</button></div>}
             {book && (
               <div className="page-scroll">
                 <div
@@ -1434,7 +1496,7 @@ if (
                         aria-label={`Adjust crop region ${index + 1}`}
                         onPointerDown={(event) => startCropEdit(event, candidate, "move")}
                       >
-                        <span>{index + 1} · Drag to move</span>
+                        <span>{index + 1} &#183; Drag to move</span>
                         {CROP_HANDLES.map((handle) => <button
                           key={handle}
                           type="button"
@@ -1451,14 +1513,14 @@ if (
                         aria-label={`Select diagram region ${index + 1}`}
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => { event.stopPropagation(); selectCandidate(candidate); if (candidate.source === "automatic") void openTransfer(candidate); }}
-                      ><span>{index + 1} · {candidate.source === "manual" ? "Manual crop" : "Relative match"}</span></button>
+                      ><span>{index + 1} &#183; {candidate.source === "manual" ? "Manual crop" : "Relative match"}</span></button>
                     )
                   ))}
                   {dragSelection && <div className="selection-rectangle" style={{ left: `${Math.min(dragSelection.x, dragSelection.x2) * 100}%`, top: `${Math.min(dragSelection.y, dragSelection.y2) * 100}%`, width: `${Math.abs(dragSelection.x2 - dragSelection.x) * 100}%`, height: `${Math.abs(dragSelection.y2 - dragSelection.y) * 100}%` }} />}
                   {rendering && <div className="rendering-label"><span className="spinner" /> Rendering page</div>}
                   {pdfLoading && <div className="rendering-label"><span className="spinner" /> Opening PDF</div>}
                 </div>
-                <div className="page-scroll-hint">Drag over the page to mark a diagram · {currentCandidates.length} regions</div>
+                <div className="page-scroll-hint">Drag over the page to mark a diagram &#183; {currentCandidates.length} regions</div>
               </div>
             )}
           </div>
@@ -1473,12 +1535,12 @@ if (
             <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
           </div>
           <div className="analysis-strip">
-            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engine&#8230;" : engineStatus === "analyzing" ? "Analyzing current position&#8230;" : "Ready · White-positive scores"}</span></div></div>
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engine&#8230;" : engineStatus === "analyzing" ? "Analyzing current position&#8230;" : "Ready &#183; White-positive scores"}</span></div></div>
             <div className="analysis-divider" />
             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
-            <div className="analysis-result"><span>Evaluation · White</span><strong>{engineScore ? formatEvaluation(engineScore) : "—"}</strong></div>
-            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ?? "—"}</strong></div>
+            <div className="analysis-result"><span>Evaluation &#183; White</span><strong>{engineScore ? formatEvaluation(engineScore) : "&#8212;"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ?? "&#8212;"}</strong></div>
             <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv?.join(" ") ?? (engineEnabled ? "Waiting for first valid score&#8230;" : "Enable Stockfish to analyze this position.")}</strong></div>
           </div>
         </section>
@@ -1524,7 +1586,7 @@ if (
         <div className="game-end-backdrop">
           <section className="game-end-dialog" role="dialog" aria-modal="true" aria-labelledby="game-end-title">
             <div className="game-end-icon" aria-hidden="true">
-              {gameEndOverlay.title === "Checkmate" ? "♚" : gameEndOverlay.title === "Stalemate" ? "½" : "½"}
+              {gameEndOverlay.title === "Checkmate" ? "&#9822;" : gameEndOverlay.title === "Stalemate" ? "Â½" : "Â½"}
             </div>
             <h2 id="game-end-title">{gameEndOverlay.title}</h2>
             <p>{gameEndOverlay.message}</p>
@@ -1541,16 +1603,16 @@ if (
             <h2 id="promotion-title">Promote pawn</h2>
             <p>Choose a piece to complete your move.</p>
             <div className="promotion-choices">
-              <button type="button" onClick={() => completePromotion("q")} aria-label="Promote to queen"><span>♕</span><small>Queen</small></button>
-              <button type="button" onClick={() => completePromotion("r")} aria-label="Promote to rook"><span>♖</span><small>Rook</small></button>
-              <button type="button" onClick={() => completePromotion("b")} aria-label="Promote to bishop"><span>♗</span><small>Bishop</small></button>
-              <button type="button" onClick={() => completePromotion("n")} aria-label="Promote to knight"><span>♘</span><small>Knight</small></button>
+              <button type="button" onClick={() => completePromotion("q")} aria-label="Promote to queen"><span>â™•</span><small>Queen</small></button>
+              <button type="button" onClick={() => completePromotion("r")} aria-label="Promote to rook"><span>â™–</span><small>Rook</small></button>
+              <button type="button" onClick={() => completePromotion("b")} aria-label="Promote to bishop"><span>â™—</span><small>Bishop</small></button>
+              <button type="button" onClick={() => completePromotion("n")} aria-label="Promote to knight"><span>â™˜</span><small>Knight</small></button>
             </div>
             <button className="promotion-cancel" type="button" onClick={() => setPromotionRequest(null)}>Cancel</button>
           </section>
         </div>
       )}
-            {(error || notice) && <div className={`toast ${error ? "toast-error" : ""}`} role={error ? "alert" : "status"}><span>{error || notice}</span><button aria-label="Dismiss message" onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
+            {(error || notice) && <div className={`toast ${error ? "toast-error" : ""}`} role={error ? "alert" : "status"}><span>{error || notice}</span><button aria-label="Dismiss message" onClick={() => { setError(""); setNotice(""); }}>&#215;</button></div>}
     </main>
   );
 }
@@ -1587,4 +1649,5 @@ function formatSize(bytes: number): string {
 function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 }
+
 

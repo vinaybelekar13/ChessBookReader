@@ -101,8 +101,14 @@ export class StockfishEngine {
       if (this.awaitingStop) return;
       const score = parseUciInfo(line, this.currentSide);
       if (score) {
-        this.latestScore = score;
-        this.onScore(score);
+        // Use the current principal variation's first move for a live arrow.
+        // Stockfish's final "bestmove" will replace this provisional move.
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+          ...score,
+          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+        };
+        this.onScore(this.latestScore);
       }
       return;
     }

@@ -39,6 +39,29 @@ describe("Stockfish UCI evaluation", () => {
     expect(whiteScoreShare({ kind: "mate", value: -1, depth: 1 })).toBe(0.04);
   });
 
+  it("publishes the latest principal-variation move during analysis", () => {
+    const worker = new FakeWorker();
+    vi.stubGlobal("Worker", class {
+      constructor() { return worker; }
+    });
+    const scores: any[] = [];
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+
+    worker.send("uciok");
+    worker.send("readyok");
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 14);
+
+    worker.send("info depth 3 score cp 12 pv e2e4 e7e5");
+    expect(scores.at(-1)).toMatchObject({ depth: 3, bestMove: "e2e4" });
+
+    worker.send("info depth 5 score cp 22 pv d2d4 d7d5");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+
+    worker.send("bestmove d2d4");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+    engine.dispose();
+  });
+
   it("initializes UCI, replaces stale analysis, and terminates the worker", () => {
     const worker = new FakeWorker();
     vi.stubGlobal("Worker", class {
