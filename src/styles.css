@@ -871,19 +871,19 @@ select:focus {
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: #201E1B;
   overflow: hidden;
-  flex-direction: column;
+  flex-direction: column-reverse;
 }
 
 .eval-white {
   width: 100%;
   background: #FFFFFF;
-  transition: height 0.2s ease;
+  transition: height 0.4s ease;
 }
 
 .eval-black {
   width: 100%;
   background: #2B2824;
-  transition: height 0.2s ease;
+  transition: height 0.4s ease;
 }
 
 .board-frame {
@@ -931,9 +931,7 @@ select:focus {
   background: var(--board-dark);
 }
 
-.square:hover {
-  filter: brightness(1.04);
-}
+
 
 .selected-square::after {
   content: "";
@@ -6959,3 +6957,27 @@ body:has(.app-shell.study-focus-mode),
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+/* Keep chess square base colors stable on hover and focus. */
+button.square.light-square:hover,
+button.square.light-square:focus,
+button.square.light-square:focus-visible {
+  background: var(--board-light);
+}
+
+button.square.dark-square:hover,
+button.square.dark-square:focus,
+button.square.dark-square:focus-visible {
+  background: var(--board-dark);
+}
+
+/* Prevent mouse-click focus outlines on chess squares. */
+button.square:focus:not(:focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+button.square:active {
+  transform: none !important;
+}
+
