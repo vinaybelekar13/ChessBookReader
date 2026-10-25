@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Search, History, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
   ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
 import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -21,10 +21,50 @@ import {
   setActiveBookId,
 } from "./storage";
 import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+
+
+function formatUciMove(fen: string, uci: string): string {
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+      from: match[1] as Square,
+      to: match[2] as Square,
+      ...(match[3] ? { promotion: match[3] as "q" | "r" | "b" | "n" } : {}),
+    });
+    return move.san;
+  } catch {
+    return uci;
+  }
+}
+
+function formatUciPv(fen: string, pv: string[]): string {
+  const position = new Chess(fen);
+  const san: string[] = [];
+  for (const uci of pv) {
+    const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+    if (!match) break;
+    try {
+      const move = position.move({
+        from: match[1] as Square,
+        to: match[2] as Square,
+        ...(match[3] ? { promotion: match[3] as "q" | "r" | "b" | "n" } : {}),
+      });
+      san.push(move.san);
+    } catch {
+      break;
+    }
+  }
+  return san.join(" ");
+}
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 type LibraryTab = "all" | "recent";
+type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer";
 
 const FILE_LIMIT = 100 * 1024 * 1024;
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
@@ -72,12 +112,65 @@ export default function App() {
   type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
   const [studyMode, setStudyMode] = useState(false);
   const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+  }));
+  const [openingPrepBoard, setOpeningPrepBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+  }));
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
   const [bookSearch, setBookSearch] = useState("");
+  const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+  const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+  const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+  const [openingStatsStatus, setOpeningStatsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [lichessStatus, setLichessStatus] = useState<LichessConnectionStatus | null>(null);
+  const [lichessStatusError, setLichessStatusError] = useState("");
+  const [lichessActionBusy, setLichessActionBusy] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("lichess");
+    if (result === "connected" || result === "denied") {
+      params.delete("lichess");
+      const rest = params.toString();
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash,
+      );
+      if (result === "denied") setLichessStatusError("Lichess authorization was cancelled.");
+    }
+    void getLichessConnectionStatus(controller.signal)
+      .then((status) => {
+        setLichessStatus(status);
+        setLichessStatusError("");
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setLichessStatus(null);
+          setLichessStatusError("Could not check Lichess connection. Ensure the backend is running.");
+        }
+      });
+    return () => controller.abort();
+  }, []);
+
 
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -279,12 +372,73 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
   const visibleBooks = useMemo(() => {
     const needle = bookSearch.trim().toLowerCase();
     return sortedBooks.filter((item) => {
-      const matchesTab = libraryTab === "all" || libraryTab === "recent";
+      const matchesTab = true;
       return matchesTab && item.title.toLowerCase().includes(needle);
     });
   }, [bookSearch, libraryTab, sessionIndex, sortedBooks]);
 
-  const boardSession: StudyBoardState | null = studyMode ? studyBoard : session;
+  const openingLine = useMemo(
+    () => parseOpeningLine(openingExplorerInput),
+    [openingExplorerInput],
+  );
+  const openingPosition = useMemo(
+    () => openingPositionAt(openingExplorerInput, openingExplorerPly),
+    [openingExplorerInput, openingExplorerPly],
+  );
+
+  useEffect(() => {
+    if (workspaceMode !== "opening-explorer") return;
+    if (!lichessStatus?.connected) {
+      setOpeningStats(null);
+      setOpeningStatsStatus("idle");
+      return;
+    }
+
+    if (openingPosition.error) {
+      setOpeningStats(null);
+      setOpeningStatsStatus("idle");
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setOpeningStatsStatus("loading");
+      fetchOpeningExplorerStats(openingPosition.uciMoves, controller.signal)
+        .then((result) => {
+          setOpeningStats(result);
+          setOpeningStatsStatus("ready");
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            setOpeningStats(null);
+            setOpeningStatsStatus("error");
+          }
+        });
+    }, 500);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+
+  const boardSession: StudyBoardState | null =
+    workspaceMode === "analysis"
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+        ? openingPrepBoard
+        : workspaceMode === "opening-explorer"
+          ? {
+              lineBaseFen: START_FEN,
+              currentFen: openingPosition.fen,
+              moves: openingPosition.sanMoves,
+              moveIndex: openingPosition.sanMoves.length,
+              flipped: false,
+              coordinates: true,
+            }
+          : studyMode
+            ? studyBoard
+            : session;
   const game = useMemo(() => {
     if (!boardSession) return new Chess();
     try {
@@ -371,10 +525,20 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
   }
 
   function patchBoardSession(change: Partial<StudyBoardState>) {
-    if (studyMode) setStudyBoard((current) => current ? { ...current, ...change } : current);
-    else patchSession(change);
-  }
+    if (workspaceMode === "opening-explorer") {
+      return;
+    }
 
+    if (workspaceMode === "analysis") {
+      setAnalysisBoard((current) => ({ ...current, ...change }));
+    } else if (workspaceMode === "opening-prep") {
+      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+    } else if (studyMode) {
+      setStudyBoard((current) => current ? { ...current, ...change } : current);
+    } else {
+      patchSession(change);
+    }
+  }
   async function toggleStudyMode() {
     if (!studyMode) {
       if (!session) {
@@ -407,7 +571,7 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
     setLastMove(null);
     setSelectedSquare(null);
     setPromotionRequest(null);
-  
+
     try {
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen();
@@ -727,11 +891,19 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
       }
       const result = currentGame.move({ from, to });
       const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
-      patchBoardSession({
-        currentFen: currentGame.fen(),
-        moves: nextMoves,
-        moveIndex: nextMoves.length,
-      });
+      if (workspaceMode === "opening-explorer") {
+        const line = nextMoves
+          .map((move, index) => index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ${move}` : move)
+          .join(" ");
+        setOpeningExplorerInput(line);
+        setOpeningExplorerPly(nextMoves.length);
+      } else {
+        patchBoardSession({
+          currentFen: currentGame.fen(),
+          moves: nextMoves,
+          moveIndex: nextMoves.length,
+        });
+      }
       updateGameEndOverlay(currentGame);
       setLastMove({ from, to });
       setSelectedSquare(null);
@@ -1150,7 +1322,15 @@ if (
   }
 
   function resetBoard() {
-    if (studyMode) {
+    if (workspaceMode === "opening-prep") {
+      const original = new Chess(openingPrepBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else if (studyMode) {
       if (!studyBoard) return;
       const original = new Chess(studyBoard.lineBaseFen);
       patchBoardSession({
@@ -1201,7 +1381,7 @@ if (
         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
       </header>
 
-      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"}`}>
+      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""}`}>
         {libraryOpen && (
           <aside className="library-panel">
             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
@@ -1214,10 +1394,12 @@ if (
             />
             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
             <nav className="library-nav" aria-label="Library sections">
-                            <LibraryNavItem active={libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => setLibraryTab("all")} />
-              <LibraryNavItem active={libraryTab === "recent"} icon={History} label="Recently Opened" onClick={() => setLibraryTab("recent")} />
-            </nav>
-            <div className="library-list-title"><span>{libraryTab === "recent" ? "RECENTLY OPENED" : "ALL BOOKS"}</span><span>{visibleBooks.length}</span></div>
+                            <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+
+
+
+</nav>
+            <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
             <div className="book-list">
                 {visibleBooks.map((item, index) => {
                   const saved = sessionIndex[item.id];
@@ -1226,7 +1408,7 @@ if (
                     <div key={item.id} className={`book-row ${book?.id === item.id ? "active" : ""}`}>
                       <button className="book-open" onClick={() => void openBook(item)} aria-label={`Open ${item.title}`}>
                         <div className="book-cover"><span><BookOpenText size={16} aria-hidden="true" /></span><small>{index + 1}</small></div>
-                        <span className="book-meta"><strong>{item.title}</strong><small>Page {saved?.page ?? 1}{saved?.pageCount ? ` of ${saved.pageCount}` : ""} &#183; {readableDate(item.lastOpenedAt)}</small><span className="progress-track"><i style={{ width: `${progress}%` }} /></span></span>
+                        <span className="book-meta"><strong>{item.title}</strong><small>Page {saved?.page ?? 1}{saved?.pageCount ? ` of ${saved.pageCount}` : ""} ? {readableDate(item.lastOpenedAt)}</small><span className="progress-track"><i style={{ width: `${progress}%` }} /></span></span>
                       </button>
                       <button type="button" className="book-delete-button" title={"Delete " + item.title} aria-label={"Delete " + item.title} onClick={(event) => { event.stopPropagation(); void deleteBook(item); }}>&#215;</button>
                       <details className="book-menu"><summary aria-label={`Options for ${item.title}`}>&#8942;</summary><div className="book-menu-items"><button onClick={() => void renameBook(item)}>Rename</button><button onClick={() => void deleteBook(item)}>Delete book</button></div></details>
@@ -1260,7 +1442,7 @@ if (
 
         <section className="board-panel" aria-label="Chessboard analysis">
           <div className="board-header">
-            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} &#183; ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} · ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
             <div className="board-header-actions">
               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
@@ -1270,7 +1452,7 @@ if (
             <div
               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
-              title={engineScore ? `White's perspective &#183; depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
             >
               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
@@ -1440,13 +1622,180 @@ if (
             <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
           </div>
           <details className="position-editor">
-            <summary>Board position &#183; enter FEN to correct selected diagram</summary>
+            <summary>Board position · enter FEN to correct selected diagram</summary>
             <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
           </details>
           <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
         </section>
 
         <section className="reader-panel" aria-label="PDF book reader">
+          <div className="opening-explorer-right-workspace">
+          {workspaceMode === "opening-explorer" && (
+            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+              <h3>Opening Explorer</h3>
+              <div className="lichess-connection-controls">
+                {lichessStatus?.connected ? (
+                  <>
+                    <span role="status">Lichess connected</span>
+                    <button
+                      type="button"
+                      disabled={lichessActionBusy}
+                      onClick={() => {
+                        setLichessActionBusy(true);
+                        void disconnectLichess()
+                          .then(() => {
+                            setLichessStatus((current) => current ? { ...current, connected: false } : current);
+                            setOpeningStats(null);
+                            setOpeningStatsStatus("idle");
+                            setNotice("Lichess disconnected.");
+                          })
+                          .catch(() => setLichessStatusError("Could not disconnect. Check that the backend is running."))
+                          .finally(() => setLichessActionBusy(false));
+                      }}
+                    >{lichessActionBusy ? "Disconnecting…" : "Disconnect"}</button>
+                  </>
+                ) : (
+                  <>
+                    <span>{lichessStatus?.configured === false
+                      ? "Lichess OAuth needs configuration."
+                      : "Connect Lichess to load opening statistics."}</span>
+                    <button
+                      type="button"
+                      className="green-button"
+                      disabled={lichessActionBusy || lichessStatus?.configured === false}
+                      onClick={() => { window.location.assign("/api/lichess/connect"); }}
+                    >Connect Lichess</button>
+                  </>
+                )}
+              </div>
+              {lichessStatusError && <p role="status">{lichessStatusError}</p>}
+              <p>Enter a legal opening line in SAN or UCI notation. The board follows the selected move.</p>
+              <label htmlFor="opening-line-input">Opening moves</label>
+              <textarea
+                id="opening-line-input"
+                aria-label="Opening line input"
+                rows={3}
+                value={openingExplorerInput}
+                onChange={(event) => {
+                  setOpeningExplorerInput(event.target.value);
+                  setOpeningExplorerPly(0);
+                }}
+                placeholder="1. e4 e5 2. Nf3 Nc6"
+              />
+              {openingLine.error && <p role="alert">{openingLine.error}</p>}
+              {!openingLine.error && (
+                <>
+                  <div className="opening-explorer-moves" aria-label="Opening moves">
+                    <button
+                      type="button"
+                      disabled={openingExplorerPly === 0}
+                      onClick={() => setOpeningExplorerPly(0)}
+                    >Start</button>
+                    <button
+                      type="button"
+                      disabled={openingExplorerPly === 0}
+                      onClick={() => setOpeningExplorerPly((ply) => Math.max(0, ply - 1))}
+                    >Previous</button>
+                    <span>Move {openingExplorerPly} / {openingLine.sanMoves.length}</span>
+                    <button
+                      type="button"
+                      disabled={openingExplorerPly >= openingLine.sanMoves.length}
+                      onClick={() => setOpeningExplorerPly((ply) => Math.min(openingLine.sanMoves.length, ply + 1))}
+                    >Next</button>
+                    <button
+                      type="button"
+                      disabled={openingExplorerPly >= openingLine.sanMoves.length}
+                      onClick={() => setOpeningExplorerPly(openingLine.sanMoves.length)}
+                    >End</button>
+                  </div>
+                  <div className="opening-explorer-notation">
+                    {openingLine.sanMoves.length
+                      ? openingLine.sanMoves.map((move, index) => (
+                          <button
+                            type="button"
+                            key={`${index}-${move}`}
+                            className={index < openingExplorerPly ? "opening-move-played" : ""}
+                            onClick={() => setOpeningExplorerPly(index + 1)}
+                          >{index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ` : ""}{move}</button>
+                        ))
+                      : <span>Enter moves to explore a line.</span>}
+                  </div>
+                  <section className="opening-stats" aria-label="Opening statistics" aria-live="polite">
+                    <div className="opening-stats-heading">
+                      <h4>Position statistics</h4>
+                      <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
+                    </div>
+                    {openingStatsStatus === "loading" && <p>Loading game statistics…</p>}
+                    {openingStatsStatus === "error" && (
+                      <p role="status">Statistics are currently unavailable. Check your connection or try again later. The board remains usable.</p>
+                    )}
+                    {openingStatsStatus === "ready" && openingStats && (
+                      <>
+                        {openingStats.opening && (
+                          <p className="opening-stats-name">
+                            {openingStats.opening.eco ? `${openingStats.opening.eco} · ` : ""}
+                            {openingStats.opening.name}
+                          </p>
+                        )}
+                        <strong className="opening-stats-total">
+                          {(openingStats.white + openingStats.draws + openingStats.black).toLocaleString()} games in this dataset
+                        </strong>
+                        <div className="opening-result-bar" aria-label="White wins, draws and Black wins">
+                          <span className="opening-result-white" style={{ width: `${openingStats.total ? openingStats.white / openingStats.total * 100 : 0}%` }} />
+                          <span className="opening-result-draw" style={{ width: `${openingStats.total ? openingStats.draws / openingStats.total * 100 : 0}%` }} />
+                          <span className="opening-result-black" style={{ width: `${openingStats.total ? openingStats.black / openingStats.total * 100 : 0}%` }} />
+                        </div>
+                        <div className="opening-result-legend">
+                          <span>White {openingStats.white.toLocaleString()}</span>
+                          <span>Draws {openingStats.draws.toLocaleString()}</span>
+                          <span>Black {openingStats.black.toLocaleString()}</span>
+                        </div>
+                        <h5>Popular continuations</h5>
+                        {openingStats.moves.length ? (
+                          <div className="opening-stat-moves">
+                            {openingStats.moves.slice(0, 8).map((move) => {
+                              const total = move.white + move.draws + move.black;
+                              return (
+                                <div className="opening-stat-move" key={move.uci}>
+                                  <strong>{move.san}</strong>
+                                  <span>{total.toLocaleString()} games</span>
+                                  {move.opening && <small>{move.opening.name}</small>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p>No continuation data was returned for this position.</p>
+                        )}
+                        <p className="muted">Counts reflect Lichess's indexed dataset, not all chess games. Missing data is not treated as zero games.</p>
+                      </>
+                    )}
+                    {openingStatsStatus === "idle" && !openingPosition.error && <p>Enter a legal line to load statistics.</p>}
+                  </section>
+                  <button
+                    type="button"
+                    className="green-button"
+                    onClick={() => {
+                      setAnalysisBoard({
+                        lineBaseFen: START_FEN,
+                        currentFen: openingPosition.fen,
+                        moves: [...openingPosition.sanMoves],
+                        moveIndex: openingPosition.sanMoves.length,
+                        flipped: false,
+                        coordinates: true,
+                      });
+                      setStudyMode(false);
+                      setWorkspaceMode("analysis");
+                      setNotice("Opening position copied to the independent Analysis Board.");
+                    }}
+                  >Open position in Analysis Board</button>
+                  <p className="muted">Position FEN: {openingPosition.fen}</p>
+                </>
+              )}
+            </section>
+          )}
+          </div>
+
           <div className="reader-toolbar">
             <div className="reader-title"><div className="document-icon" aria-hidden="true"><BookOpenText size={20} strokeWidth={1.8} /></div><div><strong>{book?.title ?? "Book reader"}</strong><span>{pdf ? `${session?.pageCount} pages \u00b7 PDF document` : "Add a PDF book to begin"}</span></div></div>
             <div className="reader-actions">
@@ -1460,10 +1809,10 @@ if (
           </div>
           <div className="page-navigation">
             <button aria-label="Previous page" disabled={!pdf || session?.page === 1} onClick={() => changePage(-1)}>&#8249;</button>
-            <label>PAGE <input aria-label="Current page" type="number" min="1" max={session?.pageCount || 1} value={session?.page ?? 1} disabled={!pdf} onChange={(event) => goToPage(Number(event.target.value))} /> <span>of {session?.pageCount || "&#8212;"}</span></label>
+            <label>PAGE <input aria-label="Current page" type="number" min="1" max={session?.pageCount || 1} value={session?.page ?? 1} disabled={!pdf} onChange={(event) => goToPage(Number(event.target.value))} /> <span>of {session?.pageCount || "?"}</span></label>
             <button aria-label="Next page" disabled={!pdf || (session?.page ?? 1) >= (session?.pageCount ?? 1)} onClick={() => changePage(1)}>&#8250;</button>
             <span className="nav-separator" />
-            <button className={`scan-button ${detecting ? "scan-active" : ""}`} disabled={!pdf || rendering} onClick={() => void detectBoards()}>{detecting ? "&#8211;Â  Stop scan" : "Detect boards"}</button>
+            <button className={`scan-button ${detecting ? "scan-active" : ""}`} disabled={!pdf || rendering} onClick={() => void detectBoards()}>{detecting ? "&#8211;Ã‚Â  Stop scan" : "Detect boards"}</button>
             <button
               type="button"
               className="clear-scan-button"
@@ -1496,7 +1845,7 @@ if (
                         aria-label={`Adjust crop region ${index + 1}`}
                         onPointerDown={(event) => startCropEdit(event, candidate, "move")}
                       >
-                        <span>{index + 1} &#183; Drag to move</span>
+                        <span>{index + 1} ? Drag to move</span>
                         {CROP_HANDLES.map((handle) => <button
                           key={handle}
                           type="button"
@@ -1513,14 +1862,14 @@ if (
                         aria-label={`Select diagram region ${index + 1}`}
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => { event.stopPropagation(); selectCandidate(candidate); if (candidate.source === "automatic") void openTransfer(candidate); }}
-                      ><span>{index + 1} &#183; {candidate.source === "manual" ? "Manual crop" : "Relative match"}</span></button>
+                      ><span>{index + 1} ? {candidate.source === "manual" ? "Manual crop" : "Relative match"}</span></button>
                     )
                   ))}
                   {dragSelection && <div className="selection-rectangle" style={{ left: `${Math.min(dragSelection.x, dragSelection.x2) * 100}%`, top: `${Math.min(dragSelection.y, dragSelection.y2) * 100}%`, width: `${Math.abs(dragSelection.x2 - dragSelection.x) * 100}%`, height: `${Math.abs(dragSelection.y2 - dragSelection.y) * 100}%` }} />}
                   {rendering && <div className="rendering-label"><span className="spinner" /> Rendering page</div>}
                   {pdfLoading && <div className="rendering-label"><span className="spinner" /> Opening PDF</div>}
                 </div>
-                <div className="page-scroll-hint">Drag over the page to mark a diagram &#183; {currentCandidates.length} regions</div>
+                <div className="page-scroll-hint">Drag over the page to mark a diagram ? {currentCandidates.length} regions</div>
               </div>
             )}
           </div>
@@ -1528,20 +1877,20 @@ if (
             <div className="diagram-strip"><span className="strip-label">DIAGRAMS</span>{currentCandidates.length ? currentCandidates.map((candidate, index) => <button key={candidate.id} className={candidate.id === session?.selectedDiagramId ? "strip-selected" : ""} onClick={() => selectCandidate(candidate)} aria-label={`Select diagram ${index + 1}`}>{index + 1}</button>) : <span className="muted">None detected on this page</span>}</div>
             {currentDiagram && <div className="crop-actions">
               {cropEditingId === currentDiagram.id && <button onClick={resetSelectedCrop}>Reset crop</button>}
-              <button onClick={() => adjustSelectedCrop(currentDiagram)}>{cropEditingId === currentDiagram.id ? "Adjusting&#8230;" : "Adjust Crop"}</button>
+              <button onClick={() => adjustSelectedCrop(currentDiagram)}>{cropEditingId === currentDiagram.id ? "Adjusting?" : "Adjust Crop"}</button>
               <button className="green-button" onClick={() => void openTransfer(currentDiagram)}>Recognize Pieces</button>
               <button onClick={cancelCandidateSelection}>Cancel</button>
             </div>}
             <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
           </div>
           <div className="analysis-strip">
-            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engine&#8230;" : engineStatus === "analyzing" ? "Analyzing current position&#8230;" : "Ready &#183; White-positive scores"}</span></div></div>
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engine…" : engineStatus === "analyzing" ? "Analyzing current position…" : "Ready · White-positive scores"}</span></div></div>
             <div className="analysis-divider" />
             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
-            <div className="analysis-result"><span>Evaluation &#183; White</span><strong>{engineScore ? formatEvaluation(engineScore) : "&#8212;"}</strong></div>
-            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ?? "&#8212;"}</strong></div>
-            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv?.join(" ") ?? (engineEnabled ? "Waiting for first valid score&#8230;" : "Enable Stockfish to analyze this position.")}</strong></div>
+            <div className="analysis-result"><span>Evaluation · White</span><strong>{engineScore ? formatEvaluation(engineScore) : "—"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "—"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid score…" : "Enable Stockfish to analyze this position.")}</strong></div>
           </div>
         </section>
       </div>
@@ -1586,7 +1935,7 @@ if (
         <div className="game-end-backdrop">
           <section className="game-end-dialog" role="dialog" aria-modal="true" aria-labelledby="game-end-title">
             <div className="game-end-icon" aria-hidden="true">
-              {gameEndOverlay.title === "Checkmate" ? "&#9822;" : gameEndOverlay.title === "Stalemate" ? "Â½" : "Â½"}
+              {gameEndOverlay.title === "Checkmate" ? "♔" : gameEndOverlay.title === "Stalemate" ? "½" : "½"}
             </div>
             <h2 id="game-end-title">{gameEndOverlay.title}</h2>
             <p>{gameEndOverlay.message}</p>
@@ -1603,10 +1952,10 @@ if (
             <h2 id="promotion-title">Promote pawn</h2>
             <p>Choose a piece to complete your move.</p>
             <div className="promotion-choices">
-              <button type="button" onClick={() => completePromotion("q")} aria-label="Promote to queen"><span>â™•</span><small>Queen</small></button>
-              <button type="button" onClick={() => completePromotion("r")} aria-label="Promote to rook"><span>â™–</span><small>Rook</small></button>
-              <button type="button" onClick={() => completePromotion("b")} aria-label="Promote to bishop"><span>â™—</span><small>Bishop</small></button>
-              <button type="button" onClick={() => completePromotion("n")} aria-label="Promote to knight"><span>â™˜</span><small>Knight</small></button>
+              <button type="button" onClick={() => completePromotion("q")} aria-label="Promote to queen"><span>Ã¢â„¢â€¢</span><small>Queen</small></button>
+              <button type="button" onClick={() => completePromotion("r")} aria-label="Promote to rook"><span>Ã¢â„¢â€“</span><small>Rook</small></button>
+              <button type="button" onClick={() => completePromotion("b")} aria-label="Promote to bishop"><span>Ã¢â„¢—</span><small>Bishop</small></button>
+              <button type="button" onClick={() => completePromotion("n")} aria-label="Promote to knight"><span>Ã¢â„¢Ëœ</span><small>Knight</small></button>
             </div>
             <button className="promotion-cancel" type="button" onClick={() => setPromotionRequest(null)}>Cancel</button>
           </section>
@@ -1649,5 +1998,3 @@ function formatSize(bytes: number): string {
 function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 }
-
-

@@ -6595,3 +6595,367 @@ body:has(.app-shell.study-focus-mode),
     min-height: 0 !important;
   }
 }
+
+
+/* Opening Explorer workspace */
+.opening-explorer-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--border, #d9ded8);
+  border-radius: 12px;
+  background: var(--panel, #fff);
+}
+.opening-explorer-panel h3,
+.opening-explorer-panel p {
+  margin: 0;
+}
+.opening-explorer-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 10px;
+  border: 1px solid var(--border, #d9ded8);
+  border-radius: 8px;
+  font: inherit;
+}
+.opening-explorer-moves,
+.opening-explorer-notation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.opening-explorer-moves button,
+.opening-explorer-notation button {
+  padding: 6px 9px;
+  border: 1px solid var(--border, #d9ded8);
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+.opening-explorer-moves button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.opening-explorer-notation .opening-move-played {
+  background: var(--surface, #eef3e9);
+  font-weight: 600;
+}
+/* Opening Explorer statistics */
+.opening-stats {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 14px;
+  border: 1px solid var(--border, #d9ded8);
+  border-radius: 10px;
+  background: var(--surface, #f7f9f6);
+  min-width: 0;
+}
+.opening-stats-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.opening-stats h4,
+.opening-stats h5,
+.opening-stats p {
+  margin: 0;
+}
+.opening-stats h4 { font-size: 1rem; }
+.opening-stats h5 { font-size: .9rem; }
+.opening-stats-heading span,
+.opening-stats small,
+.opening-stats .muted { font-size: .78rem; }
+.opening-stats-name { font-weight: 600; }
+.opening-stats-total { font-size: 1.15rem; }
+.opening-result-bar {
+  display: flex;
+  overflow: hidden;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--border, #d9ded8);
+}
+.opening-result-bar span { min-width: 0; }
+.opening-result-white { background: #e8e5d8; }
+.opening-result-draw { background: #a9b0a8; }
+.opening-result-black { background: #3f4742; }
+.opening-result-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: .8rem;
+}
+.opening-stat-moves {
+  display: grid;
+  gap: 6px;
+}
+.opening-stat-move {
+  display: grid;
+  grid-template-columns: minmax(38px, .5fr) minmax(80px, 1fr);
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #d9ded8);
+  border-radius: 7px;
+  background: var(--panel, #fff);
+}
+.opening-stat-move span {
+  text-align: right;
+  font-size: .8rem;
+}
+.opening-stat-move small {
+  grid-column: 1 / -1;
+  color: var(--muted, #687168);
+}
+
+/* Dedicated Opening Explorer layout: hide the PDF reader and expand the board workspace. */
+.workspace.opening-explorer-active:not(.library-collapsed) {
+  grid-template-columns: 220px minmax(0, 1fr) !important;
+}
+.workspace.opening-explorer-active.library-collapsed {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.workspace.opening-explorer-active > .reader-panel {
+  display: none !important;
+}
+.workspace.opening-explorer-active > .board-panel {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+@media (max-width: 900px) {
+  .workspace.opening-explorer-active:not(.library-collapsed),
+  .workspace.opening-explorer-active.library-collapsed {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* Opening Explorer: board left, explorer in the former PDF panel on the right. */
+.workspace.opening-explorer-active:not(.library-collapsed) {
+  grid-template-columns: 220px minmax(320px, 0.95fr) minmax(360px, 1.05fr) !important;
+}
+.workspace.opening-explorer-active.library-collapsed {
+  grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr) !important;
+}
+.workspace.opening-explorer-active > .reader-panel {
+  display: flex !important;
+  flex-direction: column;
+  min-width: 0;
+  overflow: auto !important;
+  background: var(--panel, #252421);
+}
+.workspace.opening-explorer-active > .board-panel {
+  min-width: 0;
+  max-width: none;
+}
+.opening-explorer-right-workspace {
+  display: block;
+  min-width: 0;
+  padding: 18px;
+  color: var(--text, #eeeae2);
+  background: var(--panel, #252421);
+}
+.opening-explorer-right-workspace .opening-explorer-panel {
+  color: var(--text, #eeeae2);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+}
+.opening-explorer-right-workspace .opening-stats {
+  color: var(--text, #eeeae2) !important;
+  background: #302f2b !important;
+  border: 1px solid #484740;
+  border-radius: 10px;
+  padding: 14px;
+}
+.opening-explorer-right-workspace .opening-stats h4,
+.opening-explorer-right-workspace .opening-stats h5,
+.opening-explorer-right-workspace .opening-stats p,
+.opening-explorer-right-workspace .opening-stats strong,
+.opening-explorer-right-workspace .opening-stats span {
+  color: inherit;
+}
+.opening-explorer-right-workspace textarea {
+  color: #f1eee7;
+  background: #302f2b;
+  border-color: #55534b;
+}
+.opening-explorer-right-workspace .opening-explorer-notation button,
+.opening-explorer-right-workspace .opening-explorer-moves button {
+  color: #eeeae2;
+  background: #302f2b;
+  border-color: #55534b;
+}
+@media (max-width: 900px) {
+  .workspace.opening-explorer-active:not(.library-collapsed),
+  .workspace.opening-explorer-active.library-collapsed {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* OPENING EXPLORER GLASS HEADER */
+.workspace.opening-explorer-active > .reader-panel > :not(.opening-explorer-right-workspace) {
+  display: none !important;
+}
+
+.workspace.opening-explorer-active > .reader-panel {
+  overflow-y: auto !important;
+  background:
+    radial-gradient(ellipse at 85% 0%, rgba(139, 195, 74, 0.08), transparent 48%),
+    #22211f !important;
+}
+
+.opening-explorer-right-workspace {
+  flex: 1 0 auto;
+  min-height: 100%;
+  padding: 22px !important;
+  box-sizing: border-box;
+  background: transparent !important;
+}
+
+.opening-explorer-right-workspace .opening-explorer-panel > h3 {
+  position: relative;
+  overflow: hidden;
+  padding: 20px 22px;
+  margin: 0 0 18px;
+  border: 1px solid rgba(157, 211, 100, 0.35);
+  border-radius: 16px;
+  color: #f4f7ee;
+  font-size: 1.45rem;
+  font-weight: 750;
+  letter-spacing: 0.2px;
+  background:
+    linear-gradient(120deg, rgba(133, 190, 75, 0.17), rgba(255, 255, 255, 0.035) 52%, rgba(133, 190, 75, 0.08)),
+    rgba(43, 45, 39, 0.82);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 0 22px rgba(139, 195, 74, 0.055);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: opening-explorer-arrive 500ms ease-out both;
+}
+
+.opening-explorer-right-workspace .opening-explorer-panel > h3::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, #c5ef91, #83bd43);
+  box-shadow: 0 0 14px rgba(139, 195, 74, 0.48);
+}
+
+.opening-explorer-right-workspace .opening-explorer-panel > h3::after {
+  content: "";
+  position: absolute;
+  top: -80%;
+  bottom: -80%;
+  left: -45%;
+  width: 24%;
+  transform: rotate(20deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+  animation: opening-explorer-glint 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.opening-explorer-right-workspace .opening-explorer-panel > p {
+  color: #c6c5bd;
+  line-height: 1.65;
+}
+
+.opening-explorer-right-workspace .opening-stats {
+  color: #eeeee8 !important;
+  background: linear-gradient(145deg, #302f2b, #282825) !important;
+  border: 1px solid #484840 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.opening-explorer-right-workspace .opening-stats a {
+  color: #a6d875;
+}
+
+.opening-explorer-right-workspace textarea:focus {
+  outline: 2px solid rgba(139, 195, 74, 0.65);
+  outline-offset: 2px;
+}
+
+@keyframes opening-explorer-arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes opening-explorer-glint {
+  0%, 65% { left: -45%; }
+  90%, 100% { left: 125%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opening-explorer-right-workspace .opening-explorer-panel > h3,
+  .opening-explorer-right-workspace .opening-explorer-panel > h3::after {
+    animation: none !important;
+  }
+}
+
+/* READER VISIBILITY FINAL OVERRIDE */
+/* Normal workspaces must retain the PDF reader and its direct children. */
+.workspace:not(.opening-explorer-active) > .reader-panel {
+  display: flex !important;
+  flex-direction: column;
+  min-width: 0;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Explorer mode shows the Explorer instead of the PDF toolbar and page. */
+.workspace.opening-explorer-active > .reader-panel {
+  display: flex !important;
+  flex-direction: column;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.workspace.opening-explorer-active > .reader-panel > :not(.opening-explorer-right-workspace) {
+  display: none !important;
+}
+
+.workspace:not(.opening-explorer-active) > .reader-panel > .opening-explorer-right-workspace {
+  display: none !important;
+}
+
+.workspace:not(.opening-explorer-active) > .reader-panel > .reader-toolbar,
+.workspace:not(.opening-explorer-active) > .reader-panel > .page-navigation,
+.workspace:not(.opening-explorer-active) > .reader-panel > .page-workspace,
+.workspace:not(.opening-explorer-active) > .reader-panel > .engine-panel {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* ANALYSIS BOARD NO-BOOK LAYOUT */
+/* Keep the library available, but give the Analysis Board the remaining workspace. */
+.workspace.analysis-board-active:not(.library-collapsed) {
+  grid-template-columns: 220px minmax(0, 1fr) !important;
+}
+.workspace.analysis-board-active.library-collapsed {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.workspace.analysis-board-active > .reader-panel {
+  display: none !important;
+}
+.workspace.analysis-board-active > .board-panel {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+}
+@media (max-width: 900px) {
+  .workspace.analysis-board-active:not(.library-collapsed),
+  .workspace.analysis-board-active.library-collapsed {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
