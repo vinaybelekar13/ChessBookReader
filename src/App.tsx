@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
+import CoordinateTraining from "./CoordinateTraining";
 import {
   Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
   ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
 import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
 import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
 import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
 import { ManualBoardEditor } from "./ManualBoardEditor";
@@ -63,8 +65,10 @@ function formatUciPv(fen: string, pv: string[]): string {
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
+import { GameReview } from "./GameReview";
+
 type LibraryTab = "all" | "recent";
-type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer";
+type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "game-review";
 
 const FILE_LIMIT = 100 * 1024 * 1024;
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
@@ -1010,6 +1014,52 @@ if (!boardSession) return;
     setArrowHover(null);
   }
 
+  function loadPgnText(source: string) {
+    try {
+      const imported = parsePgn(source);
+      const replay = new Chess(imported.lineBaseFen);
+
+      for (const san of imported.moves) {
+        replay.move(san);
+      }
+
+      const last = replay.history({ verbose: true }).at(-1);
+
+      setAnalysisBoard((current) => ({
+        ...current,
+        lineBaseFen: imported.lineBaseFen,
+        currentFen: imported.finalFen,
+        moves: imported.moves,
+        moveIndex: imported.moves.length,
+      }));
+
+      setWorkspaceMode("analysis");
+      setStudyMode(false);
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+
+      const white = imported.headers.White || "White";
+      const black = imported.headers.Black || "Black";
+      setNotice(`PGN loaded: ${white} vs ${black} · ${imported.moves.length} plies.`);
+      setError("");
+    } catch (cause) {
+      setError(`PGN import failed: ${messageOf(cause)}`);
+    }
+  }
+
+  async function importPgnFile(file: File) {
+    try {
+      const source = await file.text();
+      loadPgnText(source);
+    } catch (cause) {
+      setError(`Could not read PGN file: ${messageOf(cause)}`);
+    }
+  }
+
+  function pastePgn() {
+    const source = window.prompt("Paste PGN notation:");
+    if (source !== null) loadPgnText(source);
+  }
   function jumpToMove(index: number) {
     if (!boardSession) return;
     try {
@@ -1381,7 +1431,7 @@ if (
         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
       </header>
 
-      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""}`}>
+      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
         {libraryOpen && (
           <aside className="library-panel">
             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
@@ -1395,6 +1445,9 @@ if (
             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
             <nav className="library-nav" aria-label="Library sections">
                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+              <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+              <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+              <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
 
 
 
@@ -1440,9 +1493,10 @@ if (
           </aside>
         )}
 
+        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
         <section className="board-panel" aria-label="Chessboard analysis">
           <div className="board-header">
-            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} · ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
             <div className="board-header-actions">
               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
@@ -1602,6 +1656,19 @@ if (
             <span className="controls-spacer" />
             <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
             <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+            <button title="Paste PGN notation" onClick={pastePgn}><FileCode2 size={15} aria-hidden="true" /> Paste PGN</button>
+            <button title="Import a PGN file" onClick={() => document.getElementById("pgn-import-input")?.click()}><FileCode2 size={15} aria-hidden="true" /> Import PGN</button>
+            <input
+              id="pgn-import-input"
+              type="file"
+              accept=".pgn,text/plain"
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void importPgnFile(file);
+                event.currentTarget.value = "";
+              }}
+            />
           </div>
           <div className="turn-row">
             <span>TO MOVE</span>
@@ -1622,7 +1689,7 @@ if (
             <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
           </div>
           <details className="position-editor">
-            <summary>Board position · enter FEN to correct selected diagram</summary>
+            <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
             <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
           </details>
           <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
@@ -1652,7 +1719,7 @@ if (
                           .catch(() => setLichessStatusError("Could not disconnect. Check that the backend is running."))
                           .finally(() => setLichessActionBusy(false));
                       }}
-                    >{lichessActionBusy ? "Disconnecting…" : "Disconnect"}</button>
+                    >{lichessActionBusy ? "DisconnectingÃ¢â‚¬Â¦" : "Disconnect"}</button>
                   </>
                 ) : (
                   <>
@@ -1725,7 +1792,7 @@ if (
                       <h4>Position statistics</h4>
                       <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
                     </div>
-                    {openingStatsStatus === "loading" && <p>Loading game statistics…</p>}
+                    {openingStatsStatus === "loading" && <p>Loading game statisticsÃ¢â‚¬Â¦</p>}
                     {openingStatsStatus === "error" && (
                       <p role="status">Statistics are currently unavailable. Check your connection or try again later. The board remains usable.</p>
                     )}
@@ -1733,7 +1800,7 @@ if (
                       <>
                         {openingStats.opening && (
                           <p className="opening-stats-name">
-                            {openingStats.opening.eco ? `${openingStats.opening.eco} · ` : ""}
+                            {openingStats.opening.eco ? `${openingStats.opening.eco} Ã‚Â· ` : ""}
                             {openingStats.opening.name}
                           </p>
                         )}
@@ -1812,7 +1879,7 @@ if (
             <label>PAGE <input aria-label="Current page" type="number" min="1" max={session?.pageCount || 1} value={session?.page ?? 1} disabled={!pdf} onChange={(event) => goToPage(Number(event.target.value))} /> <span>of {session?.pageCount || "?"}</span></label>
             <button aria-label="Next page" disabled={!pdf || (session?.page ?? 1) >= (session?.pageCount ?? 1)} onClick={() => changePage(1)}>&#8250;</button>
             <span className="nav-separator" />
-            <button className={`scan-button ${detecting ? "scan-active" : ""}`} disabled={!pdf || rendering} onClick={() => void detectBoards()}>{detecting ? "&#8211;Ã‚Â  Stop scan" : "Detect boards"}</button>
+            <button className={`scan-button ${detecting ? "scan-active" : ""}`} disabled={!pdf || rendering} onClick={() => void detectBoards()}>{detecting ? "&#8211;ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  Stop scan" : "Detect boards"}</button>
             <button
               type="button"
               className="clear-scan-button"
@@ -1884,15 +1951,16 @@ if (
             <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
           </div>
           <div className="analysis-strip">
-            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engine…" : engineStatus === "analyzing" ? "Analyzing current position…" : "Ready · White-positive scores"}</span></div></div>
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
             <div className="analysis-divider" />
             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
-            <div className="analysis-result"><span>Evaluation · White</span><strong>{engineScore ? formatEvaluation(engineScore) : "—"}</strong></div>
-            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "—"}</strong></div>
-            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid score…" : "Enable Stockfish to analyze this position.")}</strong></div>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
           </div>
         </section>
+        </>}
       </div>
 
       {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
@@ -1935,7 +2003,7 @@ if (
         <div className="game-end-backdrop">
           <section className="game-end-dialog" role="dialog" aria-modal="true" aria-labelledby="game-end-title">
             <div className="game-end-icon" aria-hidden="true">
-              {gameEndOverlay.title === "Checkmate" ? "♔" : gameEndOverlay.title === "Stalemate" ? "½" : "½"}
+              {gameEndOverlay.title === "Checkmate" ? "Ã¢â„¢â€" : gameEndOverlay.title === "Stalemate" ? "Ã‚Â½" : "Ã‚Â½"}
             </div>
             <h2 id="game-end-title">{gameEndOverlay.title}</h2>
             <p>{gameEndOverlay.message}</p>
@@ -1954,7 +2022,7 @@ if (
             <div className="promotion-choices">
               <button type="button" onClick={() => completePromotion("q")} aria-label="Promote to queen"><span>Ã¢â„¢â€¢</span><small>Queen</small></button>
               <button type="button" onClick={() => completePromotion("r")} aria-label="Promote to rook"><span>Ã¢â„¢â€“</span><small>Rook</small></button>
-              <button type="button" onClick={() => completePromotion("b")} aria-label="Promote to bishop"><span>Ã¢â„¢—</span><small>Bishop</small></button>
+              <button type="button" onClick={() => completePromotion("b")} aria-label="Promote to bishop"><span>Ã¢â„¢â€”</span><small>Bishop</small></button>
               <button type="button" onClick={() => completePromotion("n")} aria-label="Promote to knight"><span>Ã¢â„¢Ëœ</span><small>Knight</small></button>
             </div>
             <button className="promotion-cancel" type="button" onClick={() => setPromotionRequest(null)}>Cancel</button>
@@ -1998,3 +2066,10 @@ function formatSize(bytes: number): string {
 function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 }
+
+
+
+
+
+
+
