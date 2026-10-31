@@ -1,0 +1,870 @@
+﻿/* ==========================================================
+   CHESSBOOK READER - NOTATION LEARNER
+   UI redesign: scoped styles, existing component behaviour
+   ========================================================== */
+
+.notation-workspace {
+  --nl-bg: #171a18;
+  --nl-surface: #202522;
+  --nl-surface-raised: #272e29;
+  --nl-border: #343d36;
+  --nl-text: #edf2ec;
+  --nl-muted: #9aa69c;
+  --nl-accent: #a3d66b;
+  --nl-accent-strong: #8fc653;
+  --nl-board-light: #e8dfc9;
+  --nl-board-dark: #77966f;
+
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1560px;
+  min-width: 0;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: clamp(18px, 2.2vw, 32px);
+  color: var(--nl-text);
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(131, 166, 103, .09), transparent 38%),
+    var(--nl-bg);
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-family: Inter, "Segoe UI", sans-serif;
+}
+
+.notation-workspace *,
+.notation-workspace *::before,
+.notation-workspace *::after {
+  box-sizing: border-box;
+}
+
+.notation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.notation-eyebrow {
+  display: inline-block;
+  color: var(--nl-accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
+
+.notation-header h1 {
+  margin: 7px 0 5px;
+  color: #f4f7f2;
+  font-size: clamp(25px, 2.5vw, 34px);
+  line-height: 1.15;
+  font-weight: 750;
+  letter-spacing: -1.1px;
+}
+
+.notation-header p {
+  margin: 0;
+  color: var(--nl-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.notation-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.notation-header-actions button,
+.nl-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 39px;
+  padding: 9px 13px;
+  border: 1px solid var(--nl-border);
+  border-radius: 9px;
+  background: var(--nl-surface-raised);
+  color: #dce5dc;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease;
+}
+
+.notation-header-actions button:hover,
+.nl-controls button:not(:disabled):hover {
+  border-color: #64765e;
+  background: #303a32;
+  color: #fff;
+}
+
+.notation-header-actions button:active,
+.nl-controls button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.notation-header-actions button.nl-active {
+  border-color: var(--nl-accent-strong);
+  background: rgba(143, 198, 83, .12);
+  color: var(--nl-accent);
+}
+
+.notation-workspace button:focus-visible,
+.notation-workspace textarea:focus-visible {
+  outline: 2px solid var(--nl-accent);
+  outline-offset: 3px;
+}
+
+/* PGN / SAN input */
+
+.notation-input-panel {
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--nl-border);
+  border-radius: 13px;
+  background: linear-gradient(145deg, #242b26, #1e2420);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+}
+
+.notation-input-panel label {
+  display: block;
+  margin-bottom: 9px;
+  color: #e7eee5;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: .2px;
+}
+
+.notation-input-panel textarea {
+  display: block;
+  width: 100%;
+  min-height: 66px;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1px solid #3c4840;
+  border-radius: 9px;
+  background: #151a17;
+  color: #e6eee5;
+  font: 12px/1.7 "DM Mono", Consolas, monospace;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+
+.notation-input-panel textarea:focus {
+  border-color: #7da75b;
+  box-shadow: 0 0 0 3px rgba(163, 214, 107, .08);
+  outline: none;
+}
+
+.notation-input-panel textarea::placeholder {
+  color: #68756b;
+}
+
+.nl-input-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--nl-muted);
+  font-size: 11px;
+}
+
+.nl-primary {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 37px;
+  padding: 9px 15px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--nl-accent-strong);
+  color: #172014;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+
+.nl-primary:hover {
+  background: #a5d975;
+  box-shadow: 0 4px 14px rgba(143, 198, 83, .16);
+}
+
+.nl-primary:active {
+  transform: translateY(1px);
+}
+
+.nl-error {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(239, 117, 105, .25);
+  border-radius: 8px;
+  background: rgba(239, 117, 105, .08);
+  color: #ff9b91;
+  font-size: 12px;
+}
+
+/* Main board + notation layout */
+
+.notation-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr);
+  align-items: stretch;
+  gap: 18px;
+}
+
+.nl-board-card,
+.nl-notation-card {
+  min-width: 0;
+  padding: 17px;
+  border: 1px solid var(--nl-border);
+  border-radius: 14px;
+  background: linear-gradient(155deg, #252c27, #1e2420);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .14);
+}
+
+.nl-board-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.nl-board-meta,
+.nl-card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 29px;
+  margin-bottom: 14px;
+  color: var(--nl-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .5px;
+}
+
+.nl-board-meta strong {
+  color: #dce8d9;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.nl-board {
+  width: min(100%, 650px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  overflow: hidden;
+  border: 5px solid #343d35;
+  border-radius: 5px;
+  background: #343d35;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .25);
+}
+
+.nl-square {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  user-select: none;
+}
+
+.nl-square.light {
+  background: var(--nl-board-light);
+}
+
+.nl-square.dark {
+  background: var(--nl-board-dark);
+}
+
+.nl-square.last {
+  box-shadow: inset 0 0 0 999px rgba(190, 218, 91, .37);
+}
+
+.nl-piece {
+  position: relative;
+  z-index: 1;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", serif;
+  font-size: clamp(27px, 5.2vw, 62px);
+  line-height: 1;
+  user-select: none;
+}
+
+.white-piece {
+  color: #fff;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, .65), 0 0 2px #333;
+}
+
+.black-piece {
+  color: #242821;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, .5);
+}
+
+.nl-rank,
+.nl-file {
+  position: absolute;
+  z-index: 2;
+  font-family: "DM Mono", Consolas, monospace;
+  font-size: clamp(8px, .85vw, 11px);
+  font-weight: 800;
+  line-height: 1;
+  opacity: .9;
+  pointer-events: none;
+}
+
+.nl-rank {
+  top: 4px;
+  left: 5px;
+}
+
+.nl-file {
+  right: 5px;
+  bottom: 4px;
+}
+
+.nl-square.light .nl-rank,
+.nl-square.light .nl-file {
+  color: #617a59;
+}
+
+.nl-square.dark .nl-rank,
+.nl-square.dark .nl-file {
+  color: #f1ead9;
+}
+
+/* Board navigation */
+
+.nl-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.nl-controls button {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 8px;
+  border-radius: 9px;
+}
+
+.nl-controls button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.nl-controls button:disabled {
+  opacity: .32;
+  cursor: not-allowed;
+}
+
+.nl-controls span {
+  min-width: 126px;
+  padding: 0 8px;
+  color: #c4d0c3;
+  text-align: center;
+  font-family: "DM Mono", Consolas, monospace;
+  font-size: 11px;
+}
+
+/* Notation panel */
+
+.nl-notation-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.nl-card-title {
+  min-height: 29px;
+  margin-bottom: 10px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--nl-border);
+}
+
+.nl-card-title strong {
+  color: #e8eee6;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.nl-card-title span {
+  color: var(--nl-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.nl-move-list {
+  min-height: 130px;
+  max-height: min(42vh, 390px);
+  overflow: auto;
+  padding: 3px 4px 8px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #52614f transparent;
+}
+
+.nl-move-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-height: 39px;
+  padding: 3px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, .035);
+}
+
+.nl-move-row > span {
+  color: #849184;
+  font-family: "DM Mono", Consolas, monospace;
+  font-size: 11px;
+  text-align: center;
+}
+
+.nl-move-row button {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #d4ded3;
+  text-align: left;
+  font-family: "DM Mono", Consolas, monospace;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease, color .14s ease;
+}
+
+.nl-move-row button:hover:not(:disabled) {
+  border-color: #465445;
+  background: #303a31;
+  color: #fff;
+}
+
+.nl-move-row button.selected {
+  border-color: rgba(163, 214, 107, .35);
+  background: rgba(143, 198, 83, .18);
+  color: #b8e78c;
+}
+
+.nl-move-row button:disabled {
+  color: #788378;
+  opacity: .65;
+  cursor: not-allowed;
+}
+
+/* Move explanation / training */
+
+.nl-learning {
+  margin-top: auto;
+  padding: 17px 15px 14px;
+  border: 1px solid #3a493a;
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(143, 198, 83, .09), rgba(143, 198, 83, .025));
+  color: #b9c5b8;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.nl-learning strong {
+  display: block;
+  margin-top: 9px;
+  color: #f0f5ed;
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -.3px;
+}
+
+.nl-learning p {
+  margin: 7px 0;
+}
+
+.nl-learning p b {
+  color: #e4eddf;
+  font-family: "DM Mono", Consolas, monospace;
+}
+
+.nl-learning .nl-san {
+  display: inline-flex;
+  align-items: center;
+  min-width: 54px;
+  margin-top: 9px;
+  padding: 5px 11px;
+  border: 1px solid rgba(163, 214, 107, .2);
+  border-radius: 7px;
+  background: rgba(143, 198, 83, .12);
+  color: var(--nl-accent);
+  font-family: "DM Mono", Consolas, monospace;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.nl-learning button {
+  margin-top: 10px;
+}
+
+.nl-fen {
+  display: block;
+  margin: 14px 2px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .14);
+  color: #8d9a8e;
+  font: 10px/1.6 "DM Mono", Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.nl-fen strong {
+  margin-right: 8px;
+  color: #b4c2b1;
+  letter-spacing: .8px;
+}
+
+.nl-muted {
+  color: var(--nl-muted);
+  font-size: 12px;
+}
+
+/* Responsive layout */
+
+@media (min-width: 1200px) {
+  .notation-layout {
+    grid-template-columns: minmax(0, 1.25fr) minmax(330px, .75fr);
+    gap: 20px;
+  }
+
+  .nl-board-card,
+  .nl-notation-card {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 900px) {
+  .notation-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nl-board {
+    width: min(100%, 620px);
+  }
+
+  .nl-move-list {
+    max-height: 300px;
+  }
+
+  .nl-learning {
+    margin-top: 14px;
+  }
+}
+
+@media (max-width: 600px) {
+  .notation-workspace {
+    padding: 14px;
+  }
+
+  .notation-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .notation-header-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .notation-header-actions button {
+    flex: 1 1 auto;
+  }
+
+  .notation-input-panel,
+  .nl-board-card,
+  .nl-notation-card {
+    padding: 12px;
+    border-radius: 11px;
+  }
+
+  .notation-input-panel {
+    margin-bottom: 13px;
+  }
+
+  .nl-board {
+    border-width: 3px;
+  }
+
+  .nl-piece {
+    font-size: clamp(24px, 9vw, 48px);
+  }
+
+  .nl-rank {
+    top: 2px;
+    left: 3px;
+  }
+
+  .nl-file {
+    right: 3px;
+    bottom: 2px;
+  }
+
+  .nl-controls {
+    gap: 5px;
+  }
+
+  .nl-controls button {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .nl-controls span {
+    min-width: 105px;
+    font-size: 10px;
+  }
+
+  .nl-input-footer {
+    align-items: stretch;
+  }
+
+  .nl-input-footer .nl-primary {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notation-workspace *,
+  .notation-workspace *::before,
+  .notation-workspace *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}
+
+
+/* Interactive position exploration */
+.notation-workspace .nl-square {
+  cursor: pointer;
+  outline: none;
+  transition: box-shadow .12s ease, filter .12s ease;
+}
+
+.notation-workspace .nl-square:focus-visible {
+  box-shadow: inset 0 0 0 3px #f5e7a1;
+  z-index: 3;
+}
+
+.notation-workspace .nl-square.nl-selected {
+  box-shadow: inset 0 0 0 4px #f0d34f, inset 0 0 0 999px rgba(240, 211, 79, .20);
+  z-index: 2;
+}
+
+.notation-workspace .nl-square.nl-legal-target::after {
+  content: "";
+  position: absolute;
+  width: 24%;
+  height: 24%;
+  border-radius: 50%;
+  background: rgba(25, 35, 25, .38);
+  pointer-events: none;
+}
+
+.notation-workspace .nl-square.nl-legal-target:has(.nl-piece)::after {
+  width: 88%;
+  height: 88%;
+  border: 5px solid rgba(25, 35, 25, .38);
+  background: transparent;
+}
+
+.notation-workspace .nl-square-inspector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 9px 16px;
+  margin: 12px auto 0;
+  padding: 9px 13px;
+  border: 1px solid var(--nl-border);
+  border-radius: 9px;
+  background: #171d19;
+  color: var(--nl-muted);
+  font-size: 11px;
+}
+
+.notation-workspace .nl-square-inspector strong {
+  color: var(--nl-accent);
+  font: 700 13px "DM Mono", Consolas, monospace;
+}
+
+.notation-workspace .nl-square-inspector span:first-of-type {
+  color: var(--nl-text);
+  font-weight: 700;
+}
+
+
+/* ==========================================================
+   DESKTOP VIEWPORT FIT - NOTATION LEARNER
+   The board scales to the available height; notation scrolls
+   internally when a game contains many moves.
+   ========================================================== */
+
+@media (min-width: 901px) and (min-height: 700px) {
+  .notation-workspace {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    padding: clamp(12px, 1.35vw, 20px);
+    overflow: hidden;
+  }
+
+  .notation-header {
+    flex: 0 0 auto;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+
+  .notation-header h1 {
+    font-size: clamp(24px, 2vw, 30px);
+  }
+
+  .notation-input-panel {
+    flex: 0 0 auto;
+    margin-bottom: 12px;
+    padding: 11px 14px;
+  }
+
+  .notation-input-panel label {
+    margin-bottom: 6px;
+  }
+
+  .notation-input-panel textarea {
+    min-height: 42px;
+    max-height: 64px;
+    padding: 8px 11px;
+    resize: vertical;
+  }
+
+  .nl-input-footer {
+    margin-top: 7px;
+  }
+
+  .notation-layout {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1.12fr) minmax(280px, .88fr);
+    gap: 14px;
+    overflow: hidden;
+  }
+
+  .nl-board-card,
+  .nl-notation-card {
+    min-height: 0;
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  .nl-board-card {
+    justify-content: flex-start;
+  }
+
+  .nl-board-meta {
+    flex: 0 0 auto;
+    margin-bottom: 8px;
+  }
+
+  .nl-board {
+    flex: 0 1 auto;
+    width: min(100%, 390px, max(250px, calc(100dvh - 570px)));
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .nl-piece {
+    font-size: clamp(25px, 3.6vw, 48px);
+  }
+
+  .nl-controls {
+    flex: 0 0 auto;
+    gap: 6px;
+    margin-top: 9px;
+  }
+
+  .nl-controls button {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .nl-controls span {
+    min-width: 110px;
+  }
+
+  .nl-square-inspector {
+    flex: 0 0 auto;
+    margin-top: 7px !important;
+    padding: 6px 10px !important;
+  }
+
+  .nl-card-title {
+    flex: 0 0 auto;
+    margin-bottom: 7px;
+    padding-bottom: 8px;
+  }
+
+  .nl-move-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+  }
+
+  .nl-learning {
+    flex: 0 0 auto;
+    margin-top: 8px;
+    padding: 10px 12px;
+    line-height: 1.45;
+  }
+
+  .nl-learning strong {
+    margin-top: 5px;
+    font-size: 17px;
+  }
+
+  .nl-learning p {
+    margin: 4px 0;
+  }
+
+  .nl-learning .nl-san {
+    margin-top: 5px;
+    font-size: 16px;
+  }
+
+  .nl-fen {
+    flex: 0 0 auto;
+    margin-top: 8px;
+    padding: 6px 9px;
+    font-size: 9px;
+  }
+}

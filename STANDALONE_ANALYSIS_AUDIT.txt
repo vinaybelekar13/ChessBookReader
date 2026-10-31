@@ -1,0 +1,1940 @@
+﻿========== STANDALONE ANALYSIS BOARD AUDIT ==========
+Date: 10/30/2026 23:56:30
+
+
+========== .\src\App.tsx ==========
+Line 2
+import { useEffect, useMemo, useRef, useState } from "react";
+import CoordinateTraining from "./CoordinateTraining";
+import NotationLearner from "./NotationLearner";
+import {
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+--------------------------------
+Line 3
+import { useEffect, useMemo, useRef, useState } from "react";
+import CoordinateTraining from "./CoordinateTraining";
+import NotationLearner from "./NotationLearner";
+import {
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+--------------------------------
+Line 70
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
+type LibraryTab = "all" | "recent";
+type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "notation-learner";
+
+const FILE_LIMIT = 100 * 1024 * 1024;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+const CROP_HANDLES: CropHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+type CandidateInput = Omit<Candidate, "id" | "source" | "relativeScore"> &
+--------------------------------
+Line 118
+  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  const [studyMode, setStudyMode] = useState(false);
+  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+--------------------------------
+Line 139
+  const [error, setError] = useState("");
+  const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+  const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+  const [bookSearch, setBookSearch] = useState("");
+  const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+  const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+  const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+  const [openingStatsStatus, setOpeningStatsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+--------------------------------
+Line 393
+  );
+
+  useEffect(() => {
+    if (workspaceMode !== "opening-explorer") return;
+    if (!lichessStatus?.connected) {
+      setOpeningStats(null);
+      setOpeningStatsStatus("idle");
+      return;
+    }
+--------------------------------
+Line 426
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+
+  const boardSession: StudyBoardState | null =
+    workspaceMode === "analysis"
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+--------------------------------
+Line 429
+  }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+
+  const boardSession: StudyBoardState | null =
+    workspaceMode === "analysis"
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+        ? openingPrepBoard
+        : workspaceMode === "opening-explorer"
+          ? {
+--------------------------------
+Line 430
+
+  const boardSession: StudyBoardState | null =
+    workspaceMode === "analysis"
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+        ? openingPrepBoard
+        : workspaceMode === "opening-explorer"
+          ? {
+              lineBaseFen: START_FEN,
+--------------------------------
+Line 431
+  const boardSession: StudyBoardState | null =
+    workspaceMode === "analysis"
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+        ? openingPrepBoard
+        : workspaceMode === "opening-explorer"
+          ? {
+              lineBaseFen: START_FEN,
+              currentFen: openingPosition.fen,
+--------------------------------
+Line 433
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+        ? openingPrepBoard
+        : workspaceMode === "opening-explorer"
+          ? {
+              lineBaseFen: START_FEN,
+              currentFen: openingPosition.fen,
+              moves: openingPosition.sanMoves,
+              moveIndex: openingPosition.sanMoves.length,
+--------------------------------
+Line 531
+  }
+
+  function patchBoardSession(change: Partial<StudyBoardState>) {
+    if (workspaceMode === "opening-explorer") {
+      return;
+    }
+
+    if (workspaceMode === "analysis") {
+      setAnalysisBoard((current) => ({ ...current, ...change }));
+--------------------------------
+Line 535
+      return;
+    }
+
+    if (workspaceMode === "analysis") {
+      setAnalysisBoard((current) => ({ ...current, ...change }));
+    } else if (workspaceMode === "opening-prep") {
+      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+    } else if (studyMode) {
+      setStudyBoard((current) => current ? { ...current, ...change } : current);
+--------------------------------
+Line 536
+    }
+
+    if (workspaceMode === "analysis") {
+      setAnalysisBoard((current) => ({ ...current, ...change }));
+    } else if (workspaceMode === "opening-prep") {
+      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+    } else if (studyMode) {
+      setStudyBoard((current) => current ? { ...current, ...change } : current);
+    } else {
+--------------------------------
+Line 537
+
+    if (workspaceMode === "analysis") {
+      setAnalysisBoard((current) => ({ ...current, ...change }));
+    } else if (workspaceMode === "opening-prep") {
+      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+    } else if (studyMode) {
+      setStudyBoard((current) => current ? { ...current, ...change } : current);
+    } else {
+      patchSession(change);
+--------------------------------
+Line 686
+  }
+
+  function moveToPosition(fen: string): boolean {
+    const activeSession = session ?? newSession("analysis");
+    try {
+      const next = new Chess(fen);
+      setSession({
+        ...activeSession,
+        originalFen: fen,
+--------------------------------
+Line 718
+    } else {
+      engineRef.current?.analyze(fen, engineDepth);
+    }
+    setNotice("Manual position loaded. Stockfish analysis started.");
+    return true;
+  }
+
+  function selectCandidate(candidate: Candidate) {
+    if (!session) return;
+--------------------------------
+Line 810
+      setTransferFen(result.fen);
+      setRecognitionResult(result);
+      setRecognitionStatus("complete");
+      // A successful scan immediately becomes the active analysis position.
+      // Keep the review dialog open so the user can correct uncertain squares;
+      // the explicit confirmation button remains available for corrected FENs.
+      if (moveToPosition(result.fen)) {
+        setNotice("Scanned position loaded automatically onto the analysis board. Review the diagram and correct any uncertain squares before continuing.");
+      }
+--------------------------------
+Line 814
+      // Keep the review dialog open so the user can correct uncertain squares;
+      // the explicit confirmation button remains available for corrected FENs.
+      if (moveToPosition(result.fen)) {
+        setNotice("Scanned position loaded automatically onto the analysis board. Review the diagram and correct any uncertain squares before continuing.");
+      }
+    } catch (cause) {
+      if (requestId !== transferRequestRef.current) return;
+      setRecognitionStatus("failed");
+      setRecognitionError(messageOf(cause));
+--------------------------------
+Line 897
+      }
+      const result = currentGame.move({ from, to });
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+      if (workspaceMode === "opening-explorer") {
+        const line = nextMoves
+          .map((move, index) => index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ${move}` : move)
+          .join(" ");
+        setOpeningExplorerInput(line);
+        setOpeningExplorerPly(nextMoves.length);
+--------------------------------
+Line 1027
+
+      const last = replay.history({ verbose: true }).at(-1);
+
+      setAnalysisBoard((current) => ({
+        ...current,
+        lineBaseFen: imported.lineBaseFen,
+        currentFen: imported.finalFen,
+        moves: imported.moves,
+        moveIndex: imported.moves.length,
+--------------------------------
+Line 1035
+        moveIndex: imported.moves.length,
+      }));
+
+      setWorkspaceMode("analysis");
+      setStudyMode(false);
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+
+      const white = imported.headers.White || "White";
+--------------------------------
+Line 1204
+
+      setNotice(
+        candidates.length
+          ? `Found ${candidates.length} board candidate${candidates.length === 1 ? "" : "s"}. Select a candidate to recognize its chess position and load it onto the analysis board.`
+          : "No board candidates found.",
+      );
+    } catch (cause) {
+      if (requestId !== scanRequestIdRef.current) return;
+
+--------------------------------
+Line 1374
+  }
+
+  function resetBoard() {
+    if (workspaceMode === "opening-prep") {
+      const original = new Chess(openingPrepBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+--------------------------------
+Line 1433
+        <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+      </header>
+
+      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "notation-learner" ? "notation-learner-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""}`}>
+        {libraryOpen && (
+          <aside className="library-panel">
+            <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+            <input
+              ref={fileInput}
+--------------------------------
+Line 1446
+            />
+            <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+            <nav className="library-nav" aria-label="Library sections">
+                            <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+              <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+              <LibraryNavItem active={workspaceMode === "notation-learner"} icon={BookOpenText} label="Notation Learner" onClick={() => { setWorkspaceMode("notation-learner"); setLibraryTab("all"); }} />
+
+
+
+--------------------------------
+Line 1447
+            <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+            <nav className="library-nav" aria-label="Library sections">
+                            <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+              <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+              <LibraryNavItem active={workspaceMode === "notation-learner"} icon={BookOpenText} label="Notation Learner" onClick={() => { setWorkspaceMode("notation-learner"); setLibraryTab("all"); }} />
+
+
+
+</nav>
+--------------------------------
+Line 1448
+            <nav className="library-nav" aria-label="Library sections">
+                            <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+              <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+              <LibraryNavItem active={workspaceMode === "notation-learner"} icon={BookOpenText} label="Notation Learner" onClick={() => { setWorkspaceMode("notation-learner"); setLibraryTab("all"); }} />
+
+
+
+</nav>
+            <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+--------------------------------
+Line 1453
+
+
+</nav>
+            <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+            <div className="book-list">
+                {visibleBooks.map((item, index) => {
+                  const saved = sessionIndex[item.id];
+                  const progress = saved?.pageCount ? Math.min(100, Math.round((saved.page / saved.pageCount) * 100)) : 0;
+                  return (
+--------------------------------
+Line 1477
+              if (!session) return;
+              patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+              setLastMove(null);
+              setNotice("New analysis line started from the current position.");
+            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+--------------------------------
+Line 1494
+          </aside>
+        )}
+
+        {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+        <section className="board-panel" aria-label="Chessboard analysis">
+          <div className="board-header">
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div className="board-header-actions">
+              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+--------------------------------
+Line 1495
+        )}
+
+        {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+        <section className="board-panel" aria-label="Chessboard analysis">
+          <div className="board-header">
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div className="board-header-actions">
+              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+--------------------------------
+Line 1497
+        {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+        <section className="board-panel" aria-label="Chessboard analysis">
+          <div className="board-header">
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div className="board-header-actions">
+              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+            </div>
+          </div>
+--------------------------------
+Line 1649
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+            <span className="controls-spacer" />
+--------------------------------
+Line 1698
+
+        <section className="reader-panel" aria-label="PDF book reader">
+          <div className="opening-explorer-right-workspace">
+          {workspaceMode === "opening-explorer" && (
+            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+              <h3>Opening Explorer</h3>
+              <div className="lichess-connection-controls">
+                {lichessStatus?.connected ? (
+                  <>
+--------------------------------
+Line 1791
+                  <section className="opening-stats" aria-label="Opening statistics" aria-live="polite">
+                    <div className="opening-stats-heading">
+                      <h4>Position statistics</h4>
+                      <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
+                    </div>
+                    {openingStatsStatus === "loading" && <p>Loading game statisticsÃ¢â‚¬Â¦</p>}
+                    {openingStatsStatus === "error" && (
+                      <p role="status">Statistics are currently unavailable. Check your connection or try again later. The board remains usable.</p>
+                    )}
+--------------------------------
+Line 1844
+                    type="button"
+                    className="green-button"
+                    onClick={() => {
+                      setAnalysisBoard({
+                        lineBaseFen: START_FEN,
+                        currentFen: openingPosition.fen,
+                        moves: [...openingPosition.sanMoves],
+                        moveIndex: openingPosition.sanMoves.length,
+                        flipped: false,
+--------------------------------
+Line 1853
+                        coordinates: true,
+                      });
+                      setStudyMode(false);
+                      setWorkspaceMode("analysis");
+                      setNotice("Opening position copied to the independent Analysis Board.");
+                    }}
+                  >Open position in Analysis Board</button>
+                  <p className="muted">Position FEN: {openingPosition.fen}</p>
+                </>
+--------------------------------
+Line 1854
+                      });
+                      setStudyMode(false);
+                      setWorkspaceMode("analysis");
+                      setNotice("Opening position copied to the independent Analysis Board.");
+                    }}
+                  >Open position in Analysis Board</button>
+                  <p className="muted">Position FEN: {openingPosition.fen}</p>
+                </>
+              )}
+--------------------------------
+Line 1856
+                      setWorkspaceMode("analysis");
+                      setNotice("Opening position copied to the independent Analysis Board.");
+                    }}
+                  >Open position in Analysis Board</button>
+                  <p className="muted">Position FEN: {openingPosition.fen}</p>
+                </>
+              )}
+            </section>
+          )}
+--------------------------------
+Line 1951
+            </div>}
+            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+          </div>
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+--------------------------------
+Line 1952
+            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+          </div>
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+--------------------------------
+Line 1953
+          </div>
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+--------------------------------
+Line 1954
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+--------------------------------
+Line 1956
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+--------------------------------
+Line 1957
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+--------------------------------
+Line 1958
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+--------------------------------
+Line 1964
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+          title="Review recognized position"
+          subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits."
+--------------------------------
+Line 1969
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+          title="Review recognized position"
+          subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits."
+          confirmLabel="Use on Board"
+          cropPreviewUrl={transferPreview}
+          recognitionStatus={recognitionStatus}
+          recognitionResult={recognitionResult}
+          recognitionError={recognitionError}
+--------------------------------
+Line 1991
+          subtitle="Set up a custom chess position to analyze with Stockfish."
+          confirmLabel="Analyze Position"
+          showPresets={true}
+          currentAnalysisFen={game.fen()}
+          onConfirm={(confirmedFen) => {
+            if (analyzeManualPosition(confirmedFen)) {
+              setSetupOpen(false);
+            }
+          }}
+--------------------------------
+Line 2010
+            <p>{gameEndOverlay.message}</p>
+            <div className="game-end-actions">
+              <button type="button" onClick={() => setGameEndOverlay(null)}>Review position</button>
+              <button type="button" onClick={() => { setGameEndOverlay(null); setSelectedSquare(null); }}>Continue analysis</button>
+            </div>
+          </section>
+        </div>
+      )}
+      {promotionRequest && (
+--------------------------------
+
+========== .\src\styles.css ==========
+Total CSS lines: 7057
+Line 17: .workspace {
+Line 27: .board-panel,
+Line 34: .board-panel {
+Line 39: .board-area {
+Line 50: .board-frame {
+Line 69: .page-workspace {
+Line 77: .analysis-strip {
+Line 85:   .workspace {
+Line 89:   .board-panel {
+Line 94:   .board-frame {
+Line 100:   .workspace,
+Line 101:   .workspace.library-collapsed {
+Line 109:   .board-panel {
+Line 113:   .board-frame {
+Line 142:   --board-light: #F0D9B5;
+Line 143:   --board-dark: #B58863;
+Line 435:    4. MAIN WORKSPACE THREE-COLUMN LAYOUT
+Line 438: .workspace {
+Line 447: .workspace.library-collapsed {
+Line 452:    5. LEFT SIDEBAR: LIBRARY & NAVIGATION
+Line 749:    6. CENTER ANALYSIS PANEL & CHESSBOARD
+Line 752: .board-panel {
+Line 808: .board-header {
+Line 816: .board-header div {
+Line 823: .board-header strong {
+Line 830: .board-header span {
+Line 835: .board-header-actions {
+Line 841: .board-header-actions .setup-position-btn {
+Line 847: .board-header-actions .setup-position-btn:hover {
+Line 852: /* Board frame and evaluation bar */
+Line 853: .board-area {
+Line 889: .board-frame {
+Line 902: .chessboard {
+Line 927:   background: var(--board-light);
+Line 931:   background: var(--board-dark);
+Line 1028:    7. BOARD CONTROLS TOOLBAR (NORMALIZED & WRAPPED)
+Line 1031: .board-controls {
+Line 1040: .board-controls button {
+Line 1057: .board-controls button:hover:not(:disabled) {
+Line 1063: .board-controls button[title*="move"],
+Line 1064: .board-controls button[title*="coordinates"],
+Line 1065: .board-controls button[title*="Expand"] {
+Line 1072: .board-controls button.setup-position-button {
+Line 1080: .board-controls button.setup-position-button:hover:not(:disabled) {
+Line 1085: .board-controls button.annotation-active {
+Line 1271: .board-fen {
+Line 1281: .board-fen span:first-child {
+Line 1288: .board-fen span:last-child {
+Line 1295:    9. RIGHT PANEL: PDF READER & WORKSPACE
+Line 1468: .page-workspace {
+Line 1655:    10. STOCKFISH ENGINE ANALYSIS STRIP
+Line 1658: .analysis-strip {
+Line 1670: .analysis-name {
+Line 1690: .analysis-name div {
+Line 1696: .analysis-name strong {
+Line 1703: .analysis-name span {
+Line 1709: .analysis-divider {
+Line 1743: .analysis-result {
+Line 1749: .analysis-result span {
+Line 1756: .analysis-result strong {
+Line 1763: .analysis-result.best-result strong {
+Line 1767: .analysis-pv {
+Line 1774: .analysis-pv span {
+Line 1781: .analysis-pv strong {
+Line 1947: /* Manual editor workspace: board on left, palette on right */
+Line 1948: .manual-editor-workspace {
+Line 1956: .manual-board-container {
+Line 1962: .manual-chessboard {
+Line 1995: .manual-board-subcontrols {
+Line 2001: .manual-board-subcontrols .mini-button {
+Line 2369:   .workspace {
+Line 2372:   .workspace.library-collapsed {
+Line 2378:   .workspace {
+Line 2381:   .workspace.library-collapsed {
+Line 2387:   .workspace:not(.library-collapsed) {
+Line 2393:   .workspace.library-collapsed {
+Line 2396:   .manual-editor-workspace {
+Line 2399:   .manual-chessboard {
+Line 2410: /* Modern chess analysis controls â€” Chess.com-inspired */
+Line 2411: .board-panel .board-controls,
+Line 2412: .board-panel .move-controls,
+Line 2413: .board-panel .turn-row {
+Line 2417: .board-panel .board-controls {
+Line 2424: .board-panel .board-controls button,
+Line 2425: .board-panel .move-controls button,
+Line 2426: .board-panel .turn-row button {
+Line 2441: .board-panel .board-controls button:hover,
+Line 2442: .board-panel .move-controls button:hover,
+Line 2443: .board-panel .turn-row button:hover {
+Line 2450: .board-panel .board-controls button:active,
+Line 2451: .board-panel .move-controls button:active,
+Line 2452: .board-panel .turn-row button:active {
+Line 2457: .board-panel .board-controls button:focus-visible,
+Line 2458: .board-panel .move-controls button:focus-visible,
+Line 2459: .board-panel .turn-row button:focus-visible {
+Line 2464: .board-panel .board-controls button:disabled,
+Line 2465: .board-panel .move-controls button:disabled,
+Line 2466: .board-panel .turn-row button:disabled {
+Line 2473: .board-panel .board-controls .setup-position-button,
+Line 2474: .board-panel .turn-row .save-position {
+Line 2480: .board-panel .board-controls .setup-position-button:hover,
+Line 2481: .board-panel .turn-row .save-position:hover {
+Line 2486: .board-panel .board-controls .annotation-active,
+Line 2487: .board-panel .turn-row .turn-active {
+Line 2494: .board-panel .turn-row {
+Line 2505: .board-panel .turn-row > span {
+Line 2512: .board-panel .turn-row button {
+Line 2516: .board-panel .turn-row .save-position {
+Line 2520: .board-panel .board-controls .controls-spacer {
+Line 2524: .board-panel .position-editor {
+Line 2531: .board-panel .position-editor summary {
+Line 2537: .board-panel .position-editor[open] summary {
+Line 2543:   .board-panel .board-controls {
+Line 2547:   .board-panel .board-controls button,
+Line 2548:   .board-panel .move-controls button,
+Line 2549:   .board-panel .turn-row button {
+Line 2555:   .board-panel .turn-row {
+Line 2560: /* Layout repair: organize analysis controls into consistent, non-overlapping rows */
+Line 2561: .board-panel {
+Line 2567: .board-area {
+Line 2576: .board-frame {
+Line 2584: .board-controls {
+Line 2594: .board-controls button {
+Line 2607: .board-controls button:focus-visible,
+Line 2698:   .board-controls {
+Line 2712:   .board-area {
+Line 2716:   .board-frame {
+Line 2720:   .board-controls {
+Line 2724:   .board-controls button {
+Line 2739: /* FINAL LAYOUT OVERRIDES â€” stable chess analysis workspace */
+Line 2740: .workspace {
+Line 2746: .board-panel,
+Line 2752: .board-panel {
+Line 2760: .board-header {
+Line 2770: .board-header-actions {
+Line 2779: .board-area {
+Line 2788: .board-frame {
+Line 2796: .board-controls {
+Line 2806: .board-controls .controls-separator,
+Line 2807: .board-controls .controls-spacer {
+Line 2811: .board-controls button {
+Line 2827: .board-controls button.setup-position-button {
+Line 2942: .board-fen {
+Line 2954: .board-fen span {
+Line 2961:   .board-controls {
+Line 2965:   .board-controls button.setup-position-button {
+Line 2971:   .board-panel {
+Line 2976:   .board-header {
+Line 2980:   .board-header-actions {
+Line 2985:   .board-frame {
+Line 2990:   .board-controls {
+Line 2995:   .board-controls button {
+Line 3029: /* FIX: analysis controls stay aligned beneath the chessboard at 100% zoom */
+Line 3030: .board-panel {
+Line 3035: .board-area {
+Line 3044: .board-frame {
+Line 3050: .board-controls {
+Line 3060: .board-panel .board-controls .controls-separator,
+Line 3061: .board-panel .board-controls .controls-spacer {
+Line 3065: .board-panel .board-controls button {
+Line 3083: .board-panel .board-controls button.setup-position-button {
+Line 3087: .board-panel .turn-row {
+Line 3099: .board-panel .turn-row > span {
+Line 3104: .board-panel .turn-row button {
+Line 3117: .board-panel .position-editor,
+Line 3118: .board-panel .fen-entry,
+Line 3119: .board-panel .moves-panel,
+Line 3120: .board-panel .moves-heading,
+Line 3121: .board-panel .move-list,
+Line 3122: .board-panel .board-fen {
+Line 3129: .board-panel .fen-entry {
+Line 3135: .board-panel .fen-entry input {
+Line 3142: .board-panel .fen-entry button {
+Line 3148:   .board-panel .board-controls {
+Line 3152:   .board-panel .turn-row {
+Line 3158:   .board-panel .board-controls {
+Line 3162:   .board-panel .board-controls button.setup-position-button {
+Line 3166: .board-panel {
+Line 3172: .board-area {
+Line 3179: .board-frame {
+Line 3186: .board-controls {
+Line 3195: .board-controls button {
+Line 3209:   .board-panel { padding-inline: 10px; }
+Line 3210:   .board-frame { width: min(100%, 46vh, 390px); }
+Line 3213: /* ChessBookReader: wider analysis board and compact PDF reader */
+Line 3214: .workspace {
+Line 3218: .workspace.library-collapsed {
+Line 3222: .board-panel {
+Line 3229: .board-header {
+Line 3237: .board-header-actions {
+Line 3244: .board-header-actions button {
+Line 3248: .board-area {
+Line 3256: .board-frame {
+Line 3264: .board-controls {
+Line 3286:   .workspace {
+Line 3289:   .workspace.library-collapsed {
+Line 3292:   .board-frame {
+Line 3298:   .workspace,
+Line 3299:   .workspace.library-collapsed {
+Line 3302:   .board-frame {
+Line 3305:   .board-header-actions {
+Line 3310: /* Compact, viewport-fitted analysis layout */
+Line 3311: .workspace {
+Line 3318: .workspace.library-collapsed {
+Line 3322: .board-panel {
+Line 3331: .board-panel > .section-kicker {
+Line 3337: .board-header {
+Line 3349: .board-header h2,
+Line 3350: .board-header h3,
+Line 3351: .board-header p {
+Line 3355: .board-header-actions {
+Line 3365: .board-header-actions button {
+Line 3371: .board-area {
+Line 3381: .board-frame {
+Line 3390: .board-controls {
+Line 3401: .board-controls button {
+Line 3438: .page-workspace {
+Line 3443: .analysis-strip {
+Line 3451:   .board-panel {
+Line 3456:   .board-frame {
+Line 3460:   .board-controls {
+Line 3465:   .board-controls button {
+Line 3477:   .workspace {
+Line 3481:   .workspace.library-collapsed {
+Line 3487:   .workspace,
+Line 3488:   .workspace.library-collapsed {
+Line 3492:   .board-frame {
+Line 3496:   .board-header {
+Line 3502: .board-header {
+Line 3511: .board-header-actions {
+Line 3521: .board-header-actions button {
+Line 3528: .board-panel .board-header {
+Line 3539: .board-panel .board-header > * {
+Line 3543: .board-panel .board-header-actions {
+Line 3555: .board-panel .board-header-actions button {
+Line 3564: .board-panel .board-header > button {
+Line 3572: /* Move history lives beneath the library list, not beneath the chessboard. */
+Line 3583: .sidebar-moves-panel {
+Line 3594: .sidebar-moves-panel .moves-panel {
+Line 3603: .sidebar-moves-panel .moves-heading {
+Line 3609: .sidebar-moves-panel .move-list {
+Line 3619: .sidebar-moves-panel .move-pair {
+Line 3627: .sidebar-moves-panel .move-pair button {
+Line 3639: /* Final compact fit: fill the sidebar move-list area and keep board controls visible */
+Line 3647: .library-panel .sidebar-moves-panel {
+Line 3656: .sidebar-moves-panel .moves-panel {
+Line 3663: .sidebar-moves-panel .move-list {
+Line 3677: /* Remove excess vertical gaps around the board and its controls */
+Line 3678: .board-panel {
+Line 3686: .board-panel .section-kicker {
+Line 3692: .board-panel .board-header {
+Line 3698: .board-panel .board-header-actions {
+Line 3702: .board-panel .board-header-actions button {
+Line 3708: .board-panel .board-area {
+Line 3713: .board-panel .board-frame {
+Line 3719: .board-panel .board-controls {
+Line 3729: .board-panel .board-controls button {
+Line 3740: .board-panel .turn-row {
+Line 3748: .board-panel .turn-row button {
+Line 3755: .board-panel .position-editor {
+Line 3759: .board-panel .fen-entry {
+Line 3763: .board-panel .fen-entry input,
+Line 3764: .board-panel .fen-entry button {
+Line 3770: .board-panel .board-fen {
+Line 3776: .board-panel .moves-panel {
+Line 3781:   .board-panel .board-frame {
+Line 3785:   .board-panel .board-controls button,
+Line 3786:   .board-panel .turn-row button {
+Line 3794:   .board-panel .board-frame {
+Line 3800: /* Restore usable board controls and keep the move list visible */
+Line 3801: .board-panel {
+Line 3809: .board-panel .board-header {
+Line 3814: .board-panel .board-area {
+Line 3818: .board-panel .board-frame {
+Line 3823: .board-panel .board-controls {
+Line 3833: .board-panel .board-controls button {
+Line 3843: .board-panel .turn-row {
+Line 3852: .board-panel .turn-row > * {
+Line 3856: .board-panel .turn-row button {
+Line 3866: .board-panel .board-fen {
+Line 3873: .library-panel .sidebar-moves-panel {
+Line 3882: .sidebar-moves-panel .moves-panel {
+Line 3891: .sidebar-moves-panel .moves-heading {
+Line 3896: .sidebar-moves-panel .move-list {
+Line 3907: .sidebar-moves-panel .move-pair {
+Line 3913: .sidebar-moves-panel .move-pair button {
+Line 3920:   .board-panel .board-frame {
+Line 3924:   .board-panel .board-controls button {
+Line 3931:   .board-panel .board-frame {
+Line 3935:   .board-panel .board-controls button {
+Line 3942: /* Use the empty lower sidebar area for a taller move list */
+Line 3950: .library-panel .sidebar-moves-panel {
+Line 3959: .sidebar-moves-panel .moves-panel {
+Line 3968: .sidebar-moves-panel .move-list {
+Line 3978: .board-panel .turn-row {
+Line 3986: .board-panel .turn-row button {
+Line 3994: .board-panel .board-fen {
+Line 4000: /* Reduce vertical gaps so the board and its controls sit higher */
+Line 4001: .board-panel {
+Line 4007: .board-panel .section-kicker {
+Line 4013: .board-panel .board-header {
+Line 4018: .board-panel .board-frame {
+Line 4023: .board-panel .board-controls {
+Line 4028: .board-panel .board-controls button {
+Line 4036:   .board-panel .board-frame {
+Line 4042:   .board-panel .board-frame {
+Line 4046:   .board-panel .board-controls button {
+Line 4054: .board-panel .board-controls {
+Line 4060: .board-panel .board-controls button {
+Line 4065: .board-panel .turn-row {
+Line 4072: .board-panel .board-controls:has(button[title="FEN"]) {
+Line 4076: .board-panel .board-controls button[title="FEN"],
+Line 4077: .board-panel .board-controls button[title="PGN"] {
+Line 4081: .board-panel .turn-row {
+Line 4092: .board-panel .turn-row button {
+Line 4101: .board-panel .turn-row > * {
+Line 4231: /* MOVE LIST: stretch its PANEL across all remaining sidebar height.
+Line 4241: .library-panel .sidebar-moves-panel {
+Line 4253: .library-panel .sidebar-moves-panel .moves-panel {
+Line 4264: .library-panel .sidebar-moves-panel .move-list {
+Line 4276: .library-panel .sidebar-moves-panel .move-list:empty {
+Line 4300: /* Hide the extra section-label row above the board. */
+Line 4301: .board-panel .section-eyebrow,
+Line 4302: .board-panel .panel-eyebrow,
+Line 4303: .board-panel .position-analysis-label,
+Line 4304: .board-panel .engine-status,
+Line 4305: .board-panel .engine-status-row {
+Line 4309: /* Collapse the header row so the board starts higher up. */
+Line 4310: .board-panel .board-header,
+Line 4311: .board-panel .analysis-header {
+Line 4317: /* Hide the engine status indicator above the analysis board. */
+Line 4318: .board-panel [class*="engine-status"],
+Line 4319: .board-panel [class*="engine-indicator"],
+Line 4320: .board-panel [class*="engine-state"],
+Line 4321: .board-panel [class*="engine-label"],
+Line 4322: .board-panel [class*="engine-badge"] {
+Line 4327: .board-panel .engine-off,
+Line 4328: .board-panel .engine-on,
+Line 4329: .board-panel .engine-status-text {
+Line 4333: /* Stockfish analysis dock â€” clean grid, no overlapping or clipped controls. */
+Line 4334: .analysis-strip {
+Line 4358: .analysis-strip > * {
+Line 4366: .analysis-name {
+Line 4374: .analysis-name .stockfish-mark {
+Line 4382: .analysis-name > div {
+Line 4391: .analysis-name strong {
+Line 4399: .analysis-name span {
+Line 4446: .analysis-result {
+Line 4455: .analysis-result span,
+Line 4456: .analysis-pv span {
+Line 4466: .analysis-result strong {
+Line 4476: .analysis-pv {
+Line 4486: .analysis-pv strong {
+Line 4503:   .analysis-strip {
+Line 4513:   .analysis-pv {
+Line 4523:   .analysis-pv strong {
+Line 4529:   .analysis-strip {
+Line 4535:   .analysis-pv {
+Line 4543: .analysis-strip {
+Line 4558: .analysis-strip > * {
+Line 4565: .analysis-name {
+Line 4573: .analysis-name .stockfish-mark {
+Line 4580: .analysis-name > div {
+Line 4586: .analysis-name strong {
+Line 4594: .analysis-name span {
+Line 4613: .analysis-strip button {
+Line 4639: .analysis-result {
+Line 4648: .analysis-result span,
+Line 4649: .analysis-pv span {
+Line 4658: .analysis-result strong {
+Line 4666: .analysis-pv {
+Line 4677: .analysis-pv strong {
+Line 4691:   .analysis-strip {
+Line 4697:   .analysis-pv {
+Line 4712:   .analysis-strip button {
+Line 4719:   .analysis-strip {
+Line 4724:   .analysis-name {
+Line 4728:   .analysis-strip .engine-toggle {
+Line 4736:   .analysis-result {
+Line 4740:   .analysis-pv {
+Line 4758: .analysis-strip {
+Line 4771: .analysis-strip > .analysis-divider {
+Line 4775: .analysis-strip > * {
+Line 4782: .analysis-strip .analysis-name {
+Line 4790: .analysis-strip .stockfish-mark {
+Line 4796: .analysis-strip .analysis-name > div {
+Line 4802: .analysis-strip .analysis-name strong,
+Line 4803: .analysis-strip .analysis-name span {
+Line 4811: .analysis-strip .analysis-name strong {
+Line 4816: .analysis-strip .analysis-name span {
+Line 4821: .analysis-strip .engine-toggle {
+Line 4832: .analysis-strip .depth-control {
+Line 4842: .analysis-strip .depth-control select {
+Line 4849: .analysis-strip .analysis-result {
+Line 4858: .analysis-strip .analysis-result span {
+Line 4865: .analysis-strip .analysis-result strong {
+Line 4873: .analysis-strip .analysis-pv {
+Line 4884: .analysis-strip .analysis-pv span {
+Line 4890: .analysis-strip .analysis-pv strong {
+Line 4901:   .analysis-strip {
+Line 4907:   .analysis-strip .analysis-name strong {
+Line 4911:   .analysis-strip .analysis-name span,
+Line 4912:   .analysis-strip .analysis-result span {
+Line 4916:   .analysis-strip .analysis-pv {
+Line 4920:   .analysis-strip .analysis-pv strong {
+Line 4926:   .analysis-strip {
+Line 4931:   .analysis-strip .analysis-name {
+Line 4935:   .analysis-strip .engine-toggle {
+Line 4940:   .analysis-strip .depth-control {
+Line 4944:   .analysis-strip .analysis-pv {
+Line 4960: .board-controls button.annotation-active,
+Line 4961: .board-controls button[aria-pressed="true"] {
+Line 4993: /* --- Premium dark analysis-depth dropdown --- */
+Line 5003: .analysis-panel select,
+Line 5027: .analysis-panel select:hover,
+Line 5037: .analysis-panel select option,
+Line 5059: /* Unified Chess.com-inspired analysis arrows */
+Line 5060: .board-arrows {
+Line 5063: .board-arrows .board-arrow {
+Line 5068: .board-arrows .board-arrow-user {
+Line 5071: .board-arrows .board-arrow-engine {
+Line 5074: .board-arrows .board-arrow-preview {
+Line 5080: /* Board repair: keep the board square and the SVG annotation layer aligned. */
+Line 5081: .board-panel .board-area {
+Line 5088: .board-panel .board-frame {
+Line 5097: .board-panel .chessboard {
+Line 5105: .board-panel .chessboard > .board-arrows {
+Line 5116: .board-panel .chessboard > .square {
+Line 5122:   .board-panel .board-frame {
+Line 5126:   .board-panel .board-controls {
+Line 5131:   .board-panel .board-controls button {
+Line 5140: .board-panel .chessboard > .square.red-highlight::after {
+Line 5150: .board-controls button,
+Line 5151: .board-panel button,
+Line 5157: .board-controls button {
+Line 5171: .board-controls button svg,
+Line 5178: .board-controls button svg {
+Line 5184: .board-controls button:focus-visible,
+Line 5191: .board-controls button:active {
+Line 5229:   .board-controls button,
+Line 5264: /* Keep long labels centered without overflowing the sidebar */
+Line 5304: /* Keep long labels centered without overflowing the sidebar */
+Line 5315: /* Fix sidebar navigation: preserve complete labels */
+Line 5353: .board-panel {
+Line 5359: .board-panel .board-controls {
+Line 5368: .board-panel .board-controls button {
+Line 5377: .board-panel .turn-row {
+Line 5384: .board-panel .turn-row > *,
+Line 5385: .board-panel .turn-row button {
+Line 5392:   .board-panel .board-controls {
+Line 5396:   .board-panel .board-controls button.setup-position-button {
+Line 5404:    STABLE RESPONSIVE WORKSPACE LAYOUT
+Line 5408: .workspace {
+Line 5418: .workspace.library-collapsed {
+Line 5422: .workspace > .library-panel,
+Line 5423: .workspace > .board-panel,
+Line 5424: .workspace > .reader-panel {
+Line 5431: .workspace > .library-panel {
+Line 5435: .workspace .library-nav {
+Line 5442: .workspace .library-nav-item {
+Line 5456: .workspace .library-nav-item > span {
+Line 5463: .workspace > .board-panel {
+Line 5468: .workspace .board-area {
+Line 5477: .workspace .board-frame {
+Line 5486: .workspace .board-controls {
+Line 5492: .workspace > .reader-panel {
+Line 5496: .workspace .page-workspace {
+Line 5504:   .workspace {
+Line 5508:   .workspace.library-collapsed {
+Line 5512:   .workspace .board-frame {
+Line 5518:   .workspace,
+Line 5519:   .workspace.library-collapsed {
+Line 5525:   .workspace > .library-panel {
+Line 5529:   .workspace > .board-panel {
+Line 5533:   .workspace .board-frame {
+Line 5537:   .workspace > .reader-panel {
+Line 5542: /* Sidebar labels: readable, full text, no unnecessary truncation */
+Line 5543: .workspace .library-nav-item {
+Line 5552: .workspace .library-nav-item > span {
+Line 5564: .workspace .library-nav-item svg {
+Line 5570: .workspace .library-nav-item.nav-active {
+Line 5576: .workspace .library-nav {
+Line 5582: .analysis-name .stockfish-mark,
+Line 5583: .analysis-strip .stockfish-mark {
+Line 5606: .board-panel .turn-row button {
+Line 5613: .board-panel .turn-row button svg {
+Line 5622: .analysis-strip .analysis-name .stockfish-mark,
+Line 5623: .analysis-name .stockfish-mark {
+Line 5634: .analysis-strip .analysis-name .stockfish-mark > svg,
+Line 5635: .analysis-name .stockfish-mark > svg {
+Line 5646: /* Consistent SVG icon system for chess analysis controls */
+Line 5647: .board-panel .board-controls button,
+Line 5648: .board-panel .turn-row button {
+Line 5655: .board-panel .board-controls button > svg,
+Line 5656: .board-panel .turn-row button > svg {
+Line 5665: .board-panel .board-controls button.setup-position-button > svg {
+Line 5671: /* Refined analysis header actions */
+Line 5672: .board-header {
+Line 5676: .board-header .mini-button {
+Line 5693: .board-header .mini-button svg {
+Line 5700: .board-header .mini-button:hover {
+Line 5705: .board-header .setup-position-btn {
+Line 5710: .board-header .setup-position-btn:hover {
+Line 5714: /* Analysis workspace title bar */
+Line 5715: .board-panel .board-header {
+Line 5735: .board-panel .board-header > div:first-child {
+Line 5742: .board-panel .board-header > div:first-child strong {
+Line 5750: .board-panel .board-header > div:first-child span {
+Line 5756: .board-panel .board-header > div:last-child {
+Line 5764: .board-panel .board-header .flip-board-button {
+Line 5773: .board-panel .board-header .flip-board-button:hover {
+Line 5779:   .board-panel .board-header {
+Line 5784:   .board-panel .board-header > div:first-child strong {
+Line 5788:   .board-panel .board-header .flip-board-button {
+Line 5793: /* Premium analysis board header */
+Line 5794: .board-panel .board-header {
+Line 5816: .board-panel .board-header::before {
+Line 5826: .board-panel .board-header > div:first-child {
+Line 5835: .board-panel .board-header .analysis-title-text {
+Line 5847: .board-panel .board-header .analysis-title-text svg {
+Line 5852: .board-panel .board-header > div:first-child > span {
+Line 5858: .board-panel .board-header > div:last-child {
+Line 5866: .board-panel .board-header .flip-board-button {
+Line 5883: .board-panel .board-header .flip-board-button:hover {
+Line 5888: .board-panel .board-header .flip-board-button:active {
+Line 5892: .board-panel .board-header .flip-board-button svg {
+Line 5899:   .board-panel .board-header {
+Line 5904:   .board-panel .board-header .analysis-title-text {
+Line 5909:   .board-panel .board-header .flip-board-button {
+Line 6153: .notes-sidebar {
+Line 6491:   .app-shell.study-focus-mode .workspace {
+Line 6497:   .app-shell.study-focus-mode .workspace > .library-panel {
+Line 6501:   .app-shell.study-focus-mode .workspace > .board-panel,
+Line 6502:   .app-shell.study-focus-mode .workspace > .reader-panel {
+Line 6508:   .app-shell.study-focus-mode .board-panel {
+Line 6514:   .app-shell.study-focus-mode .workspace > .library-panel {
+Line 6550: .app-shell.study-focus-mode > .workspace {
+Line 6560: .app-shell.study-focus-mode .workspace > .library-panel {
+Line 6564: .app-shell.study-focus-mode .workspace > .board-panel,
+Line 6565: .app-shell.study-focus-mode .workspace > .reader-panel {
+Line 6575: .app-shell.study-focus-mode .workspace > .reader-panel {
+Line 6579: .app-shell.study-focus-mode .board-panel .board-frame {
+Line 6585:   .app-shell.study-focus-mode > .workspace {
+Line 6591:   .app-shell.study-focus-mode .workspace > .board-panel,
+Line 6592:   .app-shell.study-focus-mode .workspace > .reader-panel {
+Line 6598: /* Opening Explorer workspace */
+Line 6622: .opening-explorer-notation {
+Line 6629: .opening-explorer-notation button {
+Line 6640: .opening-explorer-notation .opening-move-played {
+Line 6714: /* Dedicated Opening Explorer layout: hide the PDF reader and expand the board workspace. */
+Line 6715: .workspace.opening-explorer-active:not(.library-collapsed) {
+Line 6718: .workspace.opening-explorer-active.library-collapsed {
+Line 6721: .workspace.opening-explorer-active > .reader-panel {
+Line 6724: .workspace.opening-explorer-active > .board-panel {
+Line 6730:   .workspace.opening-explorer-active:not(.library-collapsed),
+Line 6731:   .workspace.opening-explorer-active.library-collapsed {
+Line 6736: /* Opening Explorer: board left, explorer in the former PDF panel on the right. */
+Line 6737: .workspace.opening-explorer-active:not(.library-collapsed) {
+Line 6740: .workspace.opening-explorer-active.library-collapsed {
+Line 6743: .workspace.opening-explorer-active > .reader-panel {
+Line 6750: .workspace.opening-explorer-active > .board-panel {
+Line 6754: .opening-explorer-right-workspace {
+Line 6761: .opening-explorer-right-workspace .opening-explorer-panel {
+Line 6768: .opening-explorer-right-workspace .opening-stats {
+Line 6775: .opening-explorer-right-workspace .opening-stats h4,
+Line 6776: .opening-explorer-right-workspace .opening-stats h5,
+Line 6777: .opening-explorer-right-workspace .opening-stats p,
+Line 6778: .opening-explorer-right-workspace .opening-stats strong,
+Line 6779: .opening-explorer-right-workspace .opening-stats span {
+Line 6782: .opening-explorer-right-workspace textarea {
+Line 6787: .opening-explorer-right-workspace .opening-explorer-notation button,
+Line 6788: .opening-explorer-right-workspace .opening-explorer-moves button {
+Line 6794:   .workspace.opening-explorer-active:not(.library-collapsed),
+Line 6795:   .workspace.opening-explorer-active.library-collapsed {
+Line 6801: .workspace.opening-explorer-active > .reader-panel > :not(.opening-explorer-right-workspace) {
+Line 6805: .workspace.opening-explorer-active > .reader-panel {
+Line 6812: .opening-explorer-right-workspace {
+Line 6820: .opening-explorer-right-workspace .opening-explorer-panel > h3 {
+Line 6843: .opening-explorer-right-workspace .opening-explorer-panel > h3::before {
+Line 6852: .opening-explorer-right-workspace .opening-explorer-panel > h3::after {
+Line 6865: .opening-explorer-right-workspace .opening-explorer-panel > p {
+Line 6870: .opening-explorer-right-workspace .opening-stats {
+Line 6877: .opening-explorer-right-workspace .opening-stats a {
+Line 6881: .opening-explorer-right-workspace textarea:focus {
+Line 6897:   .opening-explorer-right-workspace .opening-explorer-panel > h3,
+Line 6898:   .opening-explorer-right-workspace .opening-explorer-panel > h3::after {
+Line 6904: /* Normal workspaces must retain the PDF reader and its direct children. */
+Line 6905: .workspace:not(.opening-explorer-active) > .reader-panel {
+Line 6914: .workspace.opening-explorer-active > .reader-panel {
+Line 6921: .workspace.opening-explorer-active > .reader-panel > :not(.opening-explorer-right-workspace) {
+Line 6925: .workspace:not(.opening-explorer-active) > .reader-panel > .opening-explorer-right-workspace {
+Line 6929: .workspace:not(.opening-explorer-active) > .reader-panel > .reader-toolbar,
+Line 6930: .workspace:not(.opening-explorer-active) > .reader-panel > .page-navigation,
+Line 6931: .workspace:not(.opening-explorer-active) > .reader-panel > .page-workspace,
+Line 6932: .workspace:not(.opening-explorer-active) > .reader-panel > .engine-panel {
+Line 6937: /* ANALYSIS BOARD NO-BOOK LAYOUT */
+Line 6938: /* Keep the library available, but give the Analysis Board the remaining workspace. */
+Line 6939: .workspace.analysis-board-active:not(.library-collapsed) {
+Line 6942: .workspace.analysis-board-active.library-collapsed {
+Line 6945: .workspace.analysis-board-active > .reader-panel {
+Line 6948: .workspace.analysis-board-active > .board-panel {
+Line 6955:   .workspace.analysis-board-active:not(.library-collapsed),
+Line 6956:   .workspace.analysis-board-active.library-collapsed {
+Line 6965:   background: var(--board-light);
+Line 6971:   background: var(--board-dark);
+Line 6986:    NOTATION LEARNER FULL-WIDTH WORKSPACE FIX
+Line 6987:    Keep the library sidebar; give notation the remaining width.
+Line 6990: .workspace.notation-learner-active {
+Line 6996: .workspace.notation-learner-active.library-collapsed {
+Line 7000: .workspace.notation-learner-active > .notation-workspace {
+Line 7009:   .workspace.notation-learner-active {
+Line 7013:   .workspace.notation-learner-active > .notation-workspace {
+Line 7018:    TRAINING WORKSPACES - VIEWPORT FIT
+Line 7019:    Scoped only to Coordinate Training and Notation Learner.
+Line 7022: .workspace.notation-learner-active,
+Line 7023: .workspace.coordinate-training-active {
+Line 7029: .workspace.coordinate-training-active {
+Line 7033: .workspace.coordinate-training-active.library-collapsed {
+Line 7037: .workspace.coordinate-training-active > .coordinate-training-workspace {
+Line 7044: .workspace.notation-learner-active > .notation-workspace {
+Line 7050:   .workspace.coordinate-training-active {
+Line 7054:   .workspace.coordinate-training-active > .coordinate-training-workspace {
+
+========== .\src\NotationLearner.tsx ==========
+Total lines: 215
+import { useMemo, useState } from "react";
+import { Chess, type Square } from "chess.js";
+import { ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, RotateCw, BookOpen, GraduationCap } from "lucide-react";
+import "./notation-learner.css";
+
+const FILES = "abcdefgh";
+const PIECES: Record<string, string> = {
+  wk:"♔", wq:"♕", wr:"♖", wb:"♗", wn:"♘", wp:"♙",
+  bk:"♚", bq:"♛", br:"♜", bb:"♝", bn:"♞", bp:"♟"
+};
+
+function parseLine(input: string) {
+  const chess = new Chess();
+  const cleaned = input
+    .replace(/\{[^}]*\}/g, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/^\s*\[.*\]\s*$/gm, " ")
+    .replace(/\d+\.(\.\.)?/g, " ")
+    .replace(/\$\d+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const tokens = cleaned.split(" ").filter(Boolean)
+    .filter((x) => !["1-0", "0-1", "1/2-1/2", "*"].includes(x));
+
+  const moves: string[] = [];
+  for (const token of tokens) {
+    try {
+      const move = chess.move(token);
+      moves.push(move.san);
+    } catch {
+      throw new Error(`Invalid or illegal move: ${token}`);
+    }
+  }
+  return moves;
+}
+
+export default function NotationLearner() {
+  const [input, setInput] = useState("1. e4 e5 2. Nf3 Nc6 3. Bb5 a6");
+  const [moves, setMoves] = useState<string[]>(() => parseLine("1. e4 e5 2. Nf3 Nc6 3. Bb5 a6"));
+  const [index, setIndex] = useState(0);
+  const [error, setError] = useState("");
+  const [flipped, setFlipped] = useState(false);
+  const [training, setTraining] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+
+
+  const positions = useMemo(() => {
+    const game = new Chess();
+    const result = [game.fen()];
+    for (const san of moves) {
+      game.move(san);
+      result.push(game.fen());
+    }
+    return result;
+  }, [moves]);
+
+  const game = useMemo(() => new Chess(positions[index]), [positions, index]);
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return [];
+    return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  }, [game, selectedSquare]);
+  const history = useMemo(() => {
+    const replay = new Chess();
+    const result = [];
+    for (const san of moves.slice(0, index)) result.push(replay.move(san));
+    return result;
+  }, [moves, index]);
+
+  const lastMove = history.at(-1);
+  const board = game.board();
+  const squares = flipped
+    ? [...Array(8)].flatMap((_, r) => [...Array(8)].map((__, f) => `${FILES[7-f]}${r+1}`))
+    : [...Array(8)].flatMap((_, r) => [...Array(8)].map((__, f) => `${FILES[f]}${8-r}`));
+
+  function loadLine() {
+    try {
+      const parsed = parseLine(input);
+      setMoves(parsed);
+      setIndex(0);
+      setError("");
+      setRevealed(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }
+
+  const piece = lastMove?.piece
+    ? ({ p: "Pawn", n: "Knight", b: "Bishop", r: "Rook", q: "Queen", k: "King" } as Record<string,string>)[lastMove.piece]
+    : "Starting position";
+
+  return (
+    <main className="notation-workspace">
+      <header className="notation-header">
+        <div>
+          <span className="notation-eyebrow">CHESSBOOK TRAINING</span>
+          <h1>Notation Learner</h1>
+          <p>Connect every chess symbol to the position it creates.</p>
+        </div>
+        <div className="notation-header-actions">
+          <button onClick={() => setTraining(v => !v)} className={training ? "nl-active" : ""}>
+            <GraduationCap size={16}/> {training ? "Training ON" : "Training mode"}
+          </button>
+          <button onClick={() => setFlipped(v => !v)}><RotateCw size={16}/> Flip board</button>
+        </div>
+      </header>
+
+      <section className="notation-input-panel">
+        <label htmlFor="notation-input">Paste PGN moves or a SAN line</label>
+        <textarea id="notation-input" value={input} onChange={e => setInput(e.target.value)} rows={3} spellCheck={false}/>
+        <div className="nl-input-footer">
+          <span>Example: 1. e4 e5 2. Nf3 Nc6</span>
+          <button className="nl-primary" onClick={loadLine}><BookOpen size={15}/> Load notation</button>
+        </div>
+        {error && <p className="nl-error" role="alert">{error}</p>}
+      </section>
+
+      <div className="notation-layout">
+        <section className="nl-board-card">
+          <div className="nl-board-meta">
+            <span>POSITION {index} / {moves.length}</span>
+            <strong>{game.turn() === "w" ? "White to move" : "Black to move"}</strong>
+          </div>
+          <div className="nl-board" role="grid" aria-label="Interactive chess position">
+            {squares.map(name => {
+              const square = name as Square;
+              const file = FILES.indexOf(name[0]);
+              const rank = Number(name[1]);
+              const item = board[8-rank][file];
+              const isLast = lastMove && (lastMove.from === square || lastMove.to === square);
+              const dark = (file + rank) % 2 === 0;
+              return (
+                <div key={name} role="gridcell" aria-label={`${name}${item ? ` ${item.color === "w" ? "white" : "black"} ${item.type}` : ""}`}
+                  className={`nl-square ${dark ? "dark" : "light"} ${isLast ? "last" : ""} ${selectedSquare === square ? "nl-selected" : ""} ${legalTargets.includes(square) ? "nl-legal-target" : ""}`}
+                  onClick={() => setSelectedSquare(current => current === square ? null : square)}
+                  onKeyDown={event => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedSquare(current => current === square ? null : square);
+                    }
+                  }}
+                  tabIndex={0}
+                  aria-selected={selectedSquare === square}
+                  title={`${square}${item ? ` — ${item.color === "w" ? "White" : "Black"} ${item.type}` : ""}`}>
+                  {item && <span className={`nl-piece ${item.color === "w" ? "white-piece" : "black-piece"}`}>{PIECES[item.color + item.type]}</span>}
+                  {file === (flipped ? 7 : 0) && <small className="nl-rank">{rank}</small>}
+                  {rank === (flipped ? 1 : 1) && <small className="nl-file">{name[0]}</small>}
+                </div>
+              );
+            })}
+          </div>
+          {selectedSquare && (
+            <div className="nl-square-inspector" aria-live="polite">
+              <strong>{selectedSquare}</strong>
+              <span>
+                {game.get(selectedSquare)
+                  ? `${game.get(selectedSquare)?.color === "w" ? "White" : "Black"} ${({
+                      p: "Pawn", n: "Knight", b: "Bishop",
+                      r: "Rook", q: "Queen", k: "King"
+                    } as Record<string, string>)[game.get(selectedSquare)!.type]}`
+                  : "Empty square"}
+              </span>
+              <span>
+                {legalTargets.length
+                  ? `${legalTargets.length} legal destination${legalTargets.length === 1 ? "" : "s"} highlighted`
+                  : "No legal moves from this square"}
+              </span>
+            </div>
+          )}
+          <div className="nl-controls">
+            <button aria-label="First move" onClick={() => {setIndex(0);setRevealed(false)}}><ChevronFirst/></button>
+            <button aria-label="Previous move" onClick={() => {setIndex(v => Math.max(0,v-1));setRevealed(false)}}><ChevronLeft/></button>
+            <span>{index === 0 ? "Starting position" : `${Math.ceil(index/2)}${index%2 ? "." : "..."}`}</span>
+            <button aria-label="Next move" disabled={index >= moves.length || (training && !revealed)} onClick={() => {setIndex(v => Math.min(moves.length,v+1));setRevealed(false)}}><ChevronRight/></button>
+            <button aria-label="Last move" disabled={training} onClick={() => setIndex(moves.length)}><ChevronLast/></button>
+          </div>
+        </section>
+
+        <aside className="nl-notation-card">
+          <div className="nl-card-title"><strong>GAME NOTATION</strong><span>{moves.length} plies</span></div>
+          <div className="nl-move-list">
+            {moves.length === 0 && <p className="nl-muted">Load a move sequence to begin.</p>}
+            {Array.from({length: Math.ceil(moves.length/2)}, (_, row) => (
+              <div className="nl-move-row" key={row}>
+                <span>{row+1}.</span>
+                {[0,1].map(side => {
+                  const ply = row*2+side;
+                  if (!moves[ply]) return <i key={side}/>;
+                  const hidden = training && ply === index && !revealed;
+                  return <button key={side} className={index === ply+1 ? "selected" : ""}
+                    onClick={() => {setIndex(ply+1);setRevealed(false)}}
+                    disabled={hidden}>
+                    {hidden ? "?" : moves[ply]}
+                  </button>;
+                })}
+              </div>
+            ))}
+          </div>
+          <div className="nl-learning">
+            <span className="notation-eyebrow">MOVE EXPLANATION</span>
+            {index === 0
+              ? <p>Start from the initial position. Select a move to see how the notation changes the board.</p>
+              : <><strong>{piece}</strong><p>{lastMove?.color === "w" ? "White" : "Black"} moved from <b>{lastMove?.from}</b> to <b>{lastMove?.to}</b>.</p><p className="nl-san">{lastMove?.san}</p></>}
+            {training && index < moves.length && !revealed && <button className="nl-primary" onClick={() => setRevealed(true)}>Reveal next move: {moves[index]}</button>}
+          </div>
+        </aside>
+      </div>
+      <p className="nl-fen"><strong>FEN</strong> {game.fen()}</p>
+    </main>
+  );
+}
+
+
+
+
+========== .\src\CoordinateTraining.tsx ==========
+Total lines: 124
+import { useEffect, useMemo, useState } from "react";
+import "./coordinate-training.css";
+
+type Orientation = "white" | "black";
+type Mode = "timed" | "untimed" | "streak";
+type SessionResult = { date: string; score: number; accuracy: number; duration: number };
+
+const FILES = "abcdefgh";
+const RANKS = "12345678";
+const randomSquare = (avoid?: string) => {
+  let next = `${FILES[Math.floor(Math.random() * 8)]}${RANKS[Math.floor(Math.random() * 8)]}`;
+  while (next === avoid) next = `${FILES[Math.floor(Math.random() * 8)]}${RANKS[Math.floor(Math.random() * 8)]}`;
+  return next;
+};
+const STORAGE_KEY = "chessbook-coordinate-training-v1";
+
+export default function CoordinateTraining() {
+  const [orientation, setOrientation] = useState<Orientation>("white");
+  const [mode, setMode] = useState<Mode>("timed");
+  const [duration, setDuration] = useState(60);
+  const [remaining, setRemaining] = useState(60);
+  const [target, setTarget] = useState(() => randomSquare());
+  const [score, setScore] = useState(0);
+  const [correct, setCorrect] = useState(0);
+  const [wrong, setWrong] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<"correct" | "wrong" | "">("");
+  const [sound, setSound] = useState(false);
+  const [showCoordinates, setShowCoordinates] = useState(true);
+  const [history, setHistory] = useState<SessionResult[]>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as SessionResult[]; } catch { return []; }
+  });
+  const finished = mode === "timed" && remaining <= 0;
+  const attempts = correct + wrong;
+  const accuracy = attempts ? Math.round((correct / attempts) * 100) : 0;
+  const squares = useMemo(() => {
+    const files = orientation === "white" ? [...FILES] : [...FILES].reverse();
+    const ranks = orientation === "white" ? [...RANKS].reverse() : [...RANKS];
+    return ranks.flatMap((rank) => files.map((file) => `${file}${rank}`));
+  }, [orientation]);
+
+  useEffect(() => {
+    if (!startedAt || finished || mode !== "timed") return;
+    const timer = window.setInterval(() => setRemaining((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [startedAt, finished, mode]);
+
+  useEffect(() => {
+    if (finished && startedAt) {
+      const result = { date: new Date().toISOString(), score, accuracy, duration: duration - remaining };
+      setHistory((previous) => {
+        const next = [result, ...previous].slice(0, 30);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* storage may be unavailable */ }
+        return next;
+      });
+      setStartedAt(null);
+    }
+  }, [finished]);
+
+  function restart(nextMode = mode, nextDuration = duration) {
+    setMode(nextMode);
+    setDuration(nextDuration);
+    setRemaining(nextDuration);
+    setTarget(randomSquare());
+    setScore(0); setCorrect(0); setWrong(0); setStreak(0);
+    setFeedback(""); setStartedAt(null);
+  }
+
+  function chooseSquare(square: string) {
+    if (finished) return;
+    if (!startedAt) setStartedAt(Date.now());
+    if (square === target) {
+      setCorrect((value) => value + 1);
+      setScore((value) => value + 1);
+      setStreak((value) => { const next = value + 1; setBestStreak((best) => Math.max(best, next)); return next; });
+      setFeedback("correct");
+    } else {
+      setWrong((value) => value + 1);
+      setStreak(0);
+      setFeedback("wrong");
+    }
+    setTarget(randomSquare(target));
+  }
+
+  return <main className="coordinate-training-workspace">
+    <header className="ct-header">
+      <div><span className="ct-eyebrow">CHESSBOOK TRAINING</span><h1>Coordinate Training</h1><p>Build instant board vision. Find the square before the clock runs out.</p></div>
+      <div className="ct-header-actions"><button onClick={() => restart()}>â†» Restart</button><button className="ct-primary" onClick={() => restart(mode, duration)}>New session</button></div>
+    </header>
+    <div className="ct-layout">
+      <section className="ct-board-card">
+        <div className="ct-board-top"><span>Find this square</span><strong className="ct-target">{finished ? "TIME!" : target}</strong><span className={`ct-feedback ${feedback}`}>{feedback === "correct" ? "Correct" : feedback === "wrong" ? "Try the next one" : "Select a square"}</span></div>
+        <div className="ct-board" role="group" aria-label="Coordinate training chessboard">
+          {squares.map((square) => {
+            const file = FILES.indexOf(square[0]);
+            const rank = Number(square[1]);
+            const dark = (file + rank) % 2 === 0;
+            return <button key={square} type="button" disabled={finished} onClick={() => chooseSquare(square)} className={`ct-square ${dark ? "dark" : "light"}`} aria-label={square}>
+              {showCoordinates && ((orientation === "white" && file === 0) || (orientation === "black" && file === 7)) && <span className="ct-rank">{rank}</span>}
+              {showCoordinates && ((orientation === "white" && rank === 1) || (orientation === "black" && rank === 8)) && <span className="ct-file">{square[0]}</span>}
+            </button>;
+          })}
+        </div>
+        <div className="ct-board-footer"><span>{orientation === "white" ? "White perspective" : "Black perspective"}</span><button onClick={() => setOrientation((value) => value === "white" ? "black" : "white")}>â‡… Flip board</button></div>
+      </section>
+      <aside className="ct-side">
+        <section className="ct-card ct-stats"><div className="ct-card-heading">SESSION</div><div className="ct-timer">{mode === "untimed" ? "âˆž" : mode === "streak" ? "â€”" : `00:${String(remaining).padStart(2, "0")}`}</div><div className="ct-progress"><i style={{ width: `${mode === "timed" ? ((duration - remaining) / duration) * 100 : 0}%` }} /></div>
+          <div className="ct-stat-grid"><div><strong>{score}</strong><span>Score</span></div><div><strong>{accuracy}%</strong><span>Accuracy</span></div><div><strong>{streak}</strong><span>Streak</span></div><div><strong>{bestStreak}</strong><span>Best streak</span></div></div>
+          {!startedAt && <p className="ct-start-note">Your timer starts with your first answer.</p>}
+          {finished && <div className="ct-finished">Session complete Â· {score} correct squares</div>}
+        </section>
+        <section className="ct-card"><div className="ct-card-heading">TRAINING SETTINGS</div><label>Mode<select value={mode} onChange={(e) => restart(e.target.value as Mode)}><option value="timed">Timed challenge</option><option value="untimed">Untimed practice</option><option value="streak">Streak challenge</option></select></label>
+          <label>Duration<select value={duration} onChange={(e) => restart(mode, Number(e.target.value))}><option value={30}>30 seconds</option><option value={60}>60 seconds</option><option value={120}>2 minutes</option><option value={180}>3 minutes</option></select></label>
+          <label className="ct-toggle"><input type="checkbox" checked={showCoordinates} onChange={(e) => setShowCoordinates(e.target.checked)} /> Show board coordinates</label>
+          <label className="ct-toggle"><input type="checkbox" checked={sound} onChange={(e) => setSound(e.target.checked)} /> Sound feedback (coming soon)</label>
+          <button className="ct-primary ct-full" onClick={() => restart()}>Start / Restart training</button>
+        </section>
+        <section className="ct-card"><div className="ct-card-heading">RECENT SESSIONS</div>{history.length ? history.slice(0, 4).map((item, index) => <div className="ct-history-row" key={`${item.date}-${index}`}><span>{new Date(item.date).toLocaleDateString()}</span><strong>{item.score} correct</strong><em>{item.accuracy}%</em></div>) : <p className="ct-empty">Your completed timed sessions will appear here.</p>}</section>
+      </aside>
+    </div>
+  </main>;
+}
+
+========== .\src\stockfish.ts ==========
+Total lines: 141
+export type EngineStatus = "off" | "loading" | "ready" | "analyzing" | "error";
+export type EngineScore = { kind: "cp" | "mate"; value: number; depth: number; bestMove?: string; pv?: string[] };
+
+type UciRequest = { fen: string; depth: number };
+
+export function parseUciInfo(line: string, sideToMove: "w" | "b"): Omit<EngineScore, "bestMove"> | null {
+  if (!line.startsWith("info ")) return null;
+  const depth = Number(line.match(/\bdepth (\d+)/)?.[1]);
+  const score = line.match(/\bscore (cp|mate) (-?\d+)/);
+  if (!score || !Number.isFinite(depth)) return null;
+  const value = Number(score[2]);
+  const whiteValue = sideToMove === "w" ? value : -value;
+  const kind = score[1] as "cp" | "mate";
+  const orientedValue = kind === "mate" && value === 0
+    ? (sideToMove === "w" ? -1 : 1)
+    : whiteValue;
+  const pv = line.match(/\bpv (.+)$/)?.[1]?.trim().split(/\s+/);
+  return {
+    kind,
+    value: orientedValue,
+    depth,
+    ...(pv?.length ? { pv } : {}),
+  };
+}
+
+export function formatEvaluation(score: EngineScore): string {
+  if (score.kind === "mate") return `#${score.value > 0 ? "+" : ""}${score.value}`;
+  const pawns = score.value / 100;
+  return `${pawns > 0 ? "+" : ""}${pawns.toFixed(2)}`;
+}
+
+export function whiteScoreShare(score: EngineScore): number {
+  if (score.kind === "mate") return score.value > 0 ? 0.96 : 0.04;
+  const bounded = Math.max(-1000, Math.min(1000, score.value));
+  return Math.max(0.04, Math.min(0.96, 1 / (1 + 10 ** (-bounded / 400))));
+}
+
+export class StockfishEngine {
+  private readonly worker: Worker;
+  private ready = false;
+  private searching = false;
+  private awaitingStop = false;
+  private queued: UciRequest | null = null;
+  private currentSide: "w" | "b" = "w";
+  private latestScore: EngineScore | null = null;
+
+  constructor(
+    workerUrl: string,
+    private readonly onStatus: (status: EngineStatus, message?: string) => void,
+    private readonly onScore: (score: EngineScore | null) => void,
+  ) {
+    this.worker = new Worker(workerUrl);
+    this.worker.onmessage = (event: MessageEvent<string>) => this.handleLine(String(event.data));
+    this.worker.onerror = (event) => {
+      this.onStatus("error", event.message || "The Stockfish worker failed to load.");
+      this.dispose();
+    };
+    this.onStatus("loading");
+    this.worker.postMessage("uci");
+  }
+
+  analyze(fen: string, depth: number): void {
+    this.queued = { fen, depth: Math.max(1, Math.min(24, Math.floor(depth))) };
+    this.latestScore = null;
+    this.onScore(null);
+    if (!this.ready) return;
+    if (this.searching) {
+      if (!this.awaitingStop) {
+        this.awaitingStop = true;
+        this.worker.postMessage("stop");
+      }
+      return;
+    }
+    this.startQueuedAnalysis();
+  }
+
+  dispose(): void {
+    this.worker.terminate();
+    this.ready = false;
+    this.searching = false;
+    this.queued = null;
+  }
+
+  private handleLine(line: string): void {
+    if (/^Error:/i.test(line)) {
+      this.onStatus("error", line);
+      this.dispose();
+      return;
+    }
+    if (line === "uciok") {
+      this.worker.postMessage("isready");
+      return;
+    }
+    if (line === "readyok") {
+      this.ready = true;
+      this.onStatus("ready");
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (line.startsWith("info ")) {
+      if (this.awaitingStop) return;
+      const score = parseUciInfo(line, this.currentSide);
+      if (score) {
+        // Use the current principal variation's first move for a live arrow.
+        // Stockfish's final "bestmove" will replace this provisional move.
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+          ...score,
+          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+        };
+        this.onScore(this.latestScore);
+      }
+      return;
+    }
+    const bestMove = line.match(/^bestmove (\S+)/)?.[1];
+    if (!bestMove) return;
+    this.searching = false;
+    if (this.awaitingStop) {
+      this.awaitingStop = false;
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (this.latestScore) {
+      this.latestScore = { ...this.latestScore, bestMove: bestMove === "(none)" ? undefined : bestMove };
+      this.onScore(this.latestScore);
+    }
+    this.onStatus("ready");
+  }
+
+  private startQueuedAnalysis(): void {
+    if (!this.ready || this.searching || !this.queued) return;
+    const request = this.queued;
+    this.queued = null;
+    this.currentSide = request.fen.split(/\s+/)[1] === "b" ? "b" : "w";
+    this.searching = true;
+    this.latestScore = null;
+    this.onStatus("analyzing");
+    this.worker.postMessage(`position fen ${request.fen}`);
+    this.worker.postMessage(`go depth ${request.depth}`);
+  }
+}
+
+========== .\src\chess-state.ts ==========
+Total lines: 19
+import { Chess } from "chess.js";
+
+export function makePosition(baseFen: string, moves: string[], moveIndex: number): Chess {
+  const game = new Chess(baseFen);
+  for (const san of moves.slice(0, moveIndex)) {
+    const result = game.move(san);
+    if (!result) throw new Error(`Saved move could not be replayed: ${san}`);
+  }
+  return game;
+}
+
+export function fenWithTurn(fen: string, turn: "w" | "b"): string {
+  const fields = fen.split(/\s+/);
+  if (fields.length !== 6) throw new Error("FEN must contain six fields.");
+  fields[1] = turn;
+  fields[3] = "-";
+  fields[4] = "0";
+  return fields.join(" ");
+}
+
+========== .\package.json ==========
+Total lines: 32
+{
+  "name": "chessbook-reader",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^5.0.4"
+  }
+}
+
+========== SOURCE FILE INVENTORY ==========
+App.test.tsx | 3262 bytes
+App.tsx | 97250 bytes
+App.tsx.20261024-000607.bak | 73583 bytes
+App.tsx.active-board-fix-20261024-024032.bak | 75646 bytes
+App.tsx.backup-20261016-202441 | 72804 bytes
+App.tsx.backup-20261016-210256 | 73458 bytes
+App.tsx.backup-20261016-210731 | 73458 bytes
+App.tsx.backup-20261016-211147 | 73458 bytes
+App.tsx.backup-20261016-212541 | 74417 bytes
+App.tsx.backup-20261016-212813 | 74465 bytes
+App.tsx.backup-20261016-212856 | 74465 bytes
+App.tsx.bak-20261015-231731 | 70684 bytes
+App.tsx.bak-20261016-180030 | 275 bytes
+App.tsx.bak-20261017-001122 | 32 bytes
+App.tsx.bak-api-port-20261015-235755 | 71111 bytes
+App.tsx.bak-before-icons-20261016-004530 | 71460 bytes
+App.tsx.bak-board-picker-20261015-234408 | 70728 bytes
+App.tsx.bak-encoding-repair-20261016-004121 | 71565 bytes
+App.tsx.bak-manual-fix-20261015-235153 | 70798 bytes
+App.tsx.bak-safe | 71681 bytes
+App.tsx.bak-stockfish-text-20261016-002713 | 71681 bytes
+App.tsx.bak-ui-repair-20261016-002420 | 71681 bytes
+App.tsx.bak.20231016T1840 | 42 bytes
+App.tsx.bak_20261016_0132 | 73273 bytes
+App.tsx.bak_20261016_0230 | 73026 bytes
+App.tsx.bak_20261016_0245 | 45 bytes
+App.tsx.bak_20261016_194014 | 73572 bytes
+App.tsx.bak_fix_20261016_194311 | 73572 bytes
+App.tsx.before-analysis-layout-20261026-000802.bak | 89304 bytes
+App.tsx.before-analysis-navigation.bak | 79238 bytes
+App.tsx.before-analysis-state-wiring.bak | 79238 bytes
+App.tsx.before-arrow-context-patch-20261024-003404.bak | 73830 bytes
+App.tsx.before-arrow-fix-20261024-003203.bak | 73830 bytes
+App.tsx.before-arrow-style-20261024-004013.bak | 74135 bytes
+App.tsx.before-arrow-style-20261024-004031.bak | 74135 bytes
+App.tsx.before-arrowhead-refinement-20261024-004156.bak | 74162 bytes
+App.tsx.before-board-repair-20261024-003827.bak | 74135 bytes
+App.tsx.before-clean-arrow-20261024-004343.bak | 74186 bytes
+App.tsx.before-clear-all-red-highlights-20261024-005307.bak | 75334 bytes
+App.tsx.before-context-menu-fix-20261024-003315.bak | 73830 bytes
+App.tsx.before-coordinate-training-20261030-225036.bak | 94049 bytes
+App.tsx.before-coordinate-training-20261030-225201.bak | 94049 bytes
+App.tsx.before-coordinates-icon.bak | 73828 bytes
+App.tsx.before-display-repair-20261024-124830.bak | 77722 bytes
+App.tsx.before-encoding-repair-20261016-010710.bak | 73401 bytes
+App.tsx.before-exact-symbol-patch-20261024-125644.bak | 77722 bytes
+App.tsx.before-exclusive-sidebar.bak | 85313 bytes
+App.tsx.before-explorer-layout-20261025-235446.bak | 91393 bytes
+App.tsx.before-explorer-right-panel-20261025-235646.bak | 91466 bytes
+App.tsx.before-extra-sharp-arrows-20261024-004446.bak | 74162 bytes
+App.tsx.before-final-display-fix-20261025-184058.bak | 79229 bytes
+App.tsx.before-final-glyph-patch-20261024-125912.bak | 76102 bytes
+App.tsx.before-fix-detect-label-20261024-123924.bak | 77622 bytes
+App.tsx.before-focus-board-sync-20261024-131312.bak | 76183 bytes
+App.tsx.before-focus-engine-sync-20261024-131047.bak | 76137 bytes
+App.tsx.before-fullscreen-focus-20261024-123735.bak | 77326 bytes
+App.tsx.before-header-icons.bak | 73792 bytes
+App.tsx.before-history-import-fix-20261026-000358.bak | 89616 bytes
+App.tsx.before-independent-analysis-board.bak | 80016 bytes
+App.tsx.before-independent-analysis.bak | 79238 bytes
+App.tsx.before-label-separator-fix-20261025-183631.bak | 79237 bytes
+App.tsx.before-left-click-clear-20261024-005151.bak | 75195 bytes
+App.tsx.before-library-repair-20261026-000333.bak | 89616 bytes
+App.tsx.before-load-study-20261024-121808.bak | 77971 bytes
+App.tsx.before-menu-icon-fix-20261024-130320.bak | 76137 bytes
+App.tsx.before-move-icons-20261016-005153.bak | 71460 bytes
+App.tsx.before-next-last-icons.bak | 73964 bytes
+App.tsx.before-notation-20261024-013624 | 76124 bytes
+App.tsx.before-notes-dock-20261024-122810.bak | 78981 bytes
+App.tsx.before-opening-explorer-move-fix-20261025-234542.bak | 91063 bytes
+App.tsx.before-opening-explorer-ui.bak | 80430 bytes
+App.tsx.before-opening-explorer.bak | 80430 bytes
+App.tsx.before-opening-prep-isolation-20261025-231958.bak | 85445 bytes
+App.tsx.before-opening-prep-isolation-20261025-232022.bak | 85445 bytes
+App.tsx.before-opening-prep-isolation.bak | 85445 bytes
+App.tsx.before-opening-stats-20261025-232813.bak | 86175 bytes
+App.tsx.before-opening-stats-20261025-232946.bak | 91063 bytes
+App.tsx.before-page-scan-icons.bak | 73538 bytes
+App.tsx.before-polygon-arrow-renderer-20261024-004754.bak | 74258 bytes
+App.tsx.before-polygon-arrows-20261024-004633.bak | 74162 bytes
+App.tsx.before-position-labels.bak | 73509 bytes
+App.tsx.before-pv-expression-fix-20261025-183731.bak | 79237 bytes
+App.tsx.before-question-mark-fix-20261025-183920.bak | 79229 bytes
+App.tsx.before-reader-polish-20261024-130156.bak | 76099 bytes
+App.tsx.before-reader-toolbar-icons.bak | 73710 bytes
+App.tsx.before-red-highlights-20261024-005041.bak | 74929 bytes
+App.tsx.before-remove-notes-20261024-123040.bak | 79537 bytes
+App.tsx.before-remove-recent-nav-20261026-000424.bak | 89616 bytes
+App.tsx.before-safe-symbol-fix-20261024-124547.bak | 77722 bytes
+App.tsx.before-sharp-arrowhead-20261024-004254.bak | 74186 bytes
+App.tsx.before-status-text-fix.bak | 73538 bytes
+App.tsx.before-stockfish-notation-20261025-183359.bak | 78241 bytes
+App.tsx.before-study-focus-20261024-123431.bak | 77285 bytes
+App.tsx.before-study-save-20261024-121647.bak | 77703 bytes
+App.tsx.before-study-state.bak | 75677 bytes
+App.tsx.before-symbol-pass2-20261024-005648 | 75150 bytes
+App.tsx.before-symbol-repair-20261024-125231.bak | 77722 bytes
+App.tsx.before-text-encoding-fix-20261024-124129.bak | 77722 bytes
+App.tsx.before-ui-fix-20261024-003043.bak | 73830 bytes
+App.tsx.before-undo-redo-reset.bak | 73909 bytes
+App.tsx.before-unicode-display-fix-20261025-184249.bak | 79229 bytes
+App.tsx.before-workspace-sidebar.bak | 79238 bytes
+App.tsx.before-workspace-state-fix.bak | 79238 bytes
+App.tsx.before_ts2367.bak | 70460 bytes
+App.tsx.board-controls-20261024-023935.bak | 75561 bytes
+App.tsx.navigation-fix-20261024-024144.bak | 75995 bytes
+App.tsx.opening-explorer-safety.bak | 85175 bytes
+App.tsx.pre-delete-fix-20261016-212932 | 74465 bytes
+App.tsx.pre-study-patch-20261024-023203.bak | 74088 bytes
+App.tsx.pre-study-patch-20261024-023214.bak | 74088 bytes
+App.tsx.study-library-20261024-021559.bak | 74871 bytes
+App.tsx.study-mode-20261024-022700.bak | 74088 bytes
+App.tsx.symbol-backup-20261024-005615 | 75282 bytes
+board-annotations.test.ts | 3217 bytes
+board-annotations.ts | 4846 bytes
+board-annotations.ts.before-color-type-fix.bak | 4833 bytes
+chess-state.test.ts | 776 bytes
+chess-state.ts | 630 bytes
+coordinate-training.css | 5786 bytes
+CoordinateTraining.tsx | 7972 bytes
+crop-geometry.test.ts | 1471 bytes
+crop-geometry.ts | 2060 bytes
+main.tsx | 248 bytes
+ManualBoardEditor.test.tsx | 8446 bytes
+ManualBoardEditor.tsx | 24632 bytes
+model.ts | 1374 bytes
+notation-detection.ts | 6737 bytes
+notation-detection.ts.before-notation-20261024-013624 | 6737 bytes
+notation-learner.css | 16278 bytes
+NotationLearner.tsx | 9792 bytes
+opening-explorer-api.ts | 3746 bytes
+opening-explorer-api.ts.before-lichess-url-fix.bak | 2541 bytes
+opening-explorer-api.ts.before-opening-stats-20261025-232946.bak | 2541 bytes
+opening-explorer.test.ts | 1298 bytes
+opening-explorer.ts | 1863 bytes
+pgn-import.test.ts | 1206 bytes
+pgn-import.ts | 1454 bytes
+position-editor.test.ts | 4258 bytes
+position-editor.test.ts.before_coordinate_fix.bak | 1244 bytes
+position-editor.ts | 7118 bytes
+stockfish.test.ts | 4087 bytes
+stockfish.test.ts.before-live-pv-test-20261024-131006.bak | 3310 bytes
+stockfish.ts | 4682 bytes
+stockfish.ts.before-live-engine-arrow-20261024-130743.bak | 4510 bytes
+storage.test.ts | 1727 bytes
+storage.ts | 3410 bytes
+StudyLibrary.tsx.before-collapse-20261024-122220.bak | 13306 bytes
+StudyLibrary.tsx.before-dialog-20261024-122810.bak | 13924 bytes
+StudyLibrary.tsx.before-load-study-20261024-121808.bak | 12820 bytes
+StudyLibrary.tsx.before-remove-notes-20261024-123040.bak | 15574 bytes
+StudyLibrary.tsx.before-study-save-20261024-121647.bak | 11653 bytes
+StudyLibrary.tsx.study-mode-20261024-022700.bak | 11331 bytes
+styles.css | 154425 bytes
+styles.css.20261024-000607.bak | 107226 bytes
+styles.css.backup-100zoom-20261016-215017 | 47699 bytes
+styles.css.backup-20261016-201842 | 44197 bytes
+styles.css.backup-20261016-210256 | 44971 bytes
+styles.css.backup-20261016-210731 | 44971 bytes
+styles.css.backup-20261016-211147 | 44971 bytes
+styles.css.backup-20261016-211428 | 45350 bytes
+styles.css.backup-20261016-211756 | 46325 bytes
+styles.css.backup-20261016-212050 | 45783 bytes
+styles.css.backup-20261016-212813 | 46627 bytes
+styles.css.backup-20261016-212856 | 46627 bytes
+styles.css.backup-20261016-213120 | 47525 bytes
+styles.css.backup-20261016-213234 | 47707 bytes
+styles.css.backup-board-size-20261016-215234 | 50554 bytes
+styles.css.backup-button-alignment-20261016-215456 | 51478 bytes
+styles.css.backup-default-80-20261016-220122 | 52744 bytes
+styles.css.backup-no-board-scroll-20261016-215847 | 52744 bytes
+styles.css.bak-before-readability-20261016-195848 | 41854 bytes
+styles.css.bak-before-reference-theme-20261016-195643 | 37016 bytes
+styles.css.bak-layout-20261016-002632 | 35854 bytes
+styles.css.bak-ui-repair-20261016-002420 | 33269 bytes
+styles.css.bak.20231016T1840 | 48 bytes
+styles.css.before-analysis-layout-20261026-000802.bak | 144252 bytes
+styles.css.before-arrow-fix-20261024-003203.bak | 107282 bytes
+styles.css.before-arrow-style-20261024-004013.bak | 108568 bytes
+styles.css.before-board-repair-20261024-003827.bak | 107282 bytes
+styles.css.before-collapse-20261024-122220.bak | 140939 bytes
+styles.css.before-explorer-glass-ui-20261025-235813.bak | 140189 bytes
+styles.css.before-explorer-layout-20261025-235446.bak | 144161 bytes
+styles.css.before-explorer-right-panel-20261025-235646.bak | 144915 bytes
+styles.css.before-fullscreen-focus-20261024-123735.bak | 139317 bytes
+styles.css.before-library-repair-20261026-000333.bak | 143083 bytes
+styles.css.before-notation-20261024-013624 | 131023 bytes
+styles.css.before-notes-dock-20261024-122810.bak | 142671 bytes
+styles.css.before-notes-workspace-20261024-122051.bak | 138488 bytes
+styles.css.before-opening-explorer.bak | 141421 bytes
+styles.css.before-opening-stats-20261025-232813.bak | 142491 bytes
+styles.css.before-opening-stats-20261025-232946.bak | 144161 bytes
+styles.css.before-reader-restore-20261026-000620.bak | 143083 bytes
+styles.css.before-red-highlights-20261024-005041.bak | 108568 bytes
+styles.css.before-remove-notes-20261024-123040.bak | 144672 bytes
+styles.css.before-study-focus-20261024-123431.bak | 138488 bytes
+styles.css.before-ui-fix-20261024-003043.bak | 107282 bytes
+styles.css.failed-fix-backup-20261016-211924 | 46453 bytes
+styles.css.layout-backup | 50706 bytes
+styles.css.pre-delete-fix-20261016-212932 | 46627 bytes
+styles.css.recovered-20261016-213146 | 47525 bytes
+styles.css.step2c-backup-20261022-223555 | 44282 bytes
+styles.css.study-library-20261024-021559.bak | 131698 bytes
+test-setup.ts | 165 bytes
+vite-env.d.ts | 39 bytes

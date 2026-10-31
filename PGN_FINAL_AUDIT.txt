@@ -1,0 +1,1500 @@
+﻿CHESSBOOK READER - FINAL PGN AUDIT
+Generated: 10/30/2026 23:45:49
+
+========== MATCH LOCATIONS ==========
+30: function formatUciMove(fen: string, uci: string): string {
+117: const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+428: workspaceMode === "analysis"
+430: : workspaceMode === "opening-prep"
+432: : workspaceMode === "opening-explorer"
+530: if (workspaceMode === "opening-explorer") {
+534: if (workspaceMode === "analysis") {
+535: setAnalysisBoard((current) => ({ ...current, ...change }));
+536: } else if (workspaceMode === "opening-prep") {
+684: function moveToPosition(fen: string): boolean {
+707: function analyzeManualPosition(fen: string): boolean {
+833: function updateGameEndOverlay(currentGame: Chess) {
+883: function makeMove(from: Square, to: Square) {
+896: if (workspaceMode === "opening-explorer") {
+975: function boardArrowPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+1015: function jumpToMove(index: number) {
+1175: function pointerPosition(event: { clientX: number; clientY: number }) {
+1216: function moveRegion(event: React.PointerEvent<HTMLDivElement>) {
+1313: function savePosition() {
+1327: if (workspaceMode === "opening-prep") {
+1386: <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "notation-learner" ? "notation-learner-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""}`}>
+1399: <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+1400: <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+1401: <LibraryNavItem active={workspaceMode === "notation-learner"} icon={BookOpenText} label="Notation Learner" onClick={() => { setWorkspaceMode("notation-learner"); setLibraryTab("all"); }} />
+1436: {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+1437: {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+1447: {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1448: <section className="board-panel" aria-label="Chessboard analysis">
+1449: <div className="board-header">
+1450: <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1451: <div className="board-header-actions">
+1593: <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+1594: <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+1595: <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+1596: <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+1638: {workspaceMode === "opening-explorer" && (
+1784: setAnalysisBoard({
+
+========== App.tsx LINES 18-52 ==========
+18:   getSession as getStoredSession,
+19:   putBook,
+20:   putSession,
+21:   removeBook,
+22:   removeSession,
+23:   setActiveBookId,
+24: } from "./storage";
+25: import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+26: import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+27: import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+28: 
+29: 
+30: function formatUciMove(fen: string, uci: string): string {
+31:   const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+32:   if (!match) return uci;
+33:   try {
+34:     const position = new Chess(fen);
+35:     const move = position.move({
+36:       from: match[1] as Square,
+37:       to: match[2] as Square,
+38:       ...(match[3] ? { promotion: match[3] as "q" | "r" | "b" | "n" } : {}),
+39:     });
+40:     return move.san;
+41:   } catch {
+42:     return uci;
+43:   }
+44: }
+45: 
+46: function formatUciPv(fen: string, pv: string[]): string {
+47:   const position = new Chess(fen);
+48:   const san: string[] = [];
+49:   for (const uci of pv) {
+50:     const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+51:     if (!match) break;
+52:     try {
+
+========== App.tsx LINES 105-139 ==========
+105:     relativeScore: candidate.relativeScore ?? relative_score ?? confidence ?? 0,
+106:   };
+107: }
+108: 
+109: export default function App() {
+110:   const [books, setBooks] = useState<BookRecord[]>([]);
+111:   const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
+112:   const [book, setBook] = useState<BookRecord | null>(null);
+113:   const [session, setSession] = useState<BookSession | null>(null);
+114:   type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+115:   const [studyMode, setStudyMode] = useState(false);
+116:   const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+117:   const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+118:     lineBaseFen: START_FEN,
+119:     currentFen: START_FEN,
+120:     moves: [],
+121:     moveIndex: 0,
+122:     flipped: false,
+123:     coordinates: true,
+124:   }));
+125:   const [openingPrepBoard, setOpeningPrepBoard] = useState<StudyBoardState>(() => ({
+126:     lineBaseFen: START_FEN,
+127:     currentFen: START_FEN,
+128:     moves: [],
+129:     moveIndex: 0,
+130:     flipped: false,
+131:     coordinates: true,
+132:   }));
+133:   const [ready, setReady] = useState(false);
+134:   const [notice, setNotice] = useState("");
+135:   const [error, setError] = useState("");
+136:   const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+137:   const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+138:   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+139:   const [bookSearch, setBookSearch] = useState("");
+
+========== App.tsx LINES 416-450 ==========
+416:             setOpeningStatsStatus("error");
+417:           }
+418:         });
+419:     }, 500);
+420: 
+421:     return () => {
+422:       window.clearTimeout(timer);
+423:       controller.abort();
+424:     };
+425:   }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+426: 
+427:   const boardSession: StudyBoardState | null =
+428:     workspaceMode === "analysis"
+429:       ? analysisBoard
+430:       : workspaceMode === "opening-prep"
+431:         ? openingPrepBoard
+432:         : workspaceMode === "opening-explorer"
+433:           ? {
+434:               lineBaseFen: START_FEN,
+435:               currentFen: openingPosition.fen,
+436:               moves: openingPosition.sanMoves,
+437:               moveIndex: openingPosition.sanMoves.length,
+438:               flipped: false,
+439:               coordinates: true,
+440:             }
+441:           : studyMode
+442:             ? studyBoard
+443:             : session;
+444:   const game = useMemo(() => {
+445:     if (!boardSession) return new Chess();
+446:     try {
+447:       return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+448:     } catch {
+449:       try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+450:     }
+
+========== App.tsx LINES 418-452 ==========
+418:         });
+419:     }, 500);
+420: 
+421:     return () => {
+422:       window.clearTimeout(timer);
+423:       controller.abort();
+424:     };
+425:   }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+426: 
+427:   const boardSession: StudyBoardState | null =
+428:     workspaceMode === "analysis"
+429:       ? analysisBoard
+430:       : workspaceMode === "opening-prep"
+431:         ? openingPrepBoard
+432:         : workspaceMode === "opening-explorer"
+433:           ? {
+434:               lineBaseFen: START_FEN,
+435:               currentFen: openingPosition.fen,
+436:               moves: openingPosition.sanMoves,
+437:               moveIndex: openingPosition.sanMoves.length,
+438:               flipped: false,
+439:               coordinates: true,
+440:             }
+441:           : studyMode
+442:             ? studyBoard
+443:             : session;
+444:   const game = useMemo(() => {
+445:     if (!boardSession) return new Chess();
+446:     try {
+447:       return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+448:     } catch {
+449:       try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+450:     }
+451:   }, [boardSession]);
+452:   const legalTargets = useMemo(() => {
+
+========== App.tsx LINES 420-454 ==========
+420: 
+421:     return () => {
+422:       window.clearTimeout(timer);
+423:       controller.abort();
+424:     };
+425:   }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+426: 
+427:   const boardSession: StudyBoardState | null =
+428:     workspaceMode === "analysis"
+429:       ? analysisBoard
+430:       : workspaceMode === "opening-prep"
+431:         ? openingPrepBoard
+432:         : workspaceMode === "opening-explorer"
+433:           ? {
+434:               lineBaseFen: START_FEN,
+435:               currentFen: openingPosition.fen,
+436:               moves: openingPosition.sanMoves,
+437:               moveIndex: openingPosition.sanMoves.length,
+438:               flipped: false,
+439:               coordinates: true,
+440:             }
+441:           : studyMode
+442:             ? studyBoard
+443:             : session;
+444:   const game = useMemo(() => {
+445:     if (!boardSession) return new Chess();
+446:     try {
+447:       return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+448:     } catch {
+449:       try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+450:     }
+451:   }, [boardSession]);
+452:   const legalTargets = useMemo(() => {
+453:     if (!selectedSquare) return new Set<string>();
+454:     return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+
+========== App.tsx LINES 518-552 ==========
+518:       setEngineEnabled(false);
+519:     }
+520:   }
+521: 
+522:   function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+523:     setSession((current) => {
+524:       if (!current) return current;
+525:       return typeof change === "function" ? change(current) : { ...current, ...change };
+526:     });
+527:   }
+528: 
+529:   function patchBoardSession(change: Partial<StudyBoardState>) {
+530:     if (workspaceMode === "opening-explorer") {
+531:       return;
+532:     }
+533: 
+534:     if (workspaceMode === "analysis") {
+535:       setAnalysisBoard((current) => ({ ...current, ...change }));
+536:     } else if (workspaceMode === "opening-prep") {
+537:       setOpeningPrepBoard((current) => ({ ...current, ...change }));
+538:     } else if (studyMode) {
+539:       setStudyBoard((current) => current ? { ...current, ...change } : current);
+540:     } else {
+541:       patchSession(change);
+542:     }
+543:   }
+544:   async function toggleStudyMode() {
+545:     if (!studyMode) {
+546:       if (!session) {
+547:         setError("Open a book before entering study mode.");
+548:         return;
+549:       }
+550:       setStudyBoard({
+551:         lineBaseFen: session.lineBaseFen,
+552:         currentFen: session.currentFen,
+
+========== App.tsx LINES 522-556 ==========
+522:   function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+523:     setSession((current) => {
+524:       if (!current) return current;
+525:       return typeof change === "function" ? change(current) : { ...current, ...change };
+526:     });
+527:   }
+528: 
+529:   function patchBoardSession(change: Partial<StudyBoardState>) {
+530:     if (workspaceMode === "opening-explorer") {
+531:       return;
+532:     }
+533: 
+534:     if (workspaceMode === "analysis") {
+535:       setAnalysisBoard((current) => ({ ...current, ...change }));
+536:     } else if (workspaceMode === "opening-prep") {
+537:       setOpeningPrepBoard((current) => ({ ...current, ...change }));
+538:     } else if (studyMode) {
+539:       setStudyBoard((current) => current ? { ...current, ...change } : current);
+540:     } else {
+541:       patchSession(change);
+542:     }
+543:   }
+544:   async function toggleStudyMode() {
+545:     if (!studyMode) {
+546:       if (!session) {
+547:         setError("Open a book before entering study mode.");
+548:         return;
+549:       }
+550:       setStudyBoard({
+551:         lineBaseFen: session.lineBaseFen,
+552:         currentFen: session.currentFen,
+553:         moves: [...session.moves],
+554:         moveIndex: session.moveIndex,
+555:         flipped: session.flipped,
+556:         coordinates: session.coordinates,
+
+========== App.tsx LINES 523-557 ==========
+523:     setSession((current) => {
+524:       if (!current) return current;
+525:       return typeof change === "function" ? change(current) : { ...current, ...change };
+526:     });
+527:   }
+528: 
+529:   function patchBoardSession(change: Partial<StudyBoardState>) {
+530:     if (workspaceMode === "opening-explorer") {
+531:       return;
+532:     }
+533: 
+534:     if (workspaceMode === "analysis") {
+535:       setAnalysisBoard((current) => ({ ...current, ...change }));
+536:     } else if (workspaceMode === "opening-prep") {
+537:       setOpeningPrepBoard((current) => ({ ...current, ...change }));
+538:     } else if (studyMode) {
+539:       setStudyBoard((current) => current ? { ...current, ...change } : current);
+540:     } else {
+541:       patchSession(change);
+542:     }
+543:   }
+544:   async function toggleStudyMode() {
+545:     if (!studyMode) {
+546:       if (!session) {
+547:         setError("Open a book before entering study mode.");
+548:         return;
+549:       }
+550:       setStudyBoard({
+551:         lineBaseFen: session.lineBaseFen,
+552:         currentFen: session.currentFen,
+553:         moves: [...session.moves],
+554:         moveIndex: session.moveIndex,
+555:         flipped: session.flipped,
+556:         coordinates: session.coordinates,
+557:       });
+
+========== App.tsx LINES 524-558 ==========
+524:       if (!current) return current;
+525:       return typeof change === "function" ? change(current) : { ...current, ...change };
+526:     });
+527:   }
+528: 
+529:   function patchBoardSession(change: Partial<StudyBoardState>) {
+530:     if (workspaceMode === "opening-explorer") {
+531:       return;
+532:     }
+533: 
+534:     if (workspaceMode === "analysis") {
+535:       setAnalysisBoard((current) => ({ ...current, ...change }));
+536:     } else if (workspaceMode === "opening-prep") {
+537:       setOpeningPrepBoard((current) => ({ ...current, ...change }));
+538:     } else if (studyMode) {
+539:       setStudyBoard((current) => current ? { ...current, ...change } : current);
+540:     } else {
+541:       patchSession(change);
+542:     }
+543:   }
+544:   async function toggleStudyMode() {
+545:     if (!studyMode) {
+546:       if (!session) {
+547:         setError("Open a book before entering study mode.");
+548:         return;
+549:       }
+550:       setStudyBoard({
+551:         lineBaseFen: session.lineBaseFen,
+552:         currentFen: session.currentFen,
+553:         moves: [...session.moves],
+554:         moveIndex: session.moveIndex,
+555:         flipped: session.flipped,
+556:         coordinates: session.coordinates,
+557:       });
+558:       setStudyMode(true);
+
+========== App.tsx LINES 672-706 ==========
+672:   }
+673: 
+674:   function changePage(delta: number) {
+675:     if (!session) return;
+676:     patchSession({ page: Math.max(1, Math.min(session.pageCount || 999_999, session.page + delta)) });
+677:   }
+678: 
+679:   function goToPage(value: number) {
+680:     if (!session || !Number.isFinite(value)) return;
+681:     patchSession({ page: Math.max(1, Math.min(session.pageCount || 1, Math.floor(value))) });
+682:   }
+683: 
+684:   function moveToPosition(fen: string): boolean {
+685:     const activeSession = session ?? newSession("analysis");
+686:     try {
+687:       const next = new Chess(fen);
+688:       setSession({
+689:         ...activeSession,
+690:         originalFen: fen,
+691:         lineBaseFen: fen,
+692:         currentFen: next.fen(),
+693:         moves: [],
+694:         moveIndex: 0,
+695:       });
+696:       setLastMove(null);
+697:       setSelectedSquare(null);
+698:       setUserArrows([]);
+699:       setNotice("Position loaded. Reset Board returns to this diagram position.");
+700:       return true;
+701:     } catch (cause) {
+702:       setError(`Invalid chess position: ${messageOf(cause)}`);
+703:       return false;
+704:     }
+705:   }
+706: 
+
+========== App.tsx LINES 695-729 ==========
+695:       });
+696:       setLastMove(null);
+697:       setSelectedSquare(null);
+698:       setUserArrows([]);
+699:       setNotice("Position loaded. Reset Board returns to this diagram position.");
+700:       return true;
+701:     } catch (cause) {
+702:       setError(`Invalid chess position: ${messageOf(cause)}`);
+703:       return false;
+704:     }
+705:   }
+706: 
+707:   function analyzeManualPosition(fen: string): boolean {
+708:     const loaded = moveToPosition(fen);
+709:     if (!loaded) return false;
+710:     setEngineScore(null);
+711:     setEngineMessage("");
+712:     if (!engineEnabled) {
+713:       toggleEngine();
+714:     } else {
+715:       engineRef.current?.analyze(fen, engineDepth);
+716:     }
+717:     setNotice("Manual position loaded. Stockfish analysis started.");
+718:     return true;
+719:   }
+720: 
+721:   function selectCandidate(candidate: Candidate) {
+722:     if (!session) return;
+723:     setCropEditingId(null);
+724:     cropBaselineRef.current = null;
+725:     patchSession({ selectedDiagramId: candidate.id });
+726:     setNotice("Region selected. The current chess position is unchanged; use Adjust Crop or Use on Board to continue.");
+727:   }
+728: 
+729:   function adjustSelectedCrop(candidate: Candidate) {
+
+========== App.tsx LINES 821-855 ==========
+821: 
+822:   function closeTransfer() {
+823:     transferRequestRef.current += 1;
+824:     setTransferCandidate(null);
+825:     setTransferPreview("");
+826:     setTransferFen("");
+827:     setRecognitionStatus("idle");
+828:     setRecognitionResult(null);
+829:     setRecognitionError("");
+830:       }
+831: 
+832: 
+833:   function updateGameEndOverlay(currentGame: Chess) {
+834:     if (currentGame.isCheckmate()) {
+835:       setGameEndOverlay({
+836:         title: "Checkmate",
+837:         message: `${currentGame.turn() === "w" ? "Black" : "White"} wins.`,
+838:       });
+839:     } else if (currentGame.isStalemate()) {
+840:       setGameEndOverlay({
+841:         title: "Stalemate",
+842:         message: "The side to move has no legal moves, but its king is not in check. The game is a draw.",
+843:       });
+844:     } else if (currentGame.isDraw()) {
+845:       let message = "The game is drawn.";
+846:       if (currentGame.isThreefoldRepetition()) message = "Draw by threefold repetition.";
+847:       else if (currentGame.isInsufficientMaterial()) message = "Draw by insufficient material.";
+848:       else if (currentGame.isDrawByFiftyMoves()) message = "Draw by the fifty-move rule.";
+849:       else if (currentGame.isDraw()) message = "Draw by a draw rule.";
+850:       setGameEndOverlay({ title: "Draw", message });
+851:     } else {
+852:       setGameEndOverlay(null);
+853:     }
+854:   }
+855: 
+
+========== App.tsx LINES 871-905 ==========
+871:       });
+872:       updateGameEndOverlay(currentGame);
+873:       setLastMove({ from: promotionRequest.from, to: promotionRequest.to });
+874:       setSelectedSquare(null);
+875:       setPromotionRequest(null);
+876:       setError("");
+877:     } catch {
+878:       setError("Unable to complete pawn promotion.");
+879:       setPromotionRequest(null);
+880:     }
+881:   }
+882: 
+883:   function makeMove(from: Square, to: Square) {
+884:     if (!boardSession) return;
+885:     const activeBoard = boardSession;
+886:     try {
+887:       const currentGame = new Chess(activeBoard.currentFen);
+888:       const mover = currentGame.get(from);
+889:       const promote = mover?.type === "p" && (to.endsWith("8") || to.endsWith("1"));
+890:       if (promote) {
+891:         setPromotionRequest({ from, to });
+892:         return;
+893:       }
+894:       const result = currentGame.move({ from, to });
+895:       const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+896:       if (workspaceMode === "opening-explorer") {
+897:         const line = nextMoves
+898:           .map((move, index) => index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ${move}` : move)
+899:           .join(" ");
+900:         setOpeningExplorerInput(line);
+901:         setOpeningExplorerPly(nextMoves.length);
+902:       } else {
+903:         patchBoardSession({
+904:           currentFen: currentGame.fen(),
+905:           moves: nextMoves,
+
+========== App.tsx LINES 884-918 ==========
+884:     if (!boardSession) return;
+885:     const activeBoard = boardSession;
+886:     try {
+887:       const currentGame = new Chess(activeBoard.currentFen);
+888:       const mover = currentGame.get(from);
+889:       const promote = mover?.type === "p" && (to.endsWith("8") || to.endsWith("1"));
+890:       if (promote) {
+891:         setPromotionRequest({ from, to });
+892:         return;
+893:       }
+894:       const result = currentGame.move({ from, to });
+895:       const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+896:       if (workspaceMode === "opening-explorer") {
+897:         const line = nextMoves
+898:           .map((move, index) => index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ${move}` : move)
+899:           .join(" ");
+900:         setOpeningExplorerInput(line);
+901:         setOpeningExplorerPly(nextMoves.length);
+902:       } else {
+903:         patchBoardSession({
+904:           currentFen: currentGame.fen(),
+905:           moves: nextMoves,
+906:           moveIndex: nextMoves.length,
+907:         });
+908:       }
+909:       updateGameEndOverlay(currentGame);
+910:       setLastMove({ from, to });
+911:       setSelectedSquare(null);
+912:       setError("");
+913:     } catch {
+914:       const piece = game.get(to);
+915:       if (piece && piece.color === game.turn()) setSelectedSquare(to);
+916:       else setSelectedSquare(null);
+917:     }
+918:   }
+
+========== App.tsx LINES 963-997 ==========
+963:   if (!square) return;
+964: 
+965:   // Only suppress the context menu if an arrow is actually drawn.
+966:   suppressBoardContextMenuRef.current = false;
+967:   arrowGestureMovedRef.current = false;
+968:   arrowGestureRef.current = square;
+969:   setArrowStart(square);
+970:   setArrowHover(square);
+971: 
+972:   event.currentTarget.setPointerCapture(event.pointerId);
+973: }
+974: 
+975:   function boardArrowPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+976:     if (!arrowGestureRef.current || !boardRef.current) return;
+977:     const bounds = boardRef.current.getBoundingClientRect();
+978:     const square = boardSquareAtPoint(event.clientX, event.clientY, bounds, Boolean(boardSession?.flipped));
+979:     if (square && square !== arrowGestureRef.current) arrowGestureMovedRef.current = true;
+980:     setArrowHover(square);
+981:   }
+982: 
+983:   function boardArrowPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+984:   const from = arrowGestureRef.current;
+985: 
+986:   if (!from || !boardRef.current) return;
+987: 
+988:   const bounds = boardRef.current.getBoundingClientRect();
+989:   const to = boardSquareAtPoint(
+990:     event.clientX,
+991:     event.clientY,
+992:     bounds,
+993:     Boolean(boardSession?.flipped),
+994:   );
+995: 
+996:   if (to && to !== from) {
+997:     setUserArrows((arrows) => toggleArrow(arrows, { from, to }));
+
+========== App.tsx LINES 1003-1037 ==========
+1003:   arrowGestureRef.current = null;
+1004:   arrowGestureMovedRef.current = false;
+1005:   setArrowStart(null);
+1006:   setArrowHover(null);
+1007: }
+1008: 
+1009:   function cancelBoardArrowGesture() {
+1010:     arrowGestureRef.current = null;
+1011:     setArrowStart(null);
+1012:     setArrowHover(null);
+1013:   }
+1014: 
+1015:   function jumpToMove(index: number) {
+1016:     if (!boardSession) return;
+1017:     try {
+1018:       const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+1019:       const last = next.history({ verbose: true }).at(-1);
+1020:       patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+1021:       setLastMove(last ? { from: last.from, to: last.to } : null);
+1022:       setSelectedSquare(null);
+1023:     } catch (cause) {
+1024:       setError(`Could not navigate to move: ${messageOf(cause)}`);
+1025:     }
+1026:   }
+1027: 
+1028:   async function copyText(value: string) {
+1029:     try {
+1030:       await navigator.clipboard.writeText(value);
+1031:       setNotice("Copied to clipboard.");
+1032:     } catch (cause) {
+1033:       setError(`Clipboard access failed: ${messageOf(cause)}`);
+1034:     }
+1035:   }
+1036: 
+1037:   function stopBoardScan() {
+
+========== App.tsx LINES 1163-1197 ==========
+1163:       if (abortController.signal.aborted) {
+1164:         setNotice("Scan cancelled.");
+1165:       } else {
+1166:         setError(`Board detection failed: ${messageOf(cause)}`);
+1167:       }
+1168:     } finally {
+1169:       if (requestId === scanRequestIdRef.current) {
+1170:         scanAbortControllerRef.current = null;
+1171:         setDetecting(false);
+1172:       }
+1173:     }
+1174:   }
+1175:   function pointerPosition(event: { clientX: number; clientY: number }) {
+1176:     const box = canvasRef.current?.getBoundingClientRect();
+1177:     return box ? pointOnCanvas(event.clientX, event.clientY, box) : null;
+1178:   }
+1179: 
+1180:   function startCropEdit(
+1181:     event: React.PointerEvent<HTMLElement>,
+1182:     candidate: Candidate,
+1183:     handle: CropHandle,
+1184:   ) {
+1185:     event.stopPropagation();
+1186:     const point = pointerPosition(event);
+1187:     const stage = pageStageRef.current;
+1188:     if (!point || !stage) return;
+1189:     cropEditStartRef.current = { candidate, handle, point };
+1190:     stage.setPointerCapture(event.pointerId);
+1191:   }
+1192: 
+1193:   function startRegion(event: React.PointerEvent<HTMLDivElement>) {
+1194:     if (cropEditStartRef.current) return;
+1195:     if (!manualMode) return;
+1196: const canvas = canvasRef.current;
+1197: if (!canvas) return;
+
+========== App.tsx LINES 1204-1238 ==========
+1204:   event.clientY < bounds.top ||
+1205:   event.clientY > bounds.bottom
+1206: ) return;
+1207:     const point = pointerPosition(event);
+1208:     if (!point) return;
+1209:     dragStartRef.current = point;
+1210:     const selection = { ...point, x2: point.x, y2: point.y };
+1211:     dragCurrentRef.current = selection;
+1212:     setDragSelection(selection);
+1213:     event.currentTarget.setPointerCapture(event.pointerId);
+1214:   }
+1215: 
+1216:   function moveRegion(event: React.PointerEvent<HTMLDivElement>) {
+1217:     const edit = cropEditStartRef.current;
+1218:     if (edit) {
+1219:       const point = pointerPosition(event);
+1220:       if (!point || !session) return;
+1221:       const next = editCrop(edit.candidate, edit.handle, point.x - edit.point.x, point.y - edit.point.y);
+1222:       patchSession((current) => {
+1223:         const pageKey = String(current.page);
+1224:         return {
+1225:           ...current,
+1226:           candidatesByPage: {
+1227:             ...current.candidatesByPage,
+1228:             [pageKey]: (current.candidatesByPage[pageKey] ?? []).map((candidate) =>
+1229:               candidate.id === edit.candidate.id ? { ...candidate, ...next } : candidate),
+1230:           },
+1231:         };
+1232:       });
+1233:       return;
+1234:     }
+1235:     if (!dragStartRef.current) return;
+1236:     const point = pointerPosition(event);
+1237:     if (point) {
+1238:       const selection = { ...dragStartRef.current, x2: point.x, y2: point.y };
+
+========== App.tsx LINES 1301-1335 ==========
+1301: 
+1302: 
+1303:   function saveBookmark() {
+1304:     if (!session) return;
+1305:     patchSession((current) => ({
+1306:       ...current,
+1307:       bookmarks: current.bookmarks.includes(current.page)
+1308:         ? current.bookmarks.filter((page) => page !== current.page)
+1309:         : [...current.bookmarks, current.page].sort((a, b) => a - b),
+1310:     }));
+1311:   }
+1312: 
+1313:   function savePosition() {
+1314:     if (!session) return;
+1315:     const position = {
+1316:       id: crypto.randomUUID(),
+1317:       title: `Page ${session.page} position`,
+1318:       fen: session.currentFen,
+1319:       page: session.page,
+1320:       savedAt: Date.now(),
+1321:     };
+1322:     patchSession((current) => ({ ...current, positions: [...current.positions, position] }));
+1323:     setNotice("Position saved to this book.");
+1324:   }
+1325: 
+1326:   function resetBoard() {
+1327:     if (workspaceMode === "opening-prep") {
+1328:       const original = new Chess(openingPrepBoard.lineBaseFen);
+1329:       patchBoardSession({
+1330:         lineBaseFen: original.fen(),
+1331:         currentFen: original.fen(),
+1332:         moves: [],
+1333:         moveIndex: 0,
+1334:       });
+1335:     } else if (studyMode) {
+
+========== App.tsx LINES 1315-1349 ==========
+1315:     const position = {
+1316:       id: crypto.randomUUID(),
+1317:       title: `Page ${session.page} position`,
+1318:       fen: session.currentFen,
+1319:       page: session.page,
+1320:       savedAt: Date.now(),
+1321:     };
+1322:     patchSession((current) => ({ ...current, positions: [...current.positions, position] }));
+1323:     setNotice("Position saved to this book.");
+1324:   }
+1325: 
+1326:   function resetBoard() {
+1327:     if (workspaceMode === "opening-prep") {
+1328:       const original = new Chess(openingPrepBoard.lineBaseFen);
+1329:       patchBoardSession({
+1330:         lineBaseFen: original.fen(),
+1331:         currentFen: original.fen(),
+1332:         moves: [],
+1333:         moveIndex: 0,
+1334:       });
+1335:     } else if (studyMode) {
+1336:       if (!studyBoard) return;
+1337:       const original = new Chess(studyBoard.lineBaseFen);
+1338:       patchBoardSession({
+1339:         lineBaseFen: original.fen(),
+1340:         currentFen: original.fen(),
+1341:         moves: [],
+1342:         moveIndex: 0,
+1343:       });
+1344:     } else {
+1345:       if (!session) return;
+1346:       const original = new Chess(session.originalFen);
+1347:       patchSession({
+1348:         lineBaseFen: original.fen(),
+1349:         currentFen: original.fen(),
+
+========== App.tsx LINES 1374-1408 ==========
+1374:         <div className="brand-name">ChessBook <span>Reader</span></div>
+1375:         <div className="top-divider" />
+1376:         <div className="current-book" title={book?.title ?? "No book open"}>
+1377:           <span className="book-dot" />
+1378:           <strong>{book?.title ?? "No book open"}</strong>
+1379:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+1380:         </div>
+1381:         <div className="top-spacer" />
+1382:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+1383:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+1384:       </header>
+1385: 
+1386:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "notation-learner" ? "notation-learner-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""}`}>
+1387:         {libraryOpen && (
+1388:           <aside className="library-panel">
+1389:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+1390:             <input
+1391:               ref={fileInput}
+1392:               className="hidden-input"
+1393:               type="file"
+1394:               accept="application/pdf,.pdf"
+1395:               onChange={(event) => void addBook(event.target.files?.[0])}
+1396:             />
+1397:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+1398:             <nav className="library-nav" aria-label="Library sections">
+1399:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+1400:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+1401:               <LibraryNavItem active={workspaceMode === "notation-learner"} icon={BookOpenText} label="Notation Learner" onClick={() => { setWorkspaceMode("notation-learner"); setLibraryTab("all"); }} />
+1402: 
+1403: 
+1404: 
+1405: </nav>
+1406:             <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+1407:             <div className="book-list">
+1408:                 {visibleBooks.map((item, index) => {
+
+========== App.tsx LINES 1387-1421 ==========
+1387:         {libraryOpen && (
+1388:           <aside className="library-panel">
+1389:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+1390:             <input
+1391:               ref={fileInput}
+1392:               className="hidden-input"
+1393:               type="file"
+1394:               accept="application/pdf,.pdf"
+1395:               onChange={(event) => void addBook(event.target.files?.[0])}
+1396:             />
+1397:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+1398:             <nav className="library-nav" aria-label="Library sections">
+1399:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+1400:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+1401:               <LibraryNavItem active={workspaceMode === "notation-learner"} icon={BookOpenText} label="Notation Learner" onClick={() => { setWorkspaceMode("notation-learner"); setLibraryTab("all"); }} />
+1402: 
+1403: 
+1404: 
+1405: </nav>
+1406:             <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+1407:             <div className="book-list">
+1408:                 {visibleBooks.map((item, index) => {
+1409:                   const saved = sessionIndex[item.id];
+1410:                   const progress = saved?.pageCount ? Math.min(100, Math.round((saved.page / saved.pageCount) * 100)) : 0;
+1411:                   return (
+1412:                     <div key={item.id} className={`book-row ${book?.id === item.id ? "active" : ""}`}>
+1413:                       <button className="book-open" onClick={() => void openBook(item)} aria-label={`Open ${item.title}`}>
+1414:                         <div className="book-cover"><span><BookOpenText size={16} aria-hidden="true" /></span><small>{index + 1}</small></div>
+1415:                         <span className="book-meta"><strong>{item.title}</strong><small>Page {saved?.page ?? 1}{saved?.pageCount ? ` of ${saved.pageCount}` : ""} ? {readableDate(item.lastOpenedAt)}</small><span className="progress-track"><i style={{ width: `${progress}%` }} /></span></span>
+1416:                       </button>
+1417:                       <button type="button" className="book-delete-button" title={"Delete " + item.title} aria-label={"Delete " + item.title} onClick={(event) => { event.stopPropagation(); void deleteBook(item); }}>&#215;</button>
+1418:                       <details className="book-menu"><summary aria-label={`Options for ${item.title}`}>&#8942;</summary><div className="book-menu-items"><button onClick={() => void renameBook(item)}>Rename</button><button onClick={() => void deleteBook(item)}>Delete book</button></div></details>
+1419:                     </div>
+1420:                   );
+1421:                 })}
+
+========== App.tsx LINES 1388-1422 ==========
+1388:           <aside className="library-panel">
+1389:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+1390:             <input
+1391:               ref={fileInput}
+1392:               className="hidden-input"
+1393:               type="file"
+1394:               accept="application/pdf,.pdf"
+1395:               onChange={(event) => void addBook(event.target.files?.[0])}
+1396:             />
+1397:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+1398:             <nav className="library-nav" aria-label="Library sections">
+1399:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+1400:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+1401:               <LibraryNavItem active={workspaceMode === "notation-learner"} icon={BookOpenText} label="Notation Learner" onClick={() => { setWorkspaceMode("notation-learner"); setLibraryTab("all"); }} />
+1402: 
+1403: 
+1404: 
+1405: </nav>
+1406:             <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+1407:             <div className="book-list">
+1408:                 {visibleBooks.map((item, index) => {
+1409:                   const saved = sessionIndex[item.id];
+1410:                   const progress = saved?.pageCount ? Math.min(100, Math.round((saved.page / saved.pageCount) * 100)) : 0;
+1411:                   return (
+1412:                     <div key={item.id} className={`book-row ${book?.id === item.id ? "active" : ""}`}>
+1413:                       <button className="book-open" onClick={() => void openBook(item)} aria-label={`Open ${item.title}`}>
+1414:                         <div className="book-cover"><span><BookOpenText size={16} aria-hidden="true" /></span><small>{index + 1}</small></div>
+1415:                         <span className="book-meta"><strong>{item.title}</strong><small>Page {saved?.page ?? 1}{saved?.pageCount ? ` of ${saved.pageCount}` : ""} ? {readableDate(item.lastOpenedAt)}</small><span className="progress-track"><i style={{ width: `${progress}%` }} /></span></span>
+1416:                       </button>
+1417:                       <button type="button" className="book-delete-button" title={"Delete " + item.title} aria-label={"Delete " + item.title} onClick={(event) => { event.stopPropagation(); void deleteBook(item); }}>&#215;</button>
+1418:                       <details className="book-menu"><summary aria-label={`Options for ${item.title}`}>&#8942;</summary><div className="book-menu-items"><button onClick={() => void renameBook(item)}>Rename</button><button onClick={() => void deleteBook(item)}>Delete book</button></div></details>
+1419:                     </div>
+1420:                   );
+1421:                 })}
+1422:                 {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+
+========== App.tsx LINES 1389-1423 ==========
+1389:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+1390:             <input
+1391:               ref={fileInput}
+1392:               className="hidden-input"
+1393:               type="file"
+1394:               accept="application/pdf,.pdf"
+1395:               onChange={(event) => void addBook(event.target.files?.[0])}
+1396:             />
+1397:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+1398:             <nav className="library-nav" aria-label="Library sections">
+1399:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+1400:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+1401:               <LibraryNavItem active={workspaceMode === "notation-learner"} icon={BookOpenText} label="Notation Learner" onClick={() => { setWorkspaceMode("notation-learner"); setLibraryTab("all"); }} />
+1402: 
+1403: 
+1404: 
+1405: </nav>
+1406:             <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+1407:             <div className="book-list">
+1408:                 {visibleBooks.map((item, index) => {
+1409:                   const saved = sessionIndex[item.id];
+1410:                   const progress = saved?.pageCount ? Math.min(100, Math.round((saved.page / saved.pageCount) * 100)) : 0;
+1411:                   return (
+1412:                     <div key={item.id} className={`book-row ${book?.id === item.id ? "active" : ""}`}>
+1413:                       <button className="book-open" onClick={() => void openBook(item)} aria-label={`Open ${item.title}`}>
+1414:                         <div className="book-cover"><span><BookOpenText size={16} aria-hidden="true" /></span><small>{index + 1}</small></div>
+1415:                         <span className="book-meta"><strong>{item.title}</strong><small>Page {saved?.page ?? 1}{saved?.pageCount ? ` of ${saved.pageCount}` : ""} ? {readableDate(item.lastOpenedAt)}</small><span className="progress-track"><i style={{ width: `${progress}%` }} /></span></span>
+1416:                       </button>
+1417:                       <button type="button" className="book-delete-button" title={"Delete " + item.title} aria-label={"Delete " + item.title} onClick={(event) => { event.stopPropagation(); void deleteBook(item); }}>&#215;</button>
+1418:                       <details className="book-menu"><summary aria-label={`Options for ${item.title}`}>&#8942;</summary><div className="book-menu-items"><button onClick={() => void renameBook(item)}>Rename</button><button onClick={() => void deleteBook(item)}>Delete book</button></div></details>
+1419:                     </div>
+1420:                   );
+1421:                 })}
+1422:                 {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+1423:               </div>
+
+========== App.tsx LINES 1424-1458 ==========
+1424:             <section className="sidebar-moves-panel" aria-label="Move list">
+1425: <div className="moves-panel">
+1426:             <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+1427:               if (!session) return;
+1428:               patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+1429:               setLastMove(null);
+1430:               setNotice("New analysis line started from the current position.");
+1431:             }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+1432:             <div className="move-list">
+1433:               {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+1434:                 <div className="move-pair" key={row}>
+1435:                   <span className="move-number">{row + 1}.</span>
+1436:                   {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+1437:                   {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+1438:                 </div>
+1439:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+1440:             </div>
+1441:           </div>
+1442:             </section>
+1443:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+1444:           </aside>
+1445:         )}
+1446: 
+1447:         {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1448:         <section className="board-panel" aria-label="Chessboard analysis">
+1449:           <div className="board-header">
+1450:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1451:             <div className="board-header-actions">
+1452:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+1453:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+1454:             </div>
+1455:           </div>
+1456:           <div className="board-area">
+1457:             <div
+1458:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+
+========== App.tsx LINES 1425-1459 ==========
+1425: <div className="moves-panel">
+1426:             <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+1427:               if (!session) return;
+1428:               patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+1429:               setLastMove(null);
+1430:               setNotice("New analysis line started from the current position.");
+1431:             }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+1432:             <div className="move-list">
+1433:               {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+1434:                 <div className="move-pair" key={row}>
+1435:                   <span className="move-number">{row + 1}.</span>
+1436:                   {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+1437:                   {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+1438:                 </div>
+1439:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+1440:             </div>
+1441:           </div>
+1442:             </section>
+1443:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+1444:           </aside>
+1445:         )}
+1446: 
+1447:         {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1448:         <section className="board-panel" aria-label="Chessboard analysis">
+1449:           <div className="board-header">
+1450:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1451:             <div className="board-header-actions">
+1452:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+1453:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+1454:             </div>
+1455:           </div>
+1456:           <div className="board-area">
+1457:             <div
+1458:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+1459:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+
+========== App.tsx LINES 1435-1469 ==========
+1435:                   <span className="move-number">{row + 1}.</span>
+1436:                   {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+1437:                   {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+1438:                 </div>
+1439:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+1440:             </div>
+1441:           </div>
+1442:             </section>
+1443:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+1444:           </aside>
+1445:         )}
+1446: 
+1447:         {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1448:         <section className="board-panel" aria-label="Chessboard analysis">
+1449:           <div className="board-header">
+1450:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1451:             <div className="board-header-actions">
+1452:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+1453:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+1454:             </div>
+1455:           </div>
+1456:           <div className="board-area">
+1457:             <div
+1458:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+1459:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+1460:               title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+1461:             >
+1462:               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+1463:               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+1464:             </div>
+1465:             <div className="board-frame">
+1466:               <div
+1467:                 className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+1468:                 ref={boardRef}
+1469:                 onPointerDown={boardArrowPointerDown}
+
+========== App.tsx LINES 1436-1470 ==========
+1436:                   {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+1437:                   {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+1438:                 </div>
+1439:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+1440:             </div>
+1441:           </div>
+1442:             </section>
+1443:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+1444:           </aside>
+1445:         )}
+1446: 
+1447:         {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1448:         <section className="board-panel" aria-label="Chessboard analysis">
+1449:           <div className="board-header">
+1450:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1451:             <div className="board-header-actions">
+1452:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+1453:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+1454:             </div>
+1455:           </div>
+1456:           <div className="board-area">
+1457:             <div
+1458:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+1459:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+1460:               title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+1461:             >
+1462:               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+1463:               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+1464:             </div>
+1465:             <div className="board-frame">
+1466:               <div
+1467:                 className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+1468:                 ref={boardRef}
+1469:                 onPointerDown={boardArrowPointerDown}
+1470:                 onPointerMove={boardArrowPointerMove}
+
+========== App.tsx LINES 1437-1471 ==========
+1437:                   {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+1438:                 </div>
+1439:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+1440:             </div>
+1441:           </div>
+1442:             </section>
+1443:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+1444:           </aside>
+1445:         )}
+1446: 
+1447:         {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1448:         <section className="board-panel" aria-label="Chessboard analysis">
+1449:           <div className="board-header">
+1450:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1451:             <div className="board-header-actions">
+1452:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+1453:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+1454:             </div>
+1455:           </div>
+1456:           <div className="board-area">
+1457:             <div
+1458:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+1459:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+1460:               title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+1461:             >
+1462:               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+1463:               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+1464:             </div>
+1465:             <div className="board-frame">
+1466:               <div
+1467:                 className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+1468:                 ref={boardRef}
+1469:                 onPointerDown={boardArrowPointerDown}
+1470:                 onPointerMove={boardArrowPointerMove}
+1471:                 onPointerUp={boardArrowPointerUp}
+
+========== App.tsx LINES 1438-1472 ==========
+1438:                 </div>
+1439:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+1440:             </div>
+1441:           </div>
+1442:             </section>
+1443:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+1444:           </aside>
+1445:         )}
+1446: 
+1447:         {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1448:         <section className="board-panel" aria-label="Chessboard analysis">
+1449:           <div className="board-header">
+1450:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1451:             <div className="board-header-actions">
+1452:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+1453:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+1454:             </div>
+1455:           </div>
+1456:           <div className="board-area">
+1457:             <div
+1458:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+1459:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+1460:               title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+1461:             >
+1462:               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+1463:               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+1464:             </div>
+1465:             <div className="board-frame">
+1466:               <div
+1467:                 className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+1468:                 ref={boardRef}
+1469:                 onPointerDown={boardArrowPointerDown}
+1470:                 onPointerMove={boardArrowPointerMove}
+1471:                 onPointerUp={boardArrowPointerUp}
+1472:                 onPointerCancel={cancelBoardArrowGesture}
+
+========== App.tsx LINES 1439-1473 ==========
+1439:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+1440:             </div>
+1441:           </div>
+1442:             </section>
+1443:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+1444:           </aside>
+1445:         )}
+1446: 
+1447:         {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1448:         <section className="board-panel" aria-label="Chessboard analysis">
+1449:           <div className="board-header">
+1450:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1451:             <div className="board-header-actions">
+1452:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+1453:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+1454:             </div>
+1455:           </div>
+1456:           <div className="board-area">
+1457:             <div
+1458:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+1459:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+1460:               title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+1461:             >
+1462:               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+1463:               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+1464:             </div>
+1465:             <div className="board-frame">
+1466:               <div
+1467:                 className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+1468:                 ref={boardRef}
+1469:                 onPointerDown={boardArrowPointerDown}
+1470:                 onPointerMove={boardArrowPointerMove}
+1471:                 onPointerUp={boardArrowPointerUp}
+1472:                 onPointerCancel={cancelBoardArrowGesture}
+1473:                 onContextMenu={(event) => {
+
+========== App.tsx LINES 1581-1615 ==========
+1581:                         points={points.map(([x, y]) => `${x},${y}`).join(" ")}
+1582:                         fill={color}
+1583:                         opacity={opacity}
+1584:                         className={`board-arrow board-arrow-${kind}`}
+1585:                       />
+1586:                     );
+1587:                   })}
+1588:                 </svg>
+1589:               </div>
+1590:             </div>
+1591:           </div>
+1592:           <div className="board-controls">
+1593:             <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+1594:             <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+1595:             <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+1596:             <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+1597:             <span className="controls-separator" />
+1598:             <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+1599:             <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+1600:             <button
+1601:               className={annotationMode ? "annotation-active" : ""}
+1602:               title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+1603:               aria-pressed={annotationMode}
+1604:               onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+1605:             ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+1606:             {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+1607:             <span className="controls-spacer" />
+1608:             <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+1609:             <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+1610:           </div>
+1611:           <div className="turn-row">
+1612:             <span>TO MOVE</span>
+1613:             <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+1614:               try {
+1615:                 const fen = fenWithTurn(game.fen(), "w");
+
+========== App.tsx LINES 1582-1616 ==========
+1582:                         fill={color}
+1583:                         opacity={opacity}
+1584:                         className={`board-arrow board-arrow-${kind}`}
+1585:                       />
+1586:                     );
+1587:                   })}
+1588:                 </svg>
+1589:               </div>
+1590:             </div>
+1591:           </div>
+1592:           <div className="board-controls">
+1593:             <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+1594:             <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+1595:             <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+1596:             <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+1597:             <span className="controls-separator" />
+1598:             <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+1599:             <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+1600:             <button
+1601:               className={annotationMode ? "annotation-active" : ""}
+1602:               title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+1603:               aria-pressed={annotationMode}
+1604:               onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+1605:             ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+1606:             {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+1607:             <span className="controls-spacer" />
+1608:             <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+1609:             <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+1610:           </div>
+1611:           <div className="turn-row">
+1612:             <span>TO MOVE</span>
+1613:             <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+1614:               try {
+1615:                 const fen = fenWithTurn(game.fen(), "w");
+1616:                 patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+
+========== App.tsx LINES 1583-1617 ==========
+1583:                         opacity={opacity}
+1584:                         className={`board-arrow board-arrow-${kind}`}
+1585:                       />
+1586:                     );
+1587:                   })}
+1588:                 </svg>
+1589:               </div>
+1590:             </div>
+1591:           </div>
+1592:           <div className="board-controls">
+1593:             <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+1594:             <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+1595:             <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+1596:             <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+1597:             <span className="controls-separator" />
+1598:             <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+1599:             <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+1600:             <button
+1601:               className={annotationMode ? "annotation-active" : ""}
+1602:               title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+1603:               aria-pressed={annotationMode}
+1604:               onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+1605:             ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+1606:             {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+1607:             <span className="controls-spacer" />
+1608:             <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+1609:             <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+1610:           </div>
+1611:           <div className="turn-row">
+1612:             <span>TO MOVE</span>
+1613:             <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+1614:               try {
+1615:                 const fen = fenWithTurn(game.fen(), "w");
+1616:                 patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+1617:                 setLastMove(null);
+
+========== App.tsx LINES 1584-1618 ==========
+1584:                         className={`board-arrow board-arrow-${kind}`}
+1585:                       />
+1586:                     );
+1587:                   })}
+1588:                 </svg>
+1589:               </div>
+1590:             </div>
+1591:           </div>
+1592:           <div className="board-controls">
+1593:             <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+1594:             <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+1595:             <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+1596:             <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+1597:             <span className="controls-separator" />
+1598:             <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+1599:             <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+1600:             <button
+1601:               className={annotationMode ? "annotation-active" : ""}
+1602:               title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+1603:               aria-pressed={annotationMode}
+1604:               onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+1605:             ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+1606:             {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+1607:             <span className="controls-spacer" />
+1608:             <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+1609:             <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+1610:           </div>
+1611:           <div className="turn-row">
+1612:             <span>TO MOVE</span>
+1613:             <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+1614:               try {
+1615:                 const fen = fenWithTurn(game.fen(), "w");
+1616:                 patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+1617:                 setLastMove(null);
+1618:               } catch (cause) { setError(messageOf(cause)); }
+
+========== App.tsx LINES 1626-1660 ==========
+1626:             }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+1627:             <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+1628:           </div>
+1629:           <details className="position-editor">
+1630:             <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+1631:             <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+1632:           </details>
+1633:           <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+1634:         </section>
+1635: 
+1636:         <section className="reader-panel" aria-label="PDF book reader">
+1637:           <div className="opening-explorer-right-workspace">
+1638:           {workspaceMode === "opening-explorer" && (
+1639:             <section className="opening-explorer-panel" aria-label="Opening Explorer">
+1640:               <h3>Opening Explorer</h3>
+1641:               <div className="lichess-connection-controls">
+1642:                 {lichessStatus?.connected ? (
+1643:                   <>
+1644:                     <span role="status">Lichess connected</span>
+1645:                     <button
+1646:                       type="button"
+1647:                       disabled={lichessActionBusy}
+1648:                       onClick={() => {
+1649:                         setLichessActionBusy(true);
+1650:                         void disconnectLichess()
+1651:                           .then(() => {
+1652:                             setLichessStatus((current) => current ? { ...current, connected: false } : current);
+1653:                             setOpeningStats(null);
+1654:                             setOpeningStatsStatus("idle");
+1655:                             setNotice("Lichess disconnected.");
+1656:                           })
+1657:                           .catch(() => setLichessStatusError("Could not disconnect. Check that the backend is running."))
+1658:                           .finally(() => setLichessActionBusy(false));
+1659:                       }}
+1660:                     >{lichessActionBusy ? "DisconnectingÃ¢â‚¬Â¦" : "Disconnect"}</button>
+
+========== App.tsx LINES 1772-1806 ==========
+1772:                         ) : (
+1773:                           <p>No continuation data was returned for this position.</p>
+1774:                         )}
+1775:                         <p className="muted">Counts reflect Lichess's indexed dataset, not all chess games. Missing data is not treated as zero games.</p>
+1776:                       </>
+1777:                     )}
+1778:                     {openingStatsStatus === "idle" && !openingPosition.error && <p>Enter a legal line to load statistics.</p>}
+1779:                   </section>
+1780:                   <button
+1781:                     type="button"
+1782:                     className="green-button"
+1783:                     onClick={() => {
+1784:                       setAnalysisBoard({
+1785:                         lineBaseFen: START_FEN,
+1786:                         currentFen: openingPosition.fen,
+1787:                         moves: [...openingPosition.sanMoves],
+1788:                         moveIndex: openingPosition.sanMoves.length,
+1789:                         flipped: false,
+1790:                         coordinates: true,
+1791:                       });
+1792:                       setStudyMode(false);
+1793:                       setWorkspaceMode("analysis");
+1794:                       setNotice("Opening position copied to the independent Analysis Board.");
+1795:                     }}
+1796:                   >Open position in Analysis Board</button>
+1797:                   <p className="muted">Position FEN: {openingPosition.fen}</p>
+1798:                 </>
+1799:               )}
+1800:             </section>
+1801:           )}
+1802:           </div>
+1803: 
+1804:           <div className="reader-toolbar">
+1805:             <div className="reader-title"><div className="document-icon" aria-hidden="true"><BookOpenText size={20} strokeWidth={1.8} /></div><div><strong>{book?.title ?? "Book reader"}</strong><span>{pdf ? `${session?.pageCount} pages \u00b7 PDF document` : "Add a PDF book to begin"}</span></div></div>
+1806:             <div className="reader-actions">
+
+========== MODEL TYPES ==========
+export const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+export type Candidate = {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  relativeScore?: number;
+  confidence?: number;
+  source: "automatic" | "manual";
+};
+
+export type BookRecord = {
+  id: string;
+  title: string;
+  file: Blob;
+  byteLength: number;
+  lastOpenedAt: number;
+  addedAt: number;
+};
+
+export type SavedPosition = {
+  id: string;
+  title: string;
+  fen: string;
+  page: number;
+  savedAt: number;
+};
+
+export type BookSession = {
+  bookId: string;
+  page: number;
+  pageCount: number;
+  zoom: number;
+  selectedDiagramId: string | null;
+  candidatesByPage: Record<string, Candidate[]>;
+  originalFen: string;
+  lineBaseFen: string;
+  currentFen: string;
+  moves: string[];
+  moveIndex: number;
+  flipped: boolean;
+  coordinates: boolean;
+  bookmarks: number[];
+  positions: SavedPosition[];
+};
+
+export function newSession(bookId: string): BookSession {
+  return {
+    bookId,
+    page: 1,
+    pageCount: 0,
+    zoom: 1,
+    selectedDiagramId: null,
+    candidatesByPage: {},
+    originalFen: START_FEN,
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+    bookmarks: [],
+    positions: [],
+  };
+}
+
+========== CHESS STATE HELPERS ==========
+import { Chess } from "chess.js";
+
+export function makePosition(baseFen: string, moves: string[], moveIndex: number): Chess {
+  const game = new Chess(baseFen);
+  for (const san of moves.slice(0, moveIndex)) {
+    const result = game.move(san);
+    if (!result) throw new Error(`Saved move could not be replayed: ${san}`);
+  }
+  return game;
+}
+
+export function fenWithTurn(fen: string, turn: "w" | "b"): string {
+  const fields = fen.split(/\s+/);
+  if (fields.length !== 6) throw new Error("FEN must contain six fields.");
+  fields[1] = turn;
+  fields[3] = "-";
+  fields[4] = "0";
+  return fields.join(" ");
+}

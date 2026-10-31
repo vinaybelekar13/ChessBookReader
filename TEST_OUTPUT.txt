@@ -1,0 +1,37 @@
+
+> chessbook-reader@0.1.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.4 [39m[90mD:/chess/BookChess/ChessBookReader[39m
+
+ [32m✓[39m src/stockfish.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/board-annotations.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/crop-geometry.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/position-editor.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/chess-state.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/opening-explorer.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/pgn-import.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m src/storage.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 21[2mms[22m[39m
+[90mstderr[2m | src/App.test.tsx
+[22m[39mWarning: Please use the `legacy` build in Node.js environments.
+
+ [32m✓[39m src/App.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 3151[2mms[22m[39m
+   [32m✓[39m App - Manual Position Setup & Stockfish Analysis [2m(2)[22m
+     [33m[2m✓[22m[39m renders 'Set Up Position' buttons on the analysis board and toggles setup mode[33m 1647[2mms[22m[39m
+     [33m[2m✓[22m[39m loads a custom manual position, reflects side to move, and triggers Stockfish analysis[33m 1499[2mms[22m[39m
+ [32m✓[39m src/ManualBoardEditor.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 4027[2mms[22m[39m
+   [32m✓[39m ManualBoardEditor Component [2m(11)[22m
+     [33m[2m✓[22m[39m renders with initial position and labels[33m 321[2mms[22m[39m
+     [33m[2m✓[22m[39m places a piece on an empty square[33m 462[2mms[22m[39m
+     [33m[2m✓[22m[39m replaces a white piece with a black piece[33m 392[2mms[22m[39m
+     [33m[2m✓[22m[39m removes a piece using the erase tool[33m 357[2mms[22m[39m
+     [33m[2m✓[22m[39m supports undo and redo for manual edits[33m 1167[2mms[22m[39m
+     [33m[2m✓[22m[39m updates the board when valid FEN text is entered[33m 368[2mms[22m[39m
+     [33m[2m✓[22m[39m displays an error on invalid FEN without crashing or losing editable state[33m 344[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m      Tests [22m [1m[32m53 passed[39m[22m[90m (53)[39m
+[2m   Start at [22m 00:21:19
+[2m   Duration [22m 6.46s[2m (environment 51%, tests 27%, setup 18%, import 2%, transform 2%, worker 1%)[22m
+

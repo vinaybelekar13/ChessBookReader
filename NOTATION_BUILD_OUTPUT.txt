@@ -1,0 +1,7 @@
+
+> chessbook-reader@0.1.0 build
+> tsc -b && vite build
+
+src/NotationLearner.tsx(66,9): error TS6133: 'currentMove' is declared but its value is never read.
+src/NotationLearner.tsx(67,9): error TS6133: 'moveNumber' is declared but its value is never read.
+src/NotationLearner.tsx(68,9): error TS6133: 'isWhiteMove' is declared but its value is never read.

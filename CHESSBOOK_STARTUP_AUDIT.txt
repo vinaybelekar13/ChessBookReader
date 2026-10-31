@@ -1,0 +1,574 @@
+﻿========== MAIN LAUNCHER ==========
+@echo off
+setlocal
+cd /d "D:\chess\BookChess\ChessBookReader"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Run-ChessBookReader.ps1"
+endlocal
+
+========== STARTUP SCRIPT ==========
+$ErrorActionPreference = "Stop"
+
+$root = "D:\chess\BookChess\ChessBookReader"
+$backend = Join-Path $root "backend"
+$python = Join-Path $backend ".venv-ocr\Scripts\python.exe"
+$logs = Join-Path $root "local-logs"
+$apiUrl = "http://127.0.0.1:8765"
+$webUrl = "http://127.0.0.1:5173"
+
+New-Item -ItemType Directory -Path $logs -Force | Out-Null
+$env:VITE_API_BASE_URL = $apiUrl
+
+$backendProcess = $null
+$frontendProcess = $null
+$startedBackend = $false
+$startedFrontend = $false
+
+function Get-PortListener([int]$port) {
+    return @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+}
+
+function Test-ApiReady {
+    try {
+        $health = Invoke-RestMethod "$apiUrl/health" -TimeoutSec 3
+        return ($health.status -eq "ok")
+    } catch {
+        return $false
+    }
+}
+
+function Test-WebReady {
+    try {
+        $response = Invoke-WebRequest "$webUrl/" -TimeoutSec 3 -UseBasicParsing
+        return ($response.StatusCode -eq 200)
+    } catch {
+        return $false
+    }
+}
+
+function Stop-Tree([System.Diagnostics.Process]$process) {
+    if ($null -ne $process) {
+        try {
+            if (-not $process.HasExited) {
+                & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
+            }
+        } catch {}
+    }
+}
+
+try {
+    Write-Host ""
+    Write-Host "Starting ChessBookReader locally..." -ForegroundColor Cyan
+
+    $backendOut = Join-Path $logs "backend-out.log"
+    $backendErr = Join-Path $logs "backend-error.log"
+    $frontendOut = Join-Path $logs "frontend-out.log"
+    $frontendErr = Join-Path $logs "frontend-error.log"
+
+    # Reuse the OCR backend if it is already healthy. Never stop an existing listener.
+    if (Test-ApiReady) {
+        Write-Host "OCR backend is already healthy on port 8765; reusing it." -ForegroundColor Green
+    } else {
+        $apiListeners = Get-PortListener 8765
+        if ($apiListeners.Count -gt 0) {
+            $pids = ($apiListeners | Select-Object -ExpandProperty OwningProcess -Unique) -join ", "
+            throw "Port 8765 is occupied by PID(s) $pids, but the OCR health check failed. No existing process was stopped. Check $backendErr."
+        }
+        if (-not (Test-Path $python)) {
+            throw "Backend Python was not found: $python"
+        }
+
+        $backendProcess = Start-Process -FilePath $python `
+            -ArgumentList @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8765", "--reload", "--reload-dir", "app") `
+            -WorkingDirectory $backend -PassThru -WindowStyle Hidden `
+            -RedirectStandardOutput $backendOut -RedirectStandardError $backendErr
+        $startedBackend = $true
+        Write-Host "Started OCR backend (PID $($backendProcess.Id))." -ForegroundColor Cyan
+    }
+
+    # Reuse Vite if it responds. Otherwise start it only if port 5173 is free.
+    if (Test-WebReady) {
+        Write-Host "Frontend is already responding on port 5173; reusing it." -ForegroundColor Green
+    } else {
+        $webListeners = Get-PortListener 5173
+        if ($webListeners.Count -gt 0) {
+            $pids = ($webListeners | Select-Object -ExpandProperty OwningProcess -Unique) -join ", "
+            throw "Port 5173 is occupied by PID(s) $pids, but the frontend did not return HTTP 200. No existing process was stopped. Check $frontendErr."
+        }
+
+        $frontendProcess = Start-Process -FilePath "$env:ComSpec" `
+            -ArgumentList @("/d", "/s", "/c", "npm run dev -- --host 127.0.0.1 --port 5173 --strictPort") `
+            -WorkingDirectory $root -PassThru -WindowStyle Hidden `
+            -RedirectStandardOutput $frontendOut -RedirectStandardError $frontendErr
+        $startedFrontend = $true
+        Write-Host "Started frontend (launcher PID $($frontendProcess.Id))." -ForegroundColor Cyan
+    }
+
+    $deadline = (Get-Date).AddSeconds(90)
+    while ((Get-Date) -lt $deadline) {
+        if ($startedBackend -and $backendProcess.HasExited) {
+            throw "Backend exited during startup. Inspect $backendErr"
+        }
+        if ($startedFrontend -and $frontendProcess.HasExited) {
+            # npm/cmd may hand off to node and exit; rely on the HTTP check below.
+            if (-not (Test-WebReady)) {
+                throw "Frontend launcher exited and the website is not responding. Inspect $frontendErr"
+            }
+        }
+        if ((Test-ApiReady) -and (Test-WebReady)) { break }
+        Start-Sleep -Milliseconds 500
+    }
+
+    if (-not (Test-ApiReady)) { throw "OCR backend did not become healthy within 90 seconds. Inspect $backendErr" }
+    if (-not (Test-WebReady)) { throw "Frontend did not return HTTP 200 within 90 seconds. Inspect $frontendErr" }
+
+    Write-Host ""
+    Write-Host "ChessBookReader is running!" -ForegroundColor Green
+    Write-Host "Website:  $webUrl"
+    Write-Host "Local API: $apiUrl"
+    Write-Host "API docs:  $apiUrl/docs"
+    Write-Host ""
+    Write-Host "Services started by this launcher will be stopped when you press ENTER."
+    Write-Host "Services that were already running will be left alone."
+    Start-Process $webUrl
+    [void](Read-Host "Press ENTER to exit")
+
+} catch {
+    Write-Host ""
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Host "Logs are in: $logs"
+    [void](Read-Host "Press ENTER to exit")
+} finally {
+    Write-Host "Stopping only services started by this launcher..." -ForegroundColor Yellow
+    if ($startedFrontend) { Stop-Tree $frontendProcess }
+    if ($startedBackend) { Stop-Tree $backendProcess }
+    Write-Host "Launcher shutdown finished."
+}
+
+========== ALL STARTUP SCRIPTS ==========
+
+--- D:\chess\BookChess\ChessBookReader\scripts\Run-ChessBookReader.ps1 ---
+$ErrorActionPreference = "Stop"
+
+$root = "D:\chess\BookChess\ChessBookReader"
+$backend = Join-Path $root "backend"
+$python = Join-Path $backend ".venv-ocr\Scripts\python.exe"
+$logs = Join-Path $root "local-logs"
+$apiUrl = "http://127.0.0.1:8765"
+$webUrl = "http://127.0.0.1:5173"
+
+New-Item -ItemType Directory -Path $logs -Force | Out-Null
+$env:VITE_API_BASE_URL = $apiUrl
+
+$backendProcess = $null
+$frontendProcess = $null
+$startedBackend = $false
+$startedFrontend = $false
+
+function Get-PortListener([int]$port) {
+    return @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+}
+
+function Test-ApiReady {
+    try {
+        $health = Invoke-RestMethod "$apiUrl/health" -TimeoutSec 3
+        return ($health.status -eq "ok")
+    } catch {
+        return $false
+    }
+}
+
+function Test-WebReady {
+    try {
+        $response = Invoke-WebRequest "$webUrl/" -TimeoutSec 3 -UseBasicParsing
+        return ($response.StatusCode -eq 200)
+    } catch {
+        return $false
+    }
+}
+
+function Stop-Tree([System.Diagnostics.Process]$process) {
+    if ($null -ne $process) {
+        try {
+            if (-not $process.HasExited) {
+                & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
+            }
+        } catch {}
+    }
+}
+
+try {
+    Write-Host ""
+    Write-Host "Starting ChessBookReader locally..." -ForegroundColor Cyan
+
+    $backendOut = Join-Path $logs "backend-out.log"
+    $backendErr = Join-Path $logs "backend-error.log"
+    $frontendOut = Join-Path $logs "frontend-out.log"
+    $frontendErr = Join-Path $logs "frontend-error.log"
+
+    # Reuse the OCR backend if it is already healthy. Never stop an existing listener.
+    if (Test-ApiReady) {
+        Write-Host "OCR backend is already healthy on port 8765; reusing it." -ForegroundColor Green
+    } else {
+        $apiListeners = Get-PortListener 8765
+        if ($apiListeners.Count -gt 0) {
+            $pids = ($apiListeners | Select-Object -ExpandProperty OwningProcess -Unique) -join ", "
+            throw "Port 8765 is occupied by PID(s) $pids, but the OCR health check failed. No existing process was stopped. Check $backendErr."
+        }
+        if (-not (Test-Path $python)) {
+            throw "Backend Python was not found: $python"
+        }
+
+        $backendProcess = Start-Process -FilePath $python `
+            -ArgumentList @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8765", "--reload", "--reload-dir", "app") `
+            -WorkingDirectory $backend -PassThru -WindowStyle Hidden `
+            -RedirectStandardOutput $backendOut -RedirectStandardError $backendErr
+        $startedBackend = $true
+        Write-Host "Started OCR backend (PID $($backendProcess.Id))." -ForegroundColor Cyan
+    }
+
+    # Reuse Vite if it responds. Otherwise start it only if port 5173 is free.
+    if (Test-WebReady) {
+        Write-Host "Frontend is already responding on port 5173; reusing it." -ForegroundColor Green
+    } else {
+        $webListeners = Get-PortListener 5173
+        if ($webListeners.Count -gt 0) {
+            $pids = ($webListeners | Select-Object -ExpandProperty OwningProcess -Unique) -join ", "
+            throw "Port 5173 is occupied by PID(s) $pids, but the frontend did not return HTTP 200. No existing process was stopped. Check $frontendErr."
+        }
+
+        $frontendProcess = Start-Process -FilePath "$env:ComSpec" `
+            -ArgumentList @("/d", "/s", "/c", "npm run dev -- --host 127.0.0.1 --port 5173 --strictPort") `
+            -WorkingDirectory $root -PassThru -WindowStyle Hidden `
+            -RedirectStandardOutput $frontendOut -RedirectStandardError $frontendErr
+        $startedFrontend = $true
+        Write-Host "Started frontend (launcher PID $($frontendProcess.Id))." -ForegroundColor Cyan
+    }
+
+    $deadline = (Get-Date).AddSeconds(90)
+    while ((Get-Date) -lt $deadline) {
+        if ($startedBackend -and $backendProcess.HasExited) {
+            throw "Backend exited during startup. Inspect $backendErr"
+        }
+        if ($startedFrontend -and $frontendProcess.HasExited) {
+            # npm/cmd may hand off to node and exit; rely on the HTTP check below.
+            if (-not (Test-WebReady)) {
+                throw "Frontend launcher exited and the website is not responding. Inspect $frontendErr"
+            }
+        }
+        if ((Test-ApiReady) -and (Test-WebReady)) { break }
+        Start-Sleep -Milliseconds 500
+    }
+
+    if (-not (Test-ApiReady)) { throw "OCR backend did not become healthy within 90 seconds. Inspect $backendErr" }
+    if (-not (Test-WebReady)) { throw "Frontend did not return HTTP 200 within 90 seconds. Inspect $frontendErr" }
+
+    Write-Host ""
+    Write-Host "ChessBookReader is running!" -ForegroundColor Green
+    Write-Host "Website:  $webUrl"
+    Write-Host "Local API: $apiUrl"
+    Write-Host "API docs:  $apiUrl/docs"
+    Write-Host ""
+    Write-Host "Services started by this launcher will be stopped when you press ENTER."
+    Write-Host "Services that were already running will be left alone."
+    Start-Process $webUrl
+    [void](Read-Host "Press ENTER to exit")
+
+} catch {
+    Write-Host ""
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Host "Logs are in: $logs"
+    [void](Read-Host "Press ENTER to exit")
+} finally {
+    Write-Host "Stopping only services started by this launcher..." -ForegroundColor Yellow
+    if ($startedFrontend) { Stop-Tree $frontendProcess }
+    if ($startedBackend) { Stop-Tree $backendProcess }
+    Write-Host "Launcher shutdown finished."
+}
+
+========== BACKEND ENTRY POINTS ==========
+
+FullName                                                                                                                                            
+--------                                                                                                                                            
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\cv2\config-3.py                                                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\cv2\config.py                                                                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\cv2\load_config_py2.py                                                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\cv2\load_config_py3.py                                                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\cv2\__pycache__\config-3.cpython-313.pyc                                     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\cv2\__pycache__\config.cpython-313.pyc                                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\cv2\__pycache__\load_config_py2.cpython-313.pyc                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\cv2\__pycache__\load_config_py3.cpython-313.pyc                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\dotenv\main.py                                                               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\dotenv\__main__.py                                                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\dotenv\__pycache__\main.cpython-313.pyc                                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\dotenv\__pycache__\__main__.cpython-313.pyc                                  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\applications.py                                                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\__main__.py                                                          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\__pycache__\applications.cpython-313.pyc                             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\__pycache__\__main__.cpython-313.pyc                                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\google\protobuf\runtime_version.py                                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\google\protobuf\wrappers_pb2.py                                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\google\protobuf\internal\enum_type_wrapper.py                                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\google\protobuf\internal\__pycache__\enum_type_wrapper.cpython-313.pyc       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\google\protobuf\__pycache__\runtime_version.cpython-313.pyc                  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\google\protobuf\__pycache__\wrappers_pb2.cpython-313.pyc                     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\idna\__main__.py                                                             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\idna\__pycache__\__main__.cpython-313.pyc                                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\mpmath\calculus\approximation.py                                             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\mpmath\calculus\__pycache__\approximation.cpython-313.pyc                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\mpmath\tests\runtests.py                                                     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\mpmath\tests\__pycache__\runtests.cpython-313.pyc                            
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\_configtool.py                                                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\_configtool.pyi                                                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\__config__.py                                                          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\__config__.pyi                                                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\f2py\__main__.py                                                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\f2py\__pycache__\__main__.cpython-313.pyc                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\tests\test_configtool.py                                               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\tests\test_numpy_config.py                                             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\tests\__pycache__\test_configtool.cpython-313.pyc                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\tests\__pycache__\test_numpy_config.cpython-313.pyc                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\typing\tests\test_runtime.py                                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\typing\tests\data\fail\ufunc_config.pyi                                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\typing\tests\data\pass\ufunc_config.py                                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\typing\tests\data\pass\__pycache__\ufunc_config.cpython-313.pyc        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\typing\tests\data\reveal\ufunc_config.pyi                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\typing\tests\__pycache__\test_runtime.cpython-313.pyc                  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\_core\_ufunc_config.py                                                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\_core\_ufunc_config.pyi                                                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\_core\include\numpy\numpyconfig.h                                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\_core\include\numpy\_numpyconfig.h                                     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\_core\__pycache__\_ufunc_config.cpython-313.pyc                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\__pycache__\_configtool.cpython-313.pyc                                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\numpy\__pycache__\__config__.cpython-313.pyc                                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\capi\onnxruntime.dll                                             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\capi\onnxruntime_collect_build_info.py                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\capi\onnxruntime_inference_collection.py                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\capi\onnxruntime_providers_shared.dll                            
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\capi\onnxruntime_pybind11_state.pyd                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\capi\onnxruntime_validation.py                                   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\capi\__pycache__\onnxruntime_collect_build_info.cpython-313.pyc  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\capi\__pycache__\onnxruntime_inference_collection.cpython-313.pyc
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\capi\__pycache__\onnxruntime_validation.cpython-313.pyc          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\quantization\static_quantize_runner.py                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\quantization\execution_providers\qnn\quant_config.py             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\quantization\execution_providers\qnn\__pycache__\quant_config....
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\quantization\__pycache__\static_quantize_runner.cpython-313.pyc  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\tools\onnxruntime_test.py                                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\tools\reduced_build_config_parser.py                             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\RuntimeOptimizat...
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\RuntimeOptimizat...
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\RuntimeOptimizat...
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\__pycache__\Runt...
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\__pycache__\Runt...
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\tools\ort_format_model\ort_flatbuffers_py\fbs\__pycache__\Runt...
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\tools\__pycache__\onnxruntime_test.cpython-313.pyc               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\tools\__pycache__\reduced_build_config_parser.cpython-313.pyc    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\transformers\fusion_gelu_approximation.py                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\onnxruntime\transformers\__pycache__\fusion_gelu_approximation.cpython-313...
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\__main__.py                                                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\__pip-runner__.py                                                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\configuration.py                                               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\main.py                                                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\cli\main.py                                                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\cli\main_parser.py                                             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\cli\__pycache__\main.cpython-313.pyc                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\cli\__pycache__\main_parser.cpython-313.pyc                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\commands\configuration.py                                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\commands\__pycache__\configuration.cpython-313.pyc             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\locations\_sysconfig.py                                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\locations\__pycache__\_sysconfig.cpython-313.pyc               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\utils\appdirs.py                                               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\utils\__pycache__\appdirs.cpython-313.pyc                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\__pycache__\configuration.cpython-313.pyc                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_internal\__pycache__\main.cpython-313.pyc                               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\cachecontrol\filewrapper.py                                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\cachecontrol\wrapper.py                                          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\cachecontrol\__pycache__\filewrapper.cpython-313.pyc             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\cachecontrol\__pycache__\wrapper.cpython-313.pyc                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\certifi\__main__.py                                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\certifi\__pycache__\__main__.cpython-313.pyc                     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\dependency_groups\_pip_wrapper.py                                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\dependency_groups\__main__.py                                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\dependency_groups\__pycache__\_pip_wrapper.cpython-313.pyc       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\dependency_groups\__pycache__\__main__.cpython-313.pyc           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\distro\__main__.py                                               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\distro\__pycache__\__main__.cpython-313.pyc                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\platformdirs\__main__.py                                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\platformdirs\__pycache__\__main__.cpython-313.pyc                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\pygments\__main__.py                                             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\pygments\formatters\_mapping.py                                  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\pygments\formatters\__pycache__\_mapping.cpython-313.pyc         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\pygments\lexers\_mapping.py                                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\pygments\lexers\__pycache__\_mapping.cpython-313.pyc             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\pygments\styles\_mapping.py                                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\pygments\styles\__pycache__\_mapping.cpython-313.pyc             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\pygments\__pycache__\__main__.cpython-313.pyc                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\rich\__main__.py                                                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\rich\__pycache__\__main__.cpython-313.pyc                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\urllib3\contrib\appengine.py                                     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\urllib3\contrib\_appengine_environ.py                            
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\urllib3\contrib\__pycache__\appengine.cpython-313.pyc            
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\_vendor\urllib3\contrib\__pycache__\_appengine_environ.cpython-313.pyc   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\__pycache__\__main__.cpython-313.pyc                                     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pip\__pycache__\__pip-runner__.cpython-313.pyc                               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pluggy\_config.py                                                            
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pluggy\__pycache__\_config.cpython-313.pyc                                   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\config.py                                                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\error_wrappers.py                                                   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\main.py                                                             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\deprecated\config.py                                                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\deprecated\__pycache__\config.cpython-313.pyc                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\v1\config.py                                                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\v1\error_wrappers.py                                                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\v1\main.py                                                          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\v1\__pycache__\config.cpython-313.pyc                               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\v1\__pycache__\error_wrappers.cpython-313.pyc                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\v1\__pycache__\main.cpython-313.pyc                                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\_internal\_config.py                                                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\_internal\__pycache__\_config.cpython-313.pyc                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\__pycache__\config.cpython-313.pyc                                  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\__pycache__\error_wrappers.cpython-313.pyc                          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pydantic\__pycache__\main.cpython-313.pyc                                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pyreadline3\rlmain.py                                                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pyreadline3\configuration\pyreadlineconfig.ini                               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pyreadline3\__pycache__\rlmain.cpython-313.pyc                               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pytest\__main__.py                                                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\pytest\__pycache__\__main__.cpython-313.pyc                                  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\starlette\applications.py                                                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\starlette\config.py                                                          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\starlette\__pycache__\applications.cpython-313.pyc                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\starlette\__pycache__\config.cpython-313.pyc                                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\assumptions\wrapper.py                                                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\assumptions\tests\test_wrapper.py                                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\assumptions\tests\__pycache__\test_wrapper.cpython-313.pyc             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\assumptions\__pycache__\wrapper.cpython-313.pyc                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\codegen\approximations.py                                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\codegen\tests\test_applications.py                                     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\codegen\tests\test_approximations.py                                   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\codegen\tests\__pycache__\test_applications.cpython-313.pyc            
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\codegen\tests\__pycache__\test_approximations.cpython-313.pyc          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\codegen\__pycache__\approximations.cpython-313.pyc                     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\logic\algorithms\minisat22_wrapper.py                                  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\logic\algorithms\pycosat_wrapper.py                                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\logic\algorithms\z3_wrapper.py                                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\logic\algorithms\__pycache__\minisat22_wrapper.cpython-313.pyc         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\logic\algorithms\__pycache__\pycosat_wrapper.cpython-313.pyc           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\logic\algorithms\__pycache__\z3_wrapper.cpython-313.pyc                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\matrices\expressions\applyfunc.py                                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\matrices\expressions\tests\test_applyfunc.py                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\matrices\expressions\tests\__pycache__\test_applyfunc.cpython-313.pyc  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\matrices\expressions\__pycache__\applyfunc.cpython-313.pyc             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\matrices\tests\test_domains.py                                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\matrices\tests\__pycache__\test_domains.cpython-313.pyc                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\parsing\tests\test_implicit_multiplication_application.py              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\parsing\tests\__pycache__\test_implicit_multiplication_application.c...
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\physics\mechanics\wrapping_geometry.py                                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\physics\mechanics\tests\test_wrapping_geometry.py                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\physics\mechanics\tests\__pycache__\test_wrapping_geometry.cpython-3...
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\physics\mechanics\__pycache__\wrapping_geometry.cpython-313.pyc        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\physics\quantum\qapply.py                                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\physics\quantum\tests\test_qapply.py                                   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\physics\quantum\tests\__pycache__\test_qapply.cpython-313.pyc          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\physics\quantum\__pycache__\qapply.cpython-313.pyc                     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\appellseqs.py                                                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domainmatrix.py                                                  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\polyconfig.py                                                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\compositedomain.py                                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\domain.py                                                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\domainelement.py                                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\expressiondomain.py                                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\expressionrawdomain.py                                   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\gaussiandomains.py                                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\simpledomain.py                                          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\tests\test_domains.py                                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\tests\__pycache__\test_domains.cpython-313.pyc           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\__pycache__\compositedomain.cpython-313.pyc              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\__pycache__\domain.cpython-313.pyc                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\__pycache__\domainelement.cpython-313.pyc                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\__pycache__\expressiondomain.cpython-313.pyc             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\__pycache__\expressionrawdomain.cpython-313.pyc          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\__pycache__\gaussiandomains.cpython-313.pyc              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\domains\__pycache__\simpledomain.cpython-313.pyc                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\matrices\domainmatrix.py                                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\matrices\domainscalar.py                                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\matrices\tests\test_domainmatrix.py                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\matrices\tests\test_domainscalar.py                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\matrices\tests\__pycache__\test_domainmatrix.cpython-313.pyc     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\matrices\tests\__pycache__\test_domainscalar.cpython-313.pyc     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\matrices\__pycache__\domainmatrix.cpython-313.pyc                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\matrices\__pycache__\domainscalar.cpython-313.pyc                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\tests\test_appellseqs.py                                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\tests\__pycache__\test_appellseqs.cpython-313.pyc                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\__pycache__\appellseqs.cpython-313.pyc                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\__pycache__\domainmatrix.cpython-313.pyc                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\polys\__pycache__\polyconfig.cpython-313.pyc                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\series\approximants.py                                                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\series\gruntz.py                                                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\series\tests\test_approximants.py                                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\series\tests\test_gruntz.py                                            
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\series\tests\__pycache__\test_approximants.cpython-313.pyc             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\series\tests\__pycache__\test_gruntz.cpython-313.pyc                   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\series\__pycache__\approximants.cpython-313.pyc                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\series\__pycache__\gruntz.cpython-313.pyc                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\simplify\cse_main.py                                                   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\simplify\__pycache__\cse_main.cpython-313.pyc                          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\testing\runtests.py                                                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\testing\runtests_pytest.py                                             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\testing\tests\test_runtests_pytest.py                                  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\testing\tests\__pycache__\test_runtests_pytest.cpython-313.pyc         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\testing\__pycache__\runtests.cpython-313.pyc                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\testing\__pycache__\runtests_pytest.cpython-313.pyc                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\utilities\runtests.py                                                  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\utilities\_compilation\runners.py                                      
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\utilities\_compilation\__pycache__\runners.cpython-313.pyc             
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\sympy\utilities\__pycache__\runtests.cpython-313.pyc                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\uvicorn\config.py                                                            
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\uvicorn\main.py                                                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\uvicorn\server.py                                                            
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\uvicorn\__main__.py                                                          
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\uvicorn\__pycache__\config.cpython-313.pyc                                   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\uvicorn\__pycache__\main.cpython-313.pyc                                     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\uvicorn\__pycache__\server.cpython-313.pyc                                   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\uvicorn\__pycache__\__main__.cpython-313.pyc                                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\watchfiles\main.py                                                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\watchfiles\run.py                                                            
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\watchfiles\__main__.py                                                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\watchfiles\__pycache__\main.cpython-313.pyc                                  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\watchfiles\__pycache__\run.cpython-313.pyc                                   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\watchfiles\__pycache__\__main__.cpython-313.pyc                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\websockets\server.py                                                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\websockets\__main__.py                                                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\websockets\asyncio\server.py                                                 
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\websockets\asyncio\__pycache__\server.cpython-313.pyc                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\websockets\legacy\server.py                                                  
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\websockets\legacy\__pycache__\server.cpython-313.pyc                         
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\websockets\sync\server.py                                                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\websockets\sync\__pycache__\server.cpython-313.pyc                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\websockets\trio\server.py                                                    
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\websockets\trio\__pycache__\server.cpython-313.pyc                           
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\websockets\__pycache__\server.cpython-313.pyc                                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\websockets\__pycache__\__main__.cpython-313.pyc                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\_pytest\helpconfig.py                                                        
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\_pytest\main.py                                                              
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\_pytest\runner.py                                                            
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\_pytest\assertion\truncate.py                                                
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\_pytest\assertion\__pycache__\truncate.cpython-313.pyc                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\_pytest\__pycache__\helpconfig.cpython-313.pyc                               
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\_pytest\__pycache__\main.cpython-313.pyc                                     
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\_pytest\__pycache__\runner.cpython-313.pyc                                   
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Scripts\numpy-config.exe                                                                       
+D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Scripts\onnxruntime_test.exe                                                                   
+D:\chess\BookChess\ChessBookReader\backend\app\main.py                                                                                              
+D:\chess\BookChess\ChessBookReader\backend\app\main.py.backup-20261017-221022                                                                       
+D:\chess\BookChess\ChessBookReader\backend\app\main.py.backup-20261017-221229                                                                       
+D:\chess\BookChess\ChessBookReader\backend\app\main.py.backup_20261015_225308                                                                       
+D:\chess\BookChess\ChessBookReader\backend\app\main.py.bak-20261015-231731                                                                          
+D:\chess\BookChess\ChessBookReader\backend\app\__pycache__\main.cpython-310.pyc                                                                     
+D:\chess\BookChess\ChessBookReader\backend\app\__pycache__\main.cpython-311.pyc                                                                     
+D:\chess\BookChess\ChessBookReader\backend\app\__pycache__\main.cpython-313.pyc                                                                     
+
+
+
+========== ENVIRONMENT CONFIGURATION FILES ==========
+.env.example
+Present; contents intentionally excluded.

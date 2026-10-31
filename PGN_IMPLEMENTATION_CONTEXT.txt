@@ -1,0 +1,1850 @@
+﻿CHESSBOOK READER - PGN IMPLEMENTATION CONTEXT
+========== APP IMPORTS ==========
+import { useEffect, useMemo, useRef, useState } from "react";
+import CoordinateTraining from "./CoordinateTraining";
+import NotationLearner from "./NotationLearner";
+import {
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+  putSession,
+  removeBook,
+  removeSession,
+  setActiveBookId,
+} from "./storage";
+import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+
+
+function formatUciMove(fen: string, uci: string): string {
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+      from: match[1] as Square,
+========== APP STATE ==========
+  return {
+    ...candidate,
+    id: candidate.id || `candidate-${index + 1}`,
+    source: candidate.source ?? "automatic",
+    relativeScore: candidate.relativeScore ?? relative_score ?? confidence ?? 0,
+  };
+}
+
+export default function App() {
+  const [books, setBooks] = useState<BookRecord[]>([]);
+  const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
+  const [book, setBook] = useState<BookRecord | null>(null);
+  const [session, setSession] = useState<BookSession | null>(null);
+  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  const [studyMode, setStudyMode] = useState(false);
+  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+  }));
+  const [openingPrepBoard, setOpeningPrepBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+  }));
+  const [ready, setReady] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+  const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+  const [bookSearch, setBookSearch] = useState("");
+  const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+  const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+  const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+  const [openingStatsStatus, setOpeningStatsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [lichessStatus, setLichessStatus] = useState<LichessConnectionStatus | null>(null);
+  const [lichessStatusError, setLichessStatusError] = useState("");
+  const [lichessActionBusy, setLichessActionBusy] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("lichess");
+    if (result === "connected" || result === "denied") {
+      params.delete("lichess");
+      const rest = params.toString();
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash,
+      );
+      if (result === "denied") setLichessStatusError("Lichess authorization was cancelled.");
+    }
+    void getLichessConnectionStatus(controller.signal)
+      .then((status) => {
+        setLichessStatus(status);
+        setLichessStatusError("");
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setLichessStatus(null);
+          setLichessStatusError("Could not check Lichess connection. Ensure the backend is running.");
+        }
+      });
+    return () => controller.abort();
+  }, []);
+
+
+  const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [rendering, setRendering] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const [fenInput, setFenInput] = useState("");
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [promotionRequest, setPromotionRequest] = useState<{ from: Square; to: Square } | null>(null);
+  const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
+  const [gameEndOverlay, setGameEndOverlay] = useState<{ title: string; message: string } | null>(null);
+  const [userArrows, setUserArrows] = useState<BoardArrow[]>([]);
+  const [redSquares, setRedSquares] = useState<Square[]>([]);
+  const [arrowStart, setArrowStart] = useState<Square | null>(null);
+  const [arrowHover, setArrowHover] = useState<Square | null>(null);
+  const [annotationMode, setAnnotationMode] = useState(false);
+  const [dragSelection, setDragSelection] = useState<{ x: number; y: number; x2: number; y2: number } | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
+  const [cropEditingId, setCropEditingId] = useState<string | null>(null);
+  const [transferCandidate, setTransferCandidate] = useState<Candidate | null>(null);
+  const [transferPreview, setTransferPreview] = useState("");
+  const [transferFen, setTransferFen] = useState("");
+  const [recognitionStatus, setRecognitionStatus] = useState<RecognitionStatus>("idle");
+  const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
+  const [recognitionError, setRecognitionError] = useState("");
+  const [engineEnabled, setEngineEnabled] = useState(false);
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
+  const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+  const [engineMessage, setEngineMessage] = useState("");
+  const [engineDepth, setEngineDepth] = useState(14);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pageStageRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+  const renderTaskRef = useRef<RenderTask | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragCurrentRef = useRef<{ x: number; y: number; x2: number; y2: number } | null>(null);
+  const arrowGestureRef = useRef<Square | null>(null);
+  const suppressBoardContextMenuRef = useRef(false);
+  const arrowGestureMovedRef = useRef(false);
+const scanAbortControllerRef = useRef<AbortController | null>(null);
+  const scanRequestIdRef = useRef(0);
+  const transferRequestRef = useRef(0);
+========== BOARD GAME AND HISTORY ==========
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+
+  const boardSession: StudyBoardState | null =
+    workspaceMode === "analysis"
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+        ? openingPrepBoard
+        : workspaceMode === "opening-explorer"
+          ? {
+              lineBaseFen: START_FEN,
+              currentFen: openingPosition.fen,
+              moves: openingPosition.sanMoves,
+              moveIndex: openingPosition.sanMoves.length,
+              flipped: false,
+              coordinates: true,
+            }
+          : studyMode
+            ? studyBoard
+            : session;
+  const game = useMemo(() => {
+    if (!boardSession) return new Chess();
+    try {
+      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+    } catch {
+      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+    }
+  }, [boardSession]);
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return new Set<string>();
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+  useEffect(() => {
+    setUserArrows([]);
+    setArrowStart(null);
+========== BOARD SESSION HELPERS ==========
+
+  function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+    setSession((current) => {
+      if (!current) return current;
+      return typeof change === "function" ? change(current) : { ...current, ...change };
+    });
+  }
+
+  function patchBoardSession(change: Partial<StudyBoardState>) {
+    if (workspaceMode === "opening-explorer") {
+      return;
+    }
+
+    if (workspaceMode === "analysis") {
+      setAnalysisBoard((current) => ({ ...current, ...change }));
+    } else if (workspaceMode === "opening-prep") {
+      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+    } else if (studyMode) {
+      setStudyBoard((current) => current ? { ...current, ...change } : current);
+    } else {
+      patchSession(change);
+    }
+  }
+  async function toggleStudyMode() {
+    if (!studyMode) {
+      if (!session) {
+        setError("Open a book before entering study mode.");
+        return;
+      }
+      setStudyBoard({
+        lineBaseFen: session.lineBaseFen,
+========== POSITION LOADING ==========
+    patchSession({ page: Math.max(1, Math.min(session.pageCount || 999_999, session.page + delta)) });
+  }
+
+  function goToPage(value: number) {
+    if (!session || !Number.isFinite(value)) return;
+    patchSession({ page: Math.max(1, Math.min(session.pageCount || 1, Math.floor(value))) });
+  }
+
+  function moveToPosition(fen: string): boolean {
+    const activeSession = session ?? newSession("analysis");
+    try {
+      const next = new Chess(fen);
+      setSession({
+        ...activeSession,
+        originalFen: fen,
+        lineBaseFen: fen,
+        currentFen: next.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+      setLastMove(null);
+      setSelectedSquare(null);
+      setUserArrows([]);
+      setNotice("Position loaded. Reset Board returns to this diagram position.");
+      return true;
+    } catch (cause) {
+      setError(`Invalid chess position: ${messageOf(cause)}`);
+      return false;
+    }
+  }
+
+  function analyzeManualPosition(fen: string): boolean {
+    const loaded = moveToPosition(fen);
+    if (!loaded) return false;
+    setEngineScore(null);
+    setEngineMessage("");
+========== RESET BOARD ==========
+    };
+    patchSession((current) => ({ ...current, positions: [...current.positions, position] }));
+    setNotice("Position saved to this book.");
+  }
+
+  function resetBoard() {
+    if (workspaceMode === "opening-prep") {
+      const original = new Chess(openingPrepBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else if (studyMode) {
+      if (!studyBoard) return;
+      const original = new Chess(studyBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else {
+      if (!session) return;
+      const original = new Chess(session.originalFen);
+      patchSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    }
+    setLastMove(null);
+    setSelectedSquare(null);
+    setPromotionRequest(null);
+    setError("");
+  }
+
+  const currentCandidates = session?.candidatesByPage[String(session.page)] ?? [];
+  const detectionAttempted = Boolean(session && Object.hasOwn(session.candidatesByPage, String(session.page)));
+  const currentDiagram = currentCandidates.find((candidate) => candidate.id === session?.selectedDiagramId);
+  const whiteTurn = game.turn() === "w";
+
+  if (!ready) {
+    return <main className="startup"><div className="loader" /><span>Restoring your reading session...</span></main>;
+========== MOVE LIST JSX ==========
+                      </button>
+                      <button type="button" className="book-delete-button" title={"Delete " + item.title} aria-label={"Delete " + item.title} onClick={(event) => { event.stopPropagation(); void deleteBook(item); }}>&#215;</button>
+                      <details className="book-menu"><summary aria-label={`Options for ${item.title}`}>&#8942;</summary><div className="book-menu-items"><button onClick={() => void renameBook(item)}>Rename</button><button onClick={() => void deleteBook(item)}>Delete book</button></div></details>
+                    </div>
+                  );
+                })}
+                {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+              </div>
+            <section className="sidebar-moves-panel" aria-label="Move list">
+<div className="moves-panel">
+            <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+              if (!session) return;
+              patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+              setLastMove(null);
+              setNotice("New analysis line started from the current position.");
+            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+            </div>
+          </div>
+            </section>
+            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+          </aside>
+        )}
+
+========== BOARD CONTROLS AND FEN ==========
+                    );
+                  })}
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div className="board-controls">
+            <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+            <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+            <span className="controls-separator" />
+            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+            <span className="controls-spacer" />
+            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+          </div>
+          <div className="turn-row">
+            <span>TO MOVE</span>
+            <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "w");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+            <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "b");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+            <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+          </div>
+          <details className="position-editor">
+            <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+            <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+          </details>
+          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+        </section>
+
+        <section className="reader-panel" aria-label="PDF book reader">
+          <div className="opening-explorer-right-workspace">
+          {workspaceMode === "opening-explorer" && (
+            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+========== APP TESTS ==========
+import "fake-indexeddb/auto";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import App from "./App";
+
+class FakeWorker {
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  commands: string[] = [];
+  terminated = false;
+  postMessage(command: string) {
+    this.commands.push(command);
+    if (command === "uci") {
+      setTimeout(() => this.send("uciok"), 10);
+    } else if (command === "isready") {
+      setTimeout(() => this.send("readyok"), 10);
+    }
+  }
+  terminate() {
+    this.terminated = true;
+  }
+  send(data: string) {
+    this.onmessage?.({ data } as MessageEvent<string>);
+  }
+}
+
+describe("App - Manual Position Setup & Stockfish Analysis", () => {
+  let fakeWorker: FakeWorker;
+
+  beforeEach(() => {
+    fakeWorker = new FakeWorker();
+    vi.stubGlobal(
+      "Worker",
+      class {
+        constructor() {
+          return fakeWorker;
+        }
+      }
+    );
+  });
+
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase("chessbook-reader");
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  });
+
+  it("renders 'Set Up Position' buttons on the analysis board and toggles setup mode", async () => {
+    render(<App />);
+
+    // Wait for app initialization
+    const setupBtns = await screen.findAllByRole("button", { name: /set up position/i });
+    expect(setupBtns.length).toBeGreaterThanOrEqual(1);
+
+    // Click Set Up Position
+    fireEvent.click(setupBtns[0]);
+
+    // Modal should be open
+    expect(screen.getByRole("dialog", { name: "Set Up Position" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Analyze Position" })).toBeInTheDocument();
+
+    // Click Cancel
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    // Modal should close
+    expect(screen.queryByRole("dialog", { name: "Set Up Position" })).not.toBeInTheDocument();
+  });
+
+  it("loads a custom manual position, reflects side to move, and triggers Stockfish analysis", async () => {
+    render(<App />);
+
+    const setupBtns = await screen.findAllByRole("button", { name: /set up position/i });
+    fireEvent.click(setupBtns[0]);
+
+    // Set custom position with Black to move
+    const fenInput = screen.getByPlaceholderText(/paste a complete six-field fen/i) as HTMLInputElement;
+    const customFen = "4k3/8/8/8/8/8/8/4K3 b - - 0 1";
+    fireEvent.change(fenInput, { target: { value: customFen } });
+
+    // Confirm with Analyze Position
+    const analyzeBtn = screen.getByRole("button", { name: "Analyze Position" });
+    await act(async () => {
+      fireEvent.click(analyzeBtn);
+    });
+
+    // Modal should close
+    expect(screen.queryByRole("dialog", { name: "Set Up Position" })).not.toBeInTheDocument();
+
+    // Board FEN should match the custom position
+    const boardFenElement = screen.getByText(customFen);
+    expect(boardFenElement).toBeInTheDocument();
+
+    // Stockfish worker should have received uci and commands
+    expect(fakeWorker.commands).toContain("uci");
+  });
+});
+========== RELEVANT CSS ==========
+
+  src\styles.css:266:  border-color: var(--border-light);
+  src\styles.css:267:}
+  src\styles.css:268:
+> src\styles.css:269:.mini-button {
+  src\styles.css:270:  height: 30px;
+  src\styles.css:271:  min-height: 30px;
+  src\styles.css:272:  padding: 0 10px;
+  src\styles.css:273:  font-size: 12px;
+  src\styles.css:274:  font-weight: 500;
+  src\styles.css:275:  border-radius: 6px;
+  src\styles.css:276:  background: var(--panel-secondary);
+  src\styles.css:277:  border: 1px solid var(--border-subtle);
+  src\styles.css:278:  color: var(--text-secondary);
+  src\styles.css:279:}
+  src\styles.css:280:
+> src\styles.css:281:.mini-button:hover:not(:disabled) {
+  src\styles.css:282:  background: var(--panel-elevated);
+  src\styles.css:283:  border-color: var(--border-light);
+  src\styles.css:284:  color: var(--text-primary);
+  src\styles.css:285:}
+  src\styles.css:286:
+  src\styles.css:287:.icon-button {
+  src\styles.css:288:  width: 32px;
+  src\styles.css:289:  height: 32px;
+  src\styles.css:832:  color: var(--text-muted);
+  src\styles.css:833:}
+  src\styles.css:834:
+> src\styles.css:835:.board-header-actions {
+  src\styles.css:836:  display: flex;
+  src\styles.css:837:  align-items: center;
+  src\styles.css:838:  gap: 6px;
+  src\styles.css:839:}
+  src\styles.css:840:
+> src\styles.css:841:.board-header-actions .setup-position-btn {
+  src\styles.css:842:  color: #BEE5C8;
+  src\styles.css:843:  border-color: rgba(129, 182, 76, 0.35);
+  src\styles.css:844:  background: rgba(129, 182, 76, 0.12);
+  src\styles.css:845:}
+  src\styles.css:846:
+> src\styles.css:847:.board-header-actions .setup-position-btn:hover {
+  src\styles.css:848:  background: rgba(129, 182, 76, 0.22);
+  src\styles.css:849:  border-color: var(--green-primary);
+  src\styles.css:850:}
+  src\styles.css:851:
+  src\styles.css:852:/* Board frame and evaluation bar */
+  src\styles.css:853:.board-area {
+  src\styles.css:854:  display: flex;
+  src\styles.css:855:  flex-direction: row;
+  src\styles.css:1028:   7. BOARD CONTROLS TOOLBAR (NORMALIZED & WRAPPED)
+  src\styles.css:1029:   ========================================================== */
+  src\styles.css:1030:
+> src\styles.css:1031:.board-controls {
+  src\styles.css:1032:  display: flex;
+  src\styles.css:1033:  flex-wrap: wrap;
+  src\styles.css:1034:  align-items: center;
+  src\styles.css:1035:  gap: 5px;
+  src\styles.css:1036:  margin: 8px 0;
+  src\styles.css:1037:  min-height: 32px;
+  src\styles.css:1038:}
+  src\styles.css:1039:
+> src\styles.css:1040:.board-controls button {
+  src\styles.css:1041:  height: 32px;
+  src\styles.css:1042:  min-height: 32px;
+  src\styles.css:1043:  padding: 0 8px;
+  src\styles.css:1044:  font-size: 12px;
+  src\styles.css:1045:  font-weight: 500;
+  src\styles.css:1046:  border-radius: 6px;
+  src\styles.css:1047:  border: 1px solid var(--border-subtle);
+  src\styles.css:1048:  background: var(--panel-elevated);
+  src\styles.css:1054:  box-sizing: border-box;
+  src\styles.css:1055:}
+  src\styles.css:1056:
+> src\styles.css:1057:.board-controls button:hover:not(:disabled) {
+  src\styles.css:1058:  background: var(--panel-hover);
+  src\styles.css:1059:  border-color: var(--border-light);
+  src\styles.css:1060:}
+  src\styles.css:1061:
+  src\styles.css:1062:/* Square icon buttons */
+> src\styles.css:1063:.board-controls button[title*="move"],
+> src\styles.css:1064:.board-controls button[title*="coordinates"],
+> src\styles.css:1065:.board-controls button[title*="Expand"] {
+  src\styles.css:1066:  min-width: 32px;
+  src\styles.css:1067:  width: 32px;
+  src\styles.css:1068:  padding: 0;
+  src\styles.css:1069:  font-size: 13px;
+  src\styles.css:1070:}
+  src\styles.css:1071:
+> src\styles.css:1072:.board-controls button.setup-position-button {
+  src\styles.css:1073:  color: #BEE5C8;
+  src\styles.css:1074:  font-weight: 600;
+  src\styles.css:1075:  background: rgba(129, 182, 76, 0.12);
+  src\styles.css:1076:  border-color: rgba(129, 182, 76, 0.3);
+  src\styles.css:1077:  padding: 0 10px;
+  src\styles.css:1078:}
+  src\styles.css:1079:
+> src\styles.css:1080:.board-controls button.setup-position-button:hover:not(:disabled) {
+  src\styles.css:1081:  background: rgba(129, 182, 76, 0.22);
+  src\styles.css:1082:  border-color: var(--green-primary);
+  src\styles.css:1083:}
+  src\styles.css:1084:
+> src\styles.css:1085:.board-controls button.annotation-active {
+  src\styles.css:1086:  background: rgba(50, 119, 168, 0.25);
+  src\styles.css:1087:  border-color: #3277A8;
+  src\styles.css:1088:  color: #D8ECFF;
+  src\styles.css:1089:}
+  src\styles.css:1090:
+  src\styles.css:1091:.controls-separator {
+  src\styles.css:1092:  height: 20px;
+  src\styles.css:1093:  width: 1px;
+  src\styles.css:1144:  margin-left: auto;
+  src\styles.css:1145:}
+  src\styles.css:1146:
+> src\styles.css:1147:.position-editor {
+  src\styles.css:1148:  border-bottom: 1px solid var(--border-subtle);
+  src\styles.css:1149:  padding: 6px 0;
+  src\styles.css:1150:  color: var(--text-muted);
+  src\styles.css:1151:  font-size: 11px;
+  src\styles.css:1152:}
+  src\styles.css:1153:
+> src\styles.css:1154:.position-editor summary {
+  src\styles.css:1155:  cursor: pointer;
+  src\styles.css:1156:  user-select: none;
+  src\styles.css:1157:}
+  src\styles.css:1158:
+> src\styles.css:1159:.fen-entry {
+  src\styles.css:1160:  display: flex;
+  src\styles.css:1161:  gap: 6px;
+  src\styles.css:1162:  margin-top: 6px;
+  src\styles.css:1163:}
+  src\styles.css:1164:
+> src\styles.css:1165:.fen-entry input {
+  src\styles.css:1166:  min-width: 0;
+  src\styles.css:1167:  flex: 1 1 auto;
+  src\styles.css:1168:  height: 30px;
+  src\styles.css:1169:  background: var(--bg-app);
+  src\styles.css:1170:  color: var(--text-primary);
+  src\styles.css:1171:  border: 1px solid var(--border-subtle);
+  src\styles.css:1172:  border-radius: 5px;
+  src\styles.css:1173:  padding: 0 8px;
+  src\styles.css:1174:  font: 11px "DM Mono", monospace;
+  src\styles.css:1175:}
+  src\styles.css:1176:
+> src\styles.css:1177:.fen-entry .green-button {
+  src\styles.css:1178:  height: 30px;
+  src\styles.css:1179:  min-height: 30px;
+  src\styles.css:1180:  padding: 0 10px;
+  src\styles.css:1181:  font-size: 11px;
+  src\styles.css:1182:}
+  src\styles.css:1183:
+  src\styles.css:1184:.moves-panel {
+  src\styles.css:1185:  flex: 1 1 auto;
+  src\styles.css:1214:  background: var(--green-subtle);
+  src\styles.css:1215:}
+  src\styles.css:1216:
+> src\styles.css:1217:.move-list {
+  src\styles.css:1218:  overflow-y: auto;
+  src\styles.css:1219:  max-height: 80px;
+  src\styles.css:1220:  display: flex;
+  src\styles.css:1221:  flex-wrap: wrap;
+  src\styles.css:1222:  align-content: flex-start;
+  src\styles.css:1223:  gap: 2px;
+  src\styles.css:1224:  padding: 2px 0 4px;
+  src\styles.css:1225:  background: var(--panel-secondary);
+  src\styles.css:1998:  flex-wrap: wrap;
+  src\styles.css:1999:}
+  src\styles.css:2000:
+> src\styles.css:2001:.manual-board-subcontrols .mini-button {
+  src\styles.css:2002:  flex: 1 1 auto;
+  src\styles.css:2003:  height: 28px;
+  src\styles.css:2004:  min-height: 28px;
+  src\styles.css:2005:  font-size: 11px;
+  src\styles.css:2006:  padding: 0 8px;
+  src\styles.css:2007:}
+  src\styles.css:2008:
+  src\styles.css:2009:/* Piece palette container */
+  src\styles.css:2408:
+  src\styles.css:2409:
+  src\styles.css:2410:/* Modern chess analysis controls â€” Chess.com-inspired */
+> src\styles.css:2411:.board-panel .board-controls,
+  src\styles.css:2412:.board-panel .move-controls,
+  src\styles.css:2413:.board-panel .turn-row {
+  src\styles.css:2414:  gap: 8px;
+  src\styles.css:2415:}
+  src\styles.css:2416:
+> src\styles.css:2417:.board-panel .board-controls {
+  src\styles.css:2418:  display: flex;
+  src\styles.css:2419:  flex-wrap: wrap;
+  src\styles.css:2420:  align-items: center;
+  src\styles.css:2421:  margin-top: 10px;
+  src\styles.css:2422:}
+  src\styles.css:2423:
+> src\styles.css:2424:.board-panel .board-controls button,
+  src\styles.css:2425:.board-panel .move-controls button,
+  src\styles.css:2426:.board-panel .turn-row button {
+  src\styles.css:2427:  min-height: 40px;
+  src\styles.css:2428:  padding: 9px 13px;
+  src\styles.css:2429:  border: 1px solid #48443e;
+  src\styles.css:2430:  border-radius: 9px;
+  src\styles.css:2431:  background: linear-gradient(180deg, #393632 0%, #2d2b28 100%);
+  src\styles.css:2432:  color: #e8e6e3;
+  src\styles.css:2438:    transform .16s ease, box-shadow .16s ease;
+  src\styles.css:2439:}
+  src\styles.css:2440:
+> src\styles.css:2441:.board-panel .board-controls button:hover,
+  src\styles.css:2442:.board-panel .move-controls button:hover,
+  src\styles.css:2443:.board-panel .turn-row button:hover {
+  src\styles.css:2444:  background: linear-gradient(180deg, #48453f 0%, #383530 100%);
+  src\styles.css:2445:  border-color: #6a655b;
+  src\styles.css:2446:  box-shadow: 0 3px 9px rgba(0, 0, 0, .22);
+  src\styles.css:2447:  transform: translateY(-1px);
+  src\styles.css:2448:}
+  src\styles.css:2449:
+> src\styles.css:2450:.board-panel .board-controls button:active,
+  src\styles.css:2451:.board-panel .move-controls button:active,
+  src\styles.css:2452:.board-panel .turn-row button:active {
+  src\styles.css:2453:  transform: translateY(0);
+  src\styles.css:2454:  box-shadow: none;
+  src\styles.css:2455:}
+  src\styles.css:2456:
+> src\styles.css:2457:.board-panel .board-controls button:focus-visible,
+  src\styles.css:2458:.board-panel .move-controls button:focus-visible,
+  src\styles.css:2459:.board-panel .turn-row button:focus-visible {
+  src\styles.css:2460:  outline: 2px solid #91c94d;
+  src\styles.css:2461:  outline-offset: 2px;
+  src\styles.css:2462:}
+  src\styles.css:2463:
+> src\styles.css:2464:.board-panel .board-controls button:disabled,
+  src\styles.css:2465:.board-panel .move-controls button:disabled,
+  src\styles.css:2466:.board-panel .turn-row button:disabled {
+  src\styles.css:2467:  opacity: .42;
+  src\styles.css:2468:  cursor: not-allowed;
+  src\styles.css:2469:  transform: none;
+  src\styles.css:2470:  box-shadow: none;
+  src\styles.css:2471:}
+  src\styles.css:2472:
+> src\styles.css:2473:.board-panel .board-controls .setup-position-button,
+  src\styles.css:2474:.board-panel .turn-row .save-position {
+  src\styles.css:2475:  background: linear-gradient(180deg, #91c94d 0%, #78ad39 100%);
+  src\styles.css:2476:  border-color: #91c94d;
+  src\styles.css:2477:  color: #18220f;
+  src\styles.css:2478:}
+  src\styles.css:2479:
+> src\styles.css:2480:.board-panel .board-controls .setup-position-button:hover,
+  src\styles.css:2481:.board-panel .turn-row .save-position:hover {
+  src\styles.css:2482:  background: linear-gradient(180deg, #a1d75e 0%, #88bd46 100%);
+  src\styles.css:2483:  border-color: #b0e17b;
+  src\styles.css:2484:}
+  src\styles.css:2485:
+> src\styles.css:2486:.board-panel .board-controls .annotation-active,
+  src\styles.css:2487:.board-panel .turn-row .turn-active {
+  src\styles.css:2488:  background: #35442a;
+  src\styles.css:2489:  border-color: #91c94d;
+  src\styles.css:2490:  color: #c8f19c;
+  src\styles.css:2491:  box-shadow: inset 0 0 0 1px rgba(145, 201, 77, .16);
+  src\styles.css:2492:}
+  src\styles.css:2493:
+  src\styles.css:2494:.board-panel .turn-row {
+  src\styles.css:2517:  flex: 0 1 auto;
+  src\styles.css:2518:}
+  src\styles.css:2519:
+> src\styles.css:2520:.board-panel .board-controls .controls-spacer {
+  src\styles.css:2521:  flex: 1 1 8px;
+  src\styles.css:2522:}
+  src\styles.css:2523:
+> src\styles.css:2524:.board-panel .position-editor {
+  src\styles.css:2525:  margin-top: 9px;
+  src\styles.css:2526:  border: 1px solid #403c36;
+  src\styles.css:2527:  border-radius: 9px;
+  src\styles.css:2528:  overflow: hidden;
+  src\styles.css:2529:}
+  src\styles.css:2530:
+> src\styles.css:2531:.board-panel .position-editor summary {
+  src\styles.css:2532:  padding: 10px 12px;
+  src\styles.css:2533:  color: #b9b2a7;
+  src\styles.css:2534:  cursor: pointer;
+  src\styles.css:2535:}
+  src\styles.css:2536:
+> src\styles.css:2537:.board-panel .position-editor[open] summary {
+  src\styles.css:2538:  border-bottom: 1px solid #403c36;
+  src\styles.css:2539:  background: #2d2b28;
+  src\styles.css:2540:}
+  src\styles.css:2541:
+  src\styles.css:2542:@media (max-width: 600px) {
+> src\styles.css:2543:  .board-panel .board-controls {
+  src\styles.css:2544:    gap: 6px;
+  src\styles.css:2545:  }
+  src\styles.css:2546:
+> src\styles.css:2547:  .board-panel .board-controls button,
+  src\styles.css:2548:  .board-panel .move-controls button,
+  src\styles.css:2549:  .board-panel .turn-row button {
+  src\styles.css:2550:    min-height: 38px;
+  src\styles.css:2551:    padding: 8px 10px;
+  src\styles.css:2552:    font-size: 12px;
+  src\styles.css:2553:  }
+  src\styles.css:2554:
+  src\styles.css:2555:  .board-panel .turn-row {
+  src\styles.css:2581:  box-sizing: border-box;
+  src\styles.css:2582:}
+  src\styles.css:2583:
+> src\styles.css:2584:.board-controls {
+  src\styles.css:2585:  display: grid;
+  src\styles.css:2586:  grid-template-columns: repeat(4, minmax(0, 1fr));
+  src\styles.css:2587:  align-items: stretch;
+  src\styles.css:2588:  gap: 7px;
+  src\styles.css:2589:  width: 100%;
+  src\styles.css:2590:  min-width: 0;
+  src\styles.css:2591:  margin-top: 2px;
+  src\styles.css:2592:}
+  src\styles.css:2593:
+> src\styles.css:2594:.board-controls button {
+  src\styles.css:2595:  box-sizing: border-box;
+  src\styles.css:2596:  min-width: 0;
+  src\styles.css:2597:  min-height: 40px;
+  src\styles.css:2598:  height: auto;
+  src\styles.css:2599:  padding: 8px 6px;
+  src\styles.css:2600:  white-space: normal;
+  src\styles.css:2601:  overflow-wrap: anywhere;
+  src\styles.css:2602:  line-height: 1.25;
+  src\styles.css:2604:  border-radius: 8px;
+  src\styles.css:2605:}
+  src\styles.css:2606:
+> src\styles.css:2607:.board-controls button:focus-visible,
+  src\styles.css:2608:.turn-row button:focus-visible {
+  src\styles.css:2609:  outline: 2px solid #91c94d;
+  src\styles.css:2610:  outline-offset: 2px;
+  src\styles.css:2611:}
+  src\styles.css:2612:
+  src\styles.css:2613:.turn-row {
+  src\styles.css:2614:  display: grid;
+  src\styles.css:2615:  grid-template-columns: auto repeat(2, minmax(0, 1fr)) minmax(0, 1.25fr);
+  src\styles.css:2643:  border-radius: 8px;
+  src\styles.css:2644:}
+  src\styles.css:2645:
+> src\styles.css:2646:.fen-entry,
+> src\styles.css:2647:.position-editor,
+  src\styles.css:2648:.moves-heading,
+> src\styles.css:2649:.move-list {
+  src\styles.css:2650:  box-sizing: border-box;
+  src\styles.css:2651:  width: 100%;
+  src\styles.css:2652:  min-width: 0;
+  src\styles.css:2653:  max-width: 100%;
+  src\styles.css:2654:}
+  src\styles.css:2655:
+> src\styles.css:2656:.fen-entry {
+  src\styles.css:2657:  display: flex;
+  src\styles.css:2658:  align-items: center;
+  src\styles.css:2659:  flex-wrap: wrap;
+  src\styles.css:2660:  gap: 7px;
+  src\styles.css:2661:  margin-top: 8px;
+  src\styles.css:2662:}
+  src\styles.css:2663:
+> src\styles.css:2664:.fen-entry input {
+  src\styles.css:2665:  flex: 1 1 150px;
+  src\styles.css:2666:  min-width: 0;
+  src\styles.css:2667:  max-width: 100%;
+  src\styles.css:2668:}
+  src\styles.css:2669:
+> src\styles.css:2670:.position-editor {
+  src\styles.css:2671:  margin-top: 8px;
+  src\styles.css:2672:  border-radius: 9px;
+  src\styles.css:2673:  overflow: hidden;
+  src\styles.css:2674:}
+  src\styles.css:2675:
+> src\styles.css:2676:.position-editor summary {
+  src\styles.css:2677:  padding: 10px 12px;
+  src\styles.css:2678:  line-height: 1.4;
+  src\styles.css:2679:  overflow-wrap: anywhere;
+  src\styles.css:2680:  cursor: pointer;
+  src\styles.css:2681:}
+  src\styles.css:2682:
+  src\styles.css:2683:.moves-heading {
+  src\styles.css:2684:  display: flex;
+  src\styles.css:2688:  margin-top: 12px;
+  src\styles.css:2689:}
+  src\styles.css:2690:
+> src\styles.css:2691:.move-list {
+  src\styles.css:2692:  overflow-x: hidden;
+  src\styles.css:2693:  overflow-y: auto;
+  src\styles.css:2694:  overflow-wrap: anywhere;
+  src\styles.css:2695:}
+  src\styles.css:2696:
+  src\styles.css:2697:@media (max-width: 1100px) {
+> src\styles.css:2698:  .board-controls {
+  src\styles.css:2699:    grid-template-columns: repeat(4, minmax(0, 1fr));
+  src\styles.css:2700:  }
+  src\styles.css:2701:
+  src\styles.css:2702:  .turn-row {
+  src\styles.css:2703:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:2704:  }
+  src\styles.css:2705:
+  src\styles.css:2706:  .turn-row > span {
+  src\styles.css:2717:    width: min(100%, 460px);
+  src\styles.css:2718:  }
+  src\styles.css:2719:
+> src\styles.css:2720:  .board-controls {
+  src\styles.css:2721:    gap: 6px;
+  src\styles.css:2722:  }
+  src\styles.css:2723:
+> src\styles.css:2724:  .board-controls button {
+  src\styles.css:2725:    min-height: 38px;
+  src\styles.css:2726:    font-size: 12px;
+  src\styles.css:2727:  }
+  src\styles.css:2728:
+  src\styles.css:2729:  .turn-row {
+  src\styles.css:2730:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:2731:    padding: 8px;
+  src\styles.css:2732:  }
+  src\styles.css:2767:  margin-bottom: 12px;
+  src\styles.css:2768:}
+  src\styles.css:2769:
+> src\styles.css:2770:.board-header-actions {
+  src\styles.css:2771:  display: flex;
+  src\styles.css:2772:  align-items: center;
+  src\styles.css:2773:  justify-content: flex-end;
+  src\styles.css:2774:  flex-wrap: wrap;
+  src\styles.css:2775:  gap: 8px;
+  src\styles.css:2776:  min-width: 0;
+  src\styles.css:2777:}
+  src\styles.css:2778:
+  src\styles.css:2793:  box-sizing: border-box;
+  src\styles.css:2794:}
+  src\styles.css:2795:
+> src\styles.css:2796:.board-controls {
+  src\styles.css:2797:  display: grid;
+  src\styles.css:2798:  grid-template-columns: repeat(4, minmax(0, 1fr));
+  src\styles.css:2799:  align-items: stretch;
+  src\styles.css:2800:  gap: 8px;
+  src\styles.css:2801:  width: 100%;
+  src\styles.css:2802:  min-width: 0;
+  src\styles.css:2803:  margin: 0;
+  src\styles.css:2804:}
+  src\styles.css:2805:
+> src\styles.css:2806:.board-controls .controls-separator,
+> src\styles.css:2807:.board-controls .controls-spacer {
+  src\styles.css:2808:  display: none;
+  src\styles.css:2809:}
+  src\styles.css:2810:
+> src\styles.css:2811:.board-controls button {
+  src\styles.css:2812:  display: inline-flex;
+  src\styles.css:2813:  align-items: center;
+  src\styles.css:2814:  justify-content: center;
+  src\styles.css:2815:  min-width: 0;
+  src\styles.css:2816:  min-height: 42px;
+  src\styles.css:2817:  height: auto;
+  src\styles.css:2818:  margin: 0;
+  src\styles.css:2819:  padding: 9px 8px;
+  src\styles.css:2824:  box-sizing: border-box;
+  src\styles.css:2825:}
+  src\styles.css:2826:
+> src\styles.css:2827:.board-controls button.setup-position-button {
+  src\styles.css:2828:  grid-column: span 2;
+  src\styles.css:2829:}
+  src\styles.css:2830:
+  src\styles.css:2831:.turn-row {
+  src\styles.css:2832:  display: grid;
+  src\styles.css:2833:  grid-template-columns: repeat(3, minmax(0, 1fr));
+  src\styles.css:2834:  align-items: center;
+  src\styles.css:2835:  gap: 8px;
+  src\styles.css:2857:  box-sizing: border-box;
+  src\styles.css:2858:}
+  src\styles.css:2859:
+> src\styles.css:2860:.position-editor {
+  src\styles.css:2861:  display: block;
+  src\styles.css:2862:  width: 100%;
+  src\styles.css:2863:  min-width: 0;
+  src\styles.css:2864:  margin: 10px 0 0;
+  src\styles.css:2865:  box-sizing: border-box;
+  src\styles.css:2866:}
+  src\styles.css:2867:
+> src\styles.css:2868:.position-editor summary {
+  src\styles.css:2869:  display: block;
+  src\styles.css:2870:  padding: 12px 14px;
+  src\styles.css:2871:  line-height: 1.4;
+  src\styles.css:2872:  overflow-wrap: anywhere;
+  src\styles.css:2873:  cursor: pointer;
+  src\styles.css:2874:}
+  src\styles.css:2875:
+> src\styles.css:2876:.fen-entry {
+  src\styles.css:2877:  display: flex;
+  src\styles.css:2878:  align-items: center;
+  src\styles.css:2879:  flex-wrap: wrap;
+  src\styles.css:2880:  gap: 8px;
+  src\styles.css:2881:  width: 100%;
+  src\styles.css:2882:  min-width: 0;
+  src\styles.css:2883:  margin-top: 10px;
+  src\styles.css:2884:}
+  src\styles.css:2885:
+> src\styles.css:2886:.fen-entry input {
+  src\styles.css:2887:  flex: 1 1 180px;
+  src\styles.css:2888:  width: auto;
+  src\styles.css:2889:  min-width: 0;
+  src\styles.css:2890:  max-width: 100%;
+  src\styles.css:2891:}
+  src\styles.css:2892:
+> src\styles.css:2893:.fen-entry button {
+  src\styles.css:2894:  flex: 0 0 auto;
+  src\styles.css:2895:  min-height: 40px;
+  src\styles.css:2896:}
+  src\styles.css:2897:
+  src\styles.css:2898:.moves-panel {
+  src\styles.css:2899:  width: 100%;
+  src\styles.css:2900:  min-width: 0;
+  src\styles.css:2901:  margin-top: 14px;
+  src\styles.css:2916:  flex-shrink: 0;
+  src\styles.css:2917:}
+  src\styles.css:2918:
+> src\styles.css:2919:.move-list {
+  src\styles.css:2920:  width: 100%;
+  src\styles.css:2921:  min-width: 0;
+  src\styles.css:2922:  max-width: 100%;
+  src\styles.css:2923:  overflow-x: hidden;
+  src\styles.css:2924:  overflow-y: auto;
+  src\styles.css:2925:  box-sizing: border-box;
+  src\styles.css:2926:}
+  src\styles.css:2927:
+  src\styles.css:2958:}
+  src\styles.css:2959:
+  src\styles.css:2960:@media (max-width: 1100px) {
+> src\styles.css:2961:  .board-controls {
+  src\styles.css:2962:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:2963:  }
+  src\styles.css:2964:
+> src\styles.css:2965:  .board-controls button.setup-position-button {
+  src\styles.css:2966:    grid-column: span 2;
+  src\styles.css:2967:  }
+  src\styles.css:2968:}
+  src\styles.css:2969:
+  src\styles.css:2970:@media (max-width: 640px) {
+  src\styles.css:2971:  .board-panel {
+  src\styles.css:2972:    padding-left: 10px;
+  src\styles.css:2973:    padding-right: 10px;
+  src\styles.css:2977:    align-items: flex-start;
+  src\styles.css:2978:  }
+  src\styles.css:2979:
+> src\styles.css:2980:  .board-header-actions {
+  src\styles.css:2981:    justify-content: flex-start;
+  src\styles.css:2982:    width: 100%;
+  src\styles.css:2983:  }
+  src\styles.css:2984:
+  src\styles.css:2985:  .board-frame {
+  src\styles.css:2986:    width: 100%;
+  src\styles.css:2987:    max-width: 460px;
+  src\styles.css:2988:  }
+  src\styles.css:2989:
+> src\styles.css:2990:  .board-controls {
+  src\styles.css:2991:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:2992:    gap: 7px;
+  src\styles.css:2993:  }
+  src\styles.css:2994:
+> src\styles.css:2995:  .board-controls button {
+  src\styles.css:2996:    min-height: 40px;
+  src\styles.css:2997:    padding: 8px 6px;
+  src\styles.css:2998:    font-size: 12px;
+  src\styles.css:2999:  }
+  src\styles.css:3000:
+  src\styles.css:3001:  .turn-row {
+  src\styles.css:3002:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:3003:    gap: 7px;
+  src\styles.css:3008:    grid-column: 1 / -1;
+  src\styles.css:3009:  }
+  src\styles.css:3010:
+> src\styles.css:3011:  .fen-entry {
+  src\styles.css:3012:    flex-direction: column;
+  src\styles.css:3013:    align-items: stretch;
+  src\styles.css:3014:  }
+  src\styles.css:3015:
+> src\styles.css:3016:  .fen-entry input,
+> src\styles.css:3017:  .fen-entry button {
+  src\styles.css:3018:    width: 100%;
+  src\styles.css:3019:    flex: 1 1 auto;
+  src\styles.css:3020:  }
+  src\styles.css:3021:
+  src\styles.css:3022:  .move-pair {
+  src\styles.css:3023:    grid-template-columns: 28px repeat(2, minmax(0, 1fr));
+  src\styles.css:3024:  }
+  src\styles.css:3025:}
+  src\styles.css:3047:  flex: 0 1 auto;
+  src\styles.css:3048:}
+  src\styles.css:3049:
+> src\styles.css:3050:.board-controls {
+  src\styles.css:3051:  display: grid !important;
+  src\styles.css:3052:  grid-template-columns: repeat(4, minmax(0, 1fr));
+  src\styles.css:3053:  align-items: stretch;
+  src\styles.css:3054:  gap: 6px !important;
+  src\styles.css:3055:  width: 100%;
+  src\styles.css:3056:  min-width: 0;
+  src\styles.css:3057:  margin: 10px 0 0 !important;
+  src\styles.css:3058:}
+  src\styles.css:3059:
+> src\styles.css:3060:.board-panel .board-controls .controls-separator,
+> src\styles.css:3061:.board-panel .board-controls .controls-spacer {
+  src\styles.css:3062:  display: none !important;
+  src\styles.css:3063:}
+  src\styles.css:3064:
+> src\styles.css:3065:.board-panel .board-controls button {
+  src\styles.css:3066:  display: flex;
+  src\styles.css:3067:  align-items: center;
+  src\styles.css:3068:  justify-content: center;
+  src\styles.css:3069:  width: 100%;
+  src\styles.css:3070:  min-width: 0;
+  src\styles.css:3071:  min-height: 36px;
+  src\styles.css:3072:  height: auto;
+  src\styles.css:3073:  margin: 0;
+  src\styles.css:3080:  box-sizing: border-box;
+  src\styles.css:3081:}
+  src\styles.css:3082:
+> src\styles.css:3083:.board-panel .board-controls button.setup-position-button {
+  src\styles.css:3084:  grid-column: span 2;
+  src\styles.css:3085:}
+  src\styles.css:3086:
+  src\styles.css:3087:.board-panel .turn-row {
+  src\styles.css:3088:  display: grid;
+  src\styles.css:3089:  grid-template-columns: repeat(3, minmax(0, 1fr));
+  src\styles.css:3090:  align-items: center;
+  src\styles.css:3091:  gap: 6px;
+  src\styles.css:3114:  box-sizing: border-box;
+  src\styles.css:3115:}
+  src\styles.css:3116:
+> src\styles.css:3117:.board-panel .position-editor,
+> src\styles.css:3118:.board-panel .fen-entry,
+  src\styles.css:3119:.board-panel .moves-panel,
+  src\styles.css:3120:.board-panel .moves-heading,
+> src\styles.css:3121:.board-panel .move-list,
+  src\styles.css:3122:.board-panel .board-fen {
+  src\styles.css:3123:  width: 100%;
+  src\styles.css:3124:  min-width: 0;
+  src\styles.css:3125:  max-width: 100%;
+  src\styles.css:3126:  box-sizing: border-box;
+  src\styles.css:3127:}
+  src\styles.css:3128:
+> src\styles.css:3129:.board-panel .fen-entry {
+  src\styles.css:3130:  display: flex;
+  src\styles.css:3131:  flex-wrap: wrap;
+  src\styles.css:3132:  gap: 6px;
+  src\styles.css:3133:}
+  src\styles.css:3134:
+> src\styles.css:3135:.board-panel .fen-entry input {
+  src\styles.css:3136:  flex: 1 1 120px;
+  src\styles.css:3137:  width: auto;
+  src\styles.css:3138:  min-width: 0;
+  src\styles.css:3139:  max-width: 100%;
+  src\styles.css:3140:}
+  src\styles.css:3141:
+> src\styles.css:3142:.board-panel .fen-entry button {
+  src\styles.css:3143:  min-width: 0;
+  src\styles.css:3144:  max-width: 100%;
+  src\styles.css:3145:}
+  src\styles.css:3146:
+  src\styles.css:3147:@media (max-width: 1100px) {
+> src\styles.css:3148:  .board-panel .board-controls {
+  src\styles.css:3149:    grid-template-columns: repeat(3, minmax(0, 1fr));
+  src\styles.css:3150:  }
+  src\styles.css:3151:
+  src\styles.css:3152:  .board-panel .turn-row {
+  src\styles.css:3153:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:3154:  }
+  src\styles.css:3155:}
+  src\styles.css:3156:
+  src\styles.css:3157:@media (max-width: 600px) {
+> src\styles.css:3158:  .board-panel .board-controls {
+  src\styles.css:3159:    grid-template-columns: repeat(2, minmax(0, 1fr));
+  src\styles.css:3160:  }
+  src\styles.css:3161:
+> src\styles.css:3162:  .board-panel .board-controls button.setup-position-button {
+  src\styles.css:3163:    grid-column: span 2;
+  src\styles.css:3164:  }
+  src\styles.css:3165:}
+  src\styles.css:3166:.board-panel {
+  src\styles.css:3167:  min-width: 0;
+  src\styles.css:3168:  min-height: 0;
+  src\styles.css:3169:  overflow-y: auto;
+  src\styles.css:3170:  overflow-x: hidden;
+  src\styles.css:3183:  aspect-ratio: 1 / 1;
+  src\styles.css:3184:  flex: 0 1 auto;
+  src\styles.css:3185:}
+> src\styles.css:3186:.board-controls {
+  src\styles.css:3187:  display: flex;
+  src\styles.css:3188:  flex-wrap: wrap;
+  src\styles.css:3189:  align-items: center;
+  src\styles.css:3190:  justify-content: center;
+  src\styles.css:3191:  gap: 6px;
+  src\styles.css:3192:  width: 100%;
+  src\styles.css:3193:  min-width: 0;
+  src\styles.css:3194:}
+> src\styles.css:3195:.board-controls button {
+  src\styles.css:3196:  flex: 0 0 auto;
+  src\styles.css:3197:  max-width: 100%;
+  src\styles.css:3198:}
+  src\styles.css:3199:.turn-row {
+  src\styles.css:3200:  display: flex;
+  src\styles.css:3201:  flex-wrap: wrap;
+  src\styles.css:3202:  align-items: center;
+  src\styles.css:3203:  justify-content: center;
+  src\styles.css:3234:  gap: 8px;
+  src\styles.css:3235:}
+  src\styles.css:3236:
+> src\styles.css:3237:.board-header-actions {
+  src\styles.css:3238:  display: flex;
+  src\styles.css:3239:  align-items: center;
+  src\styles.css:3240:  gap: 8px;
+  src\styles.css:3241:  flex-wrap: nowrap;
+  src\styles.css:3242:}
+  src\styles.css:3243:
+> src\styles.css:3244:.board-header-actions button {
+  src\styles.css:3245:  white-space: nowrap;
+  src\styles.css:3246:}
+  src\styles.css:3247:
+  src\styles.css:3248:.board-area {
+  src\styles.css:3249:  width: 100%;
+  src\styles.css:3250:  min-width: 0;
+  src\styles.css:3251:  display: flex;
+  src\styles.css:3252:  justify-content: center;
+  src\styles.css:3261:  aspect-ratio: 1 / 1;
+  src\styles.css:3262:}
+  src\styles.css:3263:
+> src\styles.css:3264:.board-controls {
+  src\styles.css:3265:  width: 100%;
+  src\styles.css:3266:  display: flex;
+  src\styles.css:3267:  flex-wrap: wrap;
+  src\styles.css:3268:  justify-content: center;
+  src\styles.css:3269:  align-items: center;
+  src\styles.css:3270:  gap: 6px;
+  src\styles.css:3271:}
+  src\styles.css:3272:
+  src\styles.css:3302:  .board-frame {
+  src\styles.css:3303:    width: min(100%, 68vw, 480px);
+  src\styles.css:3304:  }
+> src\styles.css:3305:  .board-header-actions {
+  src\styles.css:3306:    flex-wrap: wrap;
+  src\styles.css:3307:  }
+  src\styles.css:3308:}
+  src\styles.css:3309:
+  src\styles.css:3310:/* Compact, viewport-fitted analysis layout */
+  src\styles.css:3311:.workspace {
+  src\styles.css:3312:  min-height: 0;
+  src\styles.css:3313:  height: 100%;
+  src\styles.css:3352:  margin: 0;
+  src\styles.css:3353:}
+  src\styles.css:3354:
+> src\styles.css:3355:.board-header-actions {
+  src\styles.css:3356:  display: flex;
+  src\styles.css:3357:  flex-direction: row;
+  src\styles.css:3358:  flex-wrap: nowrap;
+  src\styles.css:3359:  align-items: center;
+  src\styles.css:3360:  justify-content: flex-end;
+  src\styles.css:3361:  gap: 6px;
+  src\styles.css:3362:  margin: 0;
+  src\styles.css:3363:}
+  src\styles.css:3364:
+> src\styles.css:3365:.board-header-actions button {
+  src\styles.css:3366:  padding: 5px 9px;
+  src\styles.css:3367:  min-height: 30px;
+  src\styles.css:3368:  white-space: nowrap;
+  src\styles.css:3369:}
+  src\styles.css:3370:
+  src\styles.css:3371:.board-area {
+  src\styles.css:3372:  flex: 0 0 auto;
+  src\styles.css:3373:  width: 100%;
+  src\styles.css:3387:  aspect-ratio: 1 / 1;
+  src\styles.css:3388:}
+  src\styles.css:3389:
+> src\styles.css:3390:.board-controls {
+  src\styles.css:3391:  display: flex;
+  src\styles.css:3392:  flex: 0 0 auto;
+  src\styles.css:3393:  flex-wrap: wrap;
+  src\styles.css:3394:  align-items: center;
+  src\styles.css:3395:  justify-content: center;
+  src\styles.css:3396:  gap: 5px;
+  src\styles.css:3397:  width: 100%;
+  src\styles.css:3398:  margin-top: 5px;
+  src\styles.css:3399:}
+  src\styles.css:3400:
+> src\styles.css:3401:.board-controls button {
+  src\styles.css:3402:  min-height: 32px;
+  src\styles.css:3403:  padding: 5px 9px;
+  src\styles.css:3404:  flex: 0 1 auto;
+  src\styles.css:3405:}
+  src\styles.css:3406:
+  src\styles.css:3407:.turn-row {
+  src\styles.css:3408:  display: flex;
+  src\styles.css:3409:  flex: 0 0 auto;
+  src\styles.css:3415:  padding: 6px;
+  src\styles.css:3416:}
+  src\styles.css:3417:
+> src\styles.css:3418:.position-editor {
+  src\styles.css:3419:  flex: 0 0 auto;
+  src\styles.css:3420:  margin-top: 4px;
+  src\styles.css:3421:}
+  src\styles.css:3422:
+  src\styles.css:3423:.moves-panel {
+  src\styles.css:3424:  min-height: 0;
+  src\styles.css:3425:  margin-top: 4px;
+  src\styles.css:3426:}
+  src\styles.css:3457:    width: min(100%, calc(100vh - 310px), 500px);
+  src\styles.css:3458:  }
+  src\styles.css:3459:
+> src\styles.css:3460:  .board-controls {
+  src\styles.css:3461:    margin-top: 4px;
+  src\styles.css:3462:    gap: 4px;
+  src\styles.css:3463:  }
+  src\styles.css:3464:
+> src\styles.css:3465:  .board-controls button {
+  src\styles.css:3466:    min-height: 29px;
+  src\styles.css:3467:    padding: 4px 8px;
+  src\styles.css:3468:  }
+  src\styles.css:3469:
+  src\styles.css:3470:  .turn-row {
+  src\styles.css:3471:    margin-top: 3px;
+  src\styles.css:3472:    padding: 4px;
+  src\styles.css:3473:  }
+  src\styles.css:3508:  gap: 8px;
+  src\styles.css:3509:}
+  src\styles.css:3510:
+> src\styles.css:3511:.board-header-actions {
+  src\styles.css:3512:  display: flex;
+  src\styles.css:3513:  flex-direction: row;
+  src\styles.css:3514:  flex-wrap: nowrap;
+  src\styles.css:3515:  align-items: center;
+  src\styles.css:3516:  justify-content: flex-end;
+  src\styles.css:3517:  gap: 8px;
+  src\styles.css:3518:  min-width: max-content;
+  src\styles.css:3519:}
+  src\styles.css:3520:
+> src\styles.css:3521:.board-header-actions button {
+  src\styles.css:3522:  flex: 0 0 auto;
+  src\styles.css:3523:  white-space: nowrap;
+  src\styles.css:3524:}
+  src\styles.css:3525:
+  src\styles.css:3526:
+  src\styles.css:3527:/* Force Flip + Set Up Position onto one horizontal header row */
+  src\styles.css:3528:.board-panel .board-header {
+  src\styles.css:3529:  display: grid !important;
+  src\styles.css:3540:  min-width: 0;
+  src\styles.css:3541:}
+  src\styles.css:3542:
+> src\styles.css:3543:.board-panel .board-header-actions {
+  src\styles.css:3544:  display: flex !important;
+  src\styles.css:3545:  flex-direction: row !important;
+  src\styles.css:3546:  flex-wrap: nowrap !important;
+  src\styles.css:3547:  align-items: center !important;
+  src\styles.css:3548:  justify-content: flex-end !important;
+  src\styles.css:3549:  gap: 6px !important;
+  src\styles.css:3550:  width: auto !important;
+  src\styles.css:3551:  min-width: 0 !important;
+  src\styles.css:3552:  margin: 0 !important;
+  src\styles.css:3553:}
+  src\styles.css:3554:
+> src\styles.css:3555:.board-panel .board-header-actions button {
+  src\styles.css:3556:  display: inline-flex !important;
+  src\styles.css:3557:  flex: 0 0 auto !important;
+  src\styles.css:3558:  width: auto !important;
+  src\styles.css:3559:  min-width: max-content !important;
+  src\styles.css:3560:  white-space: nowrap !important;
+  src\styles.css:3561:  margin: 0 !important;
+  src\styles.css:3562:}
+  src\styles.css:3563:
+  src\styles.css:3606:  padding: 8px 2px 6px;
+  src\styles.css:3607:}
+  src\styles.css:3608:
+> src\styles.css:3609:.sidebar-moves-panel .move-list {
+  src\styles.css:3610:  flex: 1 1 auto;
+  src\styles.css:3611:  min-height: 0;
+  src\styles.css:3612:  max-height: none;
+  src\styles.css:3613:  overflow-y: auto;
+  src\styles.css:3614:  overflow-x: hidden;
+  src\styles.css:3615:  align-content: flex-start;
+  src\styles.css:3616:  scroll-behavior: smooth;
+  src\styles.css:3617:}
+  src\styles.css:3636:}
+  src\styles.css:3637:
+  src\styles.css:3638:
+> src\styles.css:3639:/* Final compact fit: fill the sidebar move-list area and keep board controls visible */
+  src\styles.css:3640:.library-panel {
+  src\styles.css:3641:  display: flex;
+  src\styles.css:3642:  flex-direction: column;
+  src\styles.css:3643:  min-height: 0;
+  src\styles.css:3644:  overflow: hidden;
+  src\styles.css:3645:}
+  src\styles.css:3646:
+  src\styles.css:3647:.library-panel .sidebar-moves-panel {
+  src\styles.css:3660:  overflow: hidden !important;
+  src\styles.css:3661:}
+  src\styles.css:3662:
+> src\styles.css:3663:.sidebar-moves-panel .move-list {
+  src\styles.css:3664:  flex: 1 1 0 !important;
+  src\styles.css:3665:  min-height: 0 !important;
+  src\styles.css:3666:  height: 100% !important;
+  src\styles.css:3667:  max-height: none !important;
+  src\styles.css:3668:  overflow-y: auto !important;
+  src\styles.css:3669:  overflow-x: hidden !important;
+  src\styles.css:3670:  align-content: start;
+  src\styles.css:3671:}
+  src\styles.css:3695:  gap: 5px !important;
+  src\styles.css:3696:}
+  src\styles.css:3697:
+> src\styles.css:3698:.board-panel .board-header-actions {
+  src\styles.css:3699:  gap: 5px !important;
+  src\styles.css:3700:}
+  src\styles.css:3701:
+> src\styles.css:3702:.board-panel .board-header-actions button {
+  src\styles.css:3703:  min-height: 27px !important;
+  src\styles.css:3704:  padding: 3px 7px !important;
+  src\styles.css:3705:  font-size: 11px !important;
+  src\styles.css:3706:}
+  src\styles.css:3707:
+  src\styles.css:3708:.board-panel .board-area {
+  src\styles.css:3709:  margin: 0 auto !important;
+  src\styles.css:3710:  flex: 0 0 auto !important;
+  src\styles.css:3716:  flex: 0 1 auto !important;
+  src\styles.css:3717:}
+  src\styles.css:3718:
+> src\styles.css:3719:.board-panel .board-controls {
+  src\styles.css:3720:  display: flex !important;
+  src\styles.css:3721:  flex-wrap: nowrap !important;
+  src\styles.css:3722:  justify-content: center !important;
+  src\styles.css:3723:  align-items: stretch !important;
+  src\styles.css:3724:  gap: 4px !important;
+  src\styles.css:3725:  margin-top: 4px !important;
+  src\styles.css:3726:  width: 100% !important;
+  src\styles.css:3727:}
+  src\styles.css:3728:
+> src\styles.css:3729:.board-panel .board-controls button {
+  src\styles.css:3730:  flex: 1 1 0 !important;
+  src\styles.css:3731:  min-width: 0 !important;
+  src\styles.css:3732:  width: auto !important;
+  src\styles.css:3733:  min-height: 29px !important;
+  src\styles.css:3734:  height: 29px !important;
+  src\styles.css:3735:  padding: 3px 4px !important;
+  src\styles.css:3736:  font-size: 10px !important;
+  src\styles.css:3737:  white-space: nowrap !important;
+  src\styles.css:3752:  font-size: 10px !important;
+  src\styles.css:3753:}
+  src\styles.css:3754:
+> src\styles.css:3755:.board-panel .position-editor {
+  src\styles.css:3756:  margin-top: 3px !important;
+  src\styles.css:3757:}
+  src\styles.css:3758:
+> src\styles.css:3759:.board-panel .fen-entry {
+  src\styles.css:3760:  gap: 4px !important;
+  src\styles.css:3761:}
+  src\styles.css:3762:
+> src\styles.css:3763:.board-panel .fen-entry input,
+> src\styles.css:3764:.board-panel .fen-entry button {
+  src\styles.css:3765:  min-height: 27px !important;
+  src\styles.css:3766:  padding: 3px 6px !important;
+  src\styles.css:3767:  font-size: 10px !important;
+  src\styles.css:3768:}
+  src\styles.css:3769:
+  src\styles.css:3770:.board-panel .board-fen {
+  src\styles.css:3771:  margin-top: 3px !important;
+  src\styles.css:3772:  padding: 6px 8px !important;
+  src\styles.css:3782:    width: min(100%, calc(100vh - 380px), 470px) !important;
+  src\styles.css:3783:  }
+  src\styles.css:3784:
+> src\styles.css:3785:  .board-panel .board-controls button,
+  src\styles.css:3786:  .board-panel .turn-row button {
+  src\styles.css:3787:    min-height: 26px !important;
+  src\styles.css:3788:    height: 26px !important;
+  src\styles.css:3789:    font-size: 9px !important;
+  src\styles.css:3790:  }
+  src\styles.css:3791:}
+  src\styles.css:3792:
+  src\styles.css:3793:@media (max-height: 760px) {
+  src\styles.css:3820:  min-width: 0 !important;
+  src\styles.css:3821:}
+  src\styles.css:3822:
+> src\styles.css:3823:.board-panel .board-controls {
+  src\styles.css:3824:  display: grid !important;
+  src\styles.css:3825:  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  src\styles.css:3826:  grid-auto-flow: row !important;
+  src\styles.css:3827:  align-items: stretch !important;
+  src\styles.css:3828:  gap: 6px !important;
+  src\styles.css:3829:  margin-top: 8px !important;
+  src\styles.css:3830:  width: 100% !important;
+  src\styles.css:3831:}
+  src\styles.css:3832:
+> src\styles.css:3833:.board-panel .board-controls button {
+  src\styles.css:3834:  width: 100% !important;
+  src\styles.css:3835:  min-width: 0 !important;
+  src\styles.css:3836:  min-height: 38px !important;
+  src\styles.css:3837:  height: 38px !important;
+  src\styles.css:3838:  padding: 6px 8px !important;
+  src\styles.css:3839:  font-size: 11px !important;
+  src\styles.css:3840:  white-space: nowrap !important;
+  src\styles.css:3841:}
+  src\styles.css:3893:  padding: 8px 2px !important;
+  src\styles.css:3894:}
+  src\styles.css:3895:
+> src\styles.css:3896:.sidebar-moves-panel .move-list {
+  src\styles.css:3897:  display: block !important;
+  src\styles.css:3898:  flex: 1 1 0 !important;
+  src\styles.css:3899:  min-height: 0 !important;
+  src\styles.css:3900:  height: 100% !important;
+  src\styles.css:3901:  max-height: none !important;
+  src\styles.css:3902:  overflow-y: auto !important;
+  src\styles.css:3903:  overflow-x: hidden !important;
+  src\styles.css:3904:  scroll-behavior: smooth !important;
+  src\styles.css:3921:    width: min(100%, calc(100vh - 335px), 480px) !important;
+  src\styles.css:3922:  }
+  src\styles.css:3923:
+> src\styles.css:3924:  .board-panel .board-controls button {
+  src\styles.css:3925:    min-height: 35px !important;
+  src\styles.css:3926:    height: 35px !important;
+  src\styles.css:3927:  }
+  src\styles.css:3928:}
+  src\styles.css:3929:
+  src\styles.css:3930:@media (max-height: 720px) {
+  src\styles.css:3931:  .board-panel .board-frame {
+  src\styles.css:3932:    width: min(100%, calc(100vh - 305px), 400px) !important;
+  src\styles.css:3933:  }
+  src\styles.css:3934:
+> src\styles.css:3935:  .board-panel .board-controls button {
+  src\styles.css:3936:    min-height: 31px !important;
+  src\styles.css:3937:    height: 31px !important;
+  src\styles.css:3938:  }
+  src\styles.css:3939:}
+  src\styles.css:3940:
+  src\styles.css:3941:
+  src\styles.css:3942:/* Use the empty lower sidebar area for a taller move list */
+  src\styles.css:3943:.library-panel {
+  src\styles.css:3965:  overflow: hidden !important;
+  src\styles.css:3966:}
+  src\styles.css:3967:
+> src\styles.css:3968:.sidebar-moves-panel .move-list {
+  src\styles.css:3969:  flex: 1 1 auto !important;
+  src\styles.css:3970:  min-height: 0 !important;
+  src\styles.css:3971:  max-height: none !important;
+  src\styles.css:3972:  height: 100% !important;
+  src\styles.css:3973:  overflow-y: auto !important;
+  src\styles.css:3974:  overflow-x: hidden !important;
+  src\styles.css:3975:}
+  src\styles.css:3976:
+  src\styles.css:4020:  min-width: 0 !important;
+  src\styles.css:4021:}
+  src\styles.css:4022:
+> src\styles.css:4023:.board-panel .board-controls {
+  src\styles.css:4024:  gap: 4px !important;
+  src\styles.css:4025:  margin-top: 4px !important;
+  src\styles.css:4026:}
+  src\styles.css:4027:
+> src\styles.css:4028:.board-panel .board-controls button {
+  src\styles.css:4029:  min-height: 32px !important;
+  src\styles.css:4030:  height: 32px !important;
+  src\styles.css:4031:  padding: 4px 5px !important;
+  src\styles.css:4032:  font-size: 10px !important;
+  src\styles.css:4033:}
+  src\styles.css:4034:
+  src\styles.css:4035:@media (max-height: 820px) {
+  src\styles.css:4036:  .board-panel .board-frame {
+  src\styles.css:4043:    width: min(100%, calc(100vh - 320px), 390px) !important;
+  src\styles.css:4044:  }
+  src\styles.css:4045:
+> src\styles.css:4046:  .board-panel .board-controls button {
+  src\styles.css:4047:    min-height: 28px !important;
+  src\styles.css:4048:    height: 28px !important;
+  src\styles.css:4049:  }
+  src\styles.css:4050:}
+  src\styles.css:4051:
+  src\styles.css:4052:
+  src\styles.css:4053:/* Place TO MOVE beside FEN/PGN on the same row */
+> src\styles.css:4054:.board-panel .board-controls {
+  src\styles.css:4055:  display: grid !important;
+  src\styles.css:4056:  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  src\styles.css:4057:  gap: 4px !important;
+  src\styles.css:4058:}
+  src\styles.css:4059:
+> src\styles.css:4060:.board-panel .board-controls button {
+  src\styles.css:4061:  min-width: 0 !important;
+  src\styles.css:4062:  padding-inline: 4px !important;
+  src\styles.css:4063:}
+  src\styles.css:4064:
+  src\styles.css:4065:.board-panel .turn-row {
+  src\styles.css:4066:  display: grid !important;
+  src\styles.css:4067:  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+  src\styles.css:4068:  gap: 4px !important;
+  src\styles.css:4069:}
+  src\styles.css:4070:
+  src\styles.css:4071:/* FEN, PGN, and the move-to-play controls share one horizontal row */
+> src\styles.css:4072:.board-panel .board-controls:has(button[title="FEN"]) {
+  src\styles.css:4073:  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  src\styles.css:4074:}
+  src\styles.css:4075:
+> src\styles.css:4076:.board-panel .board-controls button[title="FEN"],
+> src\styles.css:4077:.board-panel .board-controls button[title="PGN"] {
+  src\styles.css:4078:  grid-row: 3 !important;
+  src\styles.css:4079:}
+  src\styles.css:4080:
+  src\styles.css:4081:.board-panel .turn-row {
+  src\styles.css:4082:  grid-row: 3 !important;
+  src\styles.css:4083:  grid-column: 3 / 5 !important;
+  src\styles.css:4084:  align-self: stretch !important;
+  src\styles.css:4085:  margin: 0 !important;
+  src\styles.css:4261:  overflow: hidden !important;
+  src\styles.css:4262:}
+  src\styles.css:4263:
+> src\styles.css:4264:.library-panel .sidebar-moves-panel .move-list {
+  src\styles.css:4265:  display: block !important;
+  src\styles.css:4266:  flex: 1 1 auto !important;
+  src\styles.css:4267:  min-height: 0 !important;
+  src\styles.css:4268:  height: 100% !important;
+  src\styles.css:4269:  max-height: none !important;
+  src\styles.css:4270:  overflow-y: auto !important;
+  src\styles.css:4271:  overflow-x: hidden !important;
+  src\styles.css:4272:  align-content: start !important;
+  src\styles.css:4273:}
+  src\styles.css:4274:
+  src\styles.css:4275:/* If the list is short or empty, the border/background still fills the panel. */
+> src\styles.css:4276:.library-panel .sidebar-moves-panel .move-list:empty {
+  src\styles.css:4277:  flex: 1 1 auto !important;
+  src\styles.css:4278:  min-height: 100% !important;
+  src\styles.css:4279:  height: 100% !important;
+  src\styles.css:4280:}
+  src\styles.css:4281:
+  src\styles.css:4282:/* Keep book entries in their own scrollable area instead of pushing moves down. */
+  src\styles.css:4283:.library-panel .book-list,
+  src\styles.css:4284:.library-panel .recent-books,
+  src\styles.css:4290:  overflow-x: hidden !important;
+  src\styles.css:4291:}
+  src\styles.css:4292:
+> src\styles.css:4293:/* Footer stays at the bottom; move-list panel consumes all space above it. */
+  src\styles.css:4294:.library-panel .library-footer {
+  src\styles.css:4295:  flex: 0 0 auto !important;
+  src\styles.css:4296:  margin-top: 0 !important;
+  src\styles.css:4297:}
+  src\styles.css:4298:
+  src\styles.css:4299:
+  src\styles.css:4300:/* Hide the extra section-label row above the board. */
+  src\styles.css:4301:.board-panel .section-eyebrow,
+  src\styles.css:4957:
+  src\styles.css:4958:
+  src\styles.css:4959:
+> src\styles.css:4960:.board-controls button.annotation-active,
+> src\styles.css:4961:.board-controls button[aria-pressed="true"] {
+  src\styles.css:4962:  background: #81b64c !important;
+  src\styles.css:4963:  color: #172313 !important;
+  src\styles.css:4964:  border-color: #a3d160 !important;
+  src\styles.css:4965:  box-shadow: 0 0 0 2px rgba(129, 182, 76, .22) !important;
+  src\styles.css:4966:}
+  src\styles.css:4967:
+  src\styles.css:4968:
+  src\styles.css:4969:
+  src\styles.css:5123:    width: min(100%, 48vh, 500px) !important;
+  src\styles.css:5124:  }
+  src\styles.css:5125:
+> src\styles.css:5126:  .board-panel .board-controls {
+  src\styles.css:5127:    gap: 4px !important;
+  src\styles.css:5128:    margin-top: 3px !important;
+  src\styles.css:5129:  }
+  src\styles.css:5130:
+> src\styles.css:5131:  .board-panel .board-controls button {
+  src\styles.css:5132:    min-height: 30px !important;
+  src\styles.css:5133:    height: auto !important;
+  src\styles.css:5134:    padding: 4px 5px !important;
+  src\styles.css:5135:  }
+  src\styles.css:5136:}
+  src\styles.css:5137:
+  src\styles.css:5138:
+  src\styles.css:5139:/* User right-click square highlights */
+  src\styles.css:5147:}
+  src\styles.css:5148:
+  src\styles.css:5149:/* Consistent icon controls — ChessBook Reader */
+> src\styles.css:5150:.board-controls button,
+  src\styles.css:5151:.board-panel button,
+  src\styles.css:5152:.library-toggle,
+  src\styles.css:5153:.icon-button {
+  src\styles.css:5154:  -webkit-tap-highlight-color: transparent;
+  src\styles.css:5155:}
+  src\styles.css:5156:
+> src\styles.css:5157:.board-controls button {
+  src\styles.css:5158:  display: inline-flex;
+  src\styles.css:5159:  align-items: center;
+  src\styles.css:5160:  justify-content: center;
+  src\styles.css:5161:  gap: 8px;
+  src\styles.css:5162:  font-family: inherit;
+  src\styles.css:5163:  font-weight: 600;
+  src\styles.css:5164:  transition:
+  src\styles.css:5165:    background-color 160ms ease,
+  src\styles.css:5168:    transform 160ms ease;
+  src\styles.css:5169:}
+  src\styles.css:5170:
+> src\styles.css:5171:.board-controls button svg,
+  src\styles.css:5172:.library-nav-item svg,
+  src\styles.css:5173:.search-field svg {
+  src\styles.css:5174:  flex: 0 0 auto;
+  src\styles.css:5175:  display: block;
+  src\styles.css:5176:}
+  src\styles.css:5177:
+> src\styles.css:5178:.board-controls button svg {
+  src\styles.css:5179:  width: 18px;
+  src\styles.css:5180:  height: 18px;
+  src\styles.css:5181:  stroke-width: 1.9;
+  src\styles.css:5182:}
+  src\styles.css:5183:
+> src\styles.css:5184:.board-controls button:focus-visible,
+  src\styles.css:5185:.library-nav-item:focus-visible,
+  src\styles.css:5186:.icon-button:focus-visible {
+  src\styles.css:5187:  outline: 2px solid #a3e635;
+  src\styles.css:5188:  outline-offset: 2px;
+  src\styles.css:5189:}
+  src\styles.css:5190:
+> src\styles.css:5191:.board-controls button:active {
+  src\styles.css:5192:  transform: translateY(1px);
+  src\styles.css:5193:}
+  src\styles.css:5194:
+  src\styles.css:5195:.library-nav-item {
+  src\styles.css:5196:  display: flex;
+  src\styles.css:5197:  align-items: center;
+  src\styles.css:5198:  gap: 12px;
+  src\styles.css:5199:  text-align: left;
+  src\styles.css:5226:}
+  src\styles.css:5227:
+  src\styles.css:5228:@media (prefers-reduced-motion: reduce) {
+> src\styles.css:5229:  .board-controls button,
+  src\styles.css:5230:  .library-nav-item {
+  src\styles.css:5231:    transition: none;
+  src\styles.css:5232:  }
+  src\styles.css:5233:}
+  src\styles.css:5234:
+  src\styles.css:5235:/* Center library navigation options */
+  src\styles.css:5236:.library-nav {
+  src\styles.css:5237:  display: flex;
+  src\styles.css:5356:  box-sizing: border-box !important;
+  src\styles.css:5357:}
+  src\styles.css:5358:
+> src\styles.css:5359:.board-panel .board-controls {
+  src\styles.css:5360:  display: grid !important;
+  src\styles.css:5361:  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  src\styles.css:5362:  width: 100% !important;
+  src\styles.css:5363:  min-width: 0 !important;
+  src\styles.css:5364:  box-sizing: border-box !important;
+  src\styles.css:5365:  gap: 5px !important;
+  src\styles.css:5366:}
+  src\styles.css:5367:
+> src\styles.css:5368:.board-panel .board-controls button {
+  src\styles.css:5369:  min-width: 0 !important;
+  src\styles.css:5370:  max-width: 100% !important;
+  src\styles.css:5371:  width: 100% !important;
+  src\styles.css:5372:  box-sizing: border-box !important;
+  src\styles.css:5373:  white-space: normal !important;
+  src\styles.css:5374:  overflow-wrap: anywhere;
+  src\styles.css:5375:}
+  src\styles.css:5376:
+  src\styles.css:5389:}
+  src\styles.css:5390:
+  src\styles.css:5391:@media (max-width: 1100px) {
+> src\styles.css:5392:  .board-panel .board-controls {
+  src\styles.css:5393:    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  src\styles.css:5394:  }
+  src\styles.css:5395:
+> src\styles.css:5396:  .board-panel .board-controls button.setup-position-button {
+  src\styles.css:5397:    grid-column: 1 / -1 !important;
+  src\styles.css:5398:  }
+  src\styles.css:5399:}
+  src\styles.css:5400:
+  src\styles.css:5401:
+  src\styles.css:5402:
+  src\styles.css:5403:/* ==========================================================
+  src\styles.css:5404:   STABLE RESPONSIVE WORKSPACE LAYOUT
+  src\styles.css:5483:  box-sizing: border-box;
+  src\styles.css:5484:}
+  src\styles.css:5485:
+> src\styles.css:5486:.workspace .board-controls {
+  src\styles.css:5487:  width: 100%;
+  src\styles.css:5488:  min-width: 0;
+  src\styles.css:5489:  box-sizing: border-box;
+  src\styles.css:5490:}
+  src\styles.css:5491:
+  src\styles.css:5492:.workspace > .reader-panel {
+  src\styles.css:5493:  overflow: hidden;
+  src\styles.css:5494:}
+  src\styles.css:5644:}
+  src\styles.css:5645:
+  src\styles.css:5646:/* Consistent SVG icon system for chess analysis controls */
+> src\styles.css:5647:.board-panel .board-controls button,
+  src\styles.css:5648:.board-panel .turn-row button {
+  src\styles.css:5649:  display: inline-flex;
+  src\styles.css:5650:  align-items: center;
+  src\styles.css:5651:  justify-content: center;
+  src\styles.css:5652:  gap: 7px;
+  src\styles.css:5653:}
+  src\styles.css:5654:
+> src\styles.css:5655:.board-panel .board-controls button > svg,
+  src\styles.css:5656:.board-panel .turn-row button > svg {
+  src\styles.css:5657:  display: block;
+  src\styles.css:5658:  width: 16px;
+  src\styles.css:5659:  height: 16px;
+  src\styles.css:5660:  flex: 0 0 16px;
+  src\styles.css:5661:  margin: 0;
+  src\styles.css:5662:  stroke-width: 1.9;
+  src\styles.css:5663:}
+  src\styles.css:5664:
+> src\styles.css:5665:.board-panel .board-controls button.setup-position-button > svg {
+  src\styles.css:5666:  width: 17px;
+  src\styles.css:5667:  height: 17px;
+  src\styles.css:5668:  flex-basis: 17px;
+  src\styles.css:5669:}
+  src\styles.css:5670:
+  src\styles.css:5671:/* Refined analysis header actions */
+  src\styles.css:5672:.board-header {
+  src\styles.css:5673:  border-top: 0 !important;
+  src\styles.css:5674:}
+  src\styles.css:5675:
+> src\styles.css:5676:.board-header .mini-button {
+  src\styles.css:5677:  display: inline-flex;
+  src\styles.css:5678:  align-items: center;
+  src\styles.css:5679:  justify-content: center;
+  src\styles.css:5680:  gap: 8px;
+  src\styles.css:5681:  min-height: 38px;
+  src\styles.css:5682:  padding: 0 13px;
+  src\styles.css:5683:  border: 1px solid var(--border-subtle);
+  src\styles.css:5684:  border-radius: 10px;
+  src\styles.css:5690:  transition: background-color 160ms ease, border-color 160ms ease;
+  src\styles.css:5691:}
+  src\styles.css:5692:
+> src\styles.css:5693:.board-header .mini-button svg {
+  src\styles.css:5694:  display: block;
+  src\styles.css:5695:  width: 16px;
+  src\styles.css:5696:  height: 16px;
+  src\styles.css:5697:  flex: 0 0 16px;
+  src\styles.css:5698:}
+  src\styles.css:5699:
+> src\styles.css:5700:.board-header .mini-button:hover {
+  src\styles.css:5701:  border-color: var(--green-primary);
+  src\styles.css:5702:  background: rgba(139, 195, 74, 0.10);
+  src\styles.css:5703:}
+  src\styles.css:5704:
+  src\styles.css:5705:.board-header .setup-position-btn {
+  src\styles.css:5706:  border-color: rgba(139, 195, 74, 0.45);
+  src\styles.css:5707:  color: var(--green-primary);
+  src\styles.css:5708:}
+
+
+

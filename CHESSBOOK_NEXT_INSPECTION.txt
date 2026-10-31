@@ -1,0 +1,436 @@
+﻿========== CHESSBOOK READER: CURRENT STATUS ==========
+ M backend/app/main.py
+ M src/App.tsx
+?? ChessBookReader-AnalysisBoard-Patch.ps1
+?? apply-oauth-frontend.py
+?? apply-oauth-security.py
+?? backend/app/lichess_oauth.py
+?? clean-git-whitespace.py
+?? current-source-snapshot.txt
+?? fix-active-board.py
+?? fix-board-hover-colors.py
+?? fix-engine-fallbacks.py
+?? fix-engine-text.py
+?? fix-evaluation-orientation.py
+?? fix-promotion-symbols.py
+?? fix-square-focus.py
+?? fix-square-hover.py
+?? fix-study-handlers.py
+?? fix-study-navigation.py
+?? fix-study-null-final.py
+?? fix-study-null.py
+?? inspect-engine-text.py
+?? patch-board-controls.py
+?? patch-study-handlers.py
+?? patch-study-state.py
+?? patch-study-ui.py
+?? repair-encoding.py
+?? repair-symbols.py
+?? smooth-evaluation-bar.py
+?? src/opening-explorer-api.ts
+?? src/opening-explorer.test.ts
+?? src/opening-explorer.ts
+?? workspace-diagnostics.txt
+
+========== APP SECTIONS ==========
+
+  src\App.tsx:1:import { useEffect, useMemo, useRef, useState } from "react";
+  src\App.tsx:2:import {
+> src\App.tsx:3:  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  src\App.tsx:4:  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from 
+"chess.js";
+  src\App.tsx:5:import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+  src\App.tsx:6:import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+  src\App.tsx:12:import {
+  src\App.tsx:13:  getActiveBookId,
+> src\App.tsx:14:  getBooks,
+  src\App.tsx:15:  getSession,
+  src\App.tsx:16:  getSession as getStoredSession,
+  src\App.tsx:17:  putBook,
+  src\App.tsx:21:  setActiveBookId,
+  src\App.tsx:22:} from "./storage";
+> src\App.tsx:23:import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+  src\App.tsx:24:import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+  src\App.tsx:25:import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type 
+LichessConnectionStatus } from "./opening-explorer-api";
+  src\App.tsx:26:
+  src\App.tsx:64:GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+  src\App.tsx:65:
+> src\App.tsx:66:type LibraryTab = "all" | "recent";
+> src\App.tsx:67:type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer";
+  src\App.tsx:68:
+  src\App.tsx:69:const FILE_LIMIT = 100 * 1024 * 1024;
+  src\App.tsx:70:const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+  src\App.tsx:106:
+  src\App.tsx:107:export default function App() {
+> src\App.tsx:108:  const [books, setBooks] = useState<BookRecord[]>([]);
+> src\App.tsx:109:  const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
+  src\App.tsx:110:  const [book, setBook] = useState<BookRecord | null>(null);
+> src\App.tsx:111:  const [session, setSession] = useState<BookSession | null>(null);
+> src\App.tsx:112:  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  src\App.tsx:113:  const [studyMode, setStudyMode] = useState(false);
+  src\App.tsx:114:  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  src\App.tsx:115:  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+  src\App.tsx:132:  const [notice, setNotice] = useState("");
+  src\App.tsx:133:  const [error, setError] = useState("");
+> src\App.tsx:134:  const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+> src\App.tsx:135:  const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+> src\App.tsx:136:  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+> src\App.tsx:137:  const [bookSearch, setBookSearch] = useState("");
+  src\App.tsx:138:  const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+  src\App.tsx:139:  const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+  src\App.tsx:140:  const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+  src\App.tsx:146:  useEffect(() => {
+  src\App.tsx:147:    const controller = new AbortController();
+> src\App.tsx:148:    const params = new URLSearchParams(window.location.search);
+  src\App.tsx:149:    const result = params.get("lichess");
+  src\App.tsx:150:    if (result === "connected" || result === "denied") {
+  src\App.tsx:151:      params.delete("lichess");
+  src\App.tsx:226:    async function initialize() {
+  src\App.tsx:227:      try {
+> src\App.tsx:228:        const [storedBooks, activeId] = await Promise.all([getBooks(), getActiveBookId()]);
+> src\App.tsx:229:        const storedSessions: Record<string, BookSession> = {};
+> src\App.tsx:230:        await Promise.all(storedBooks.map(async (item) => {
+  src\App.tsx:231:          const stored = await getStoredSession(item.id);
+  src\App.tsx:232:          if (stored) storedSessions[item.id] = stored;
+  src\App.tsx:233:        }));
+  src\App.tsx:234:        if (cancelled) return;
+> src\App.tsx:235:        const ordered = storedBooks.sort((a, b) => b.lastOpenedAt - a.lastOpenedAt);
+  src\App.tsx:236:        setSessionIndex(storedSessions);
+  src\App.tsx:237:        const activeBook = ordered.find((item) => item.id === activeId) ?? ordered[0] ?? null;
+  src\App.tsx:238:        if (activeBook) {
+  src\App.tsx:239:          const resumed = { ...activeBook, lastOpenedAt: Date.now() };
+  src\App.tsx:240:          await putBook(resumed);
+> src\App.tsx:241:          setBooks([resumed, ...ordered.filter((item) => item.id !== resumed.id)]);
+  src\App.tsx:242:          setBook(resumed);
+  src\App.tsx:243:          setSession(storedSessions[activeBook.id] ?? newSession(activeBook.id));
+  src\App.tsx:244:          if (activeBook.id !== activeId) await setActiveBookId(activeBook.id);
+  src\App.tsx:245:        } else {
+> src\App.tsx:246:          setBooks(ordered);
+  src\App.tsx:247:        }
+  src\App.tsx:248:      } catch (cause) {
+> src\App.tsx:249:        if (!cancelled) setError(`Could not restore the local library: ${messageOf(cause)}`);
+  src\App.tsx:250:      } finally {
+  src\App.tsx:251:        if (!cancelled) setReady(true);
+  src\App.tsx:252:      }
+  src\App.tsx:369:  }, []);
+  src\App.tsx:370:
+> src\App.tsx:371:  const sortedBooks = useMemo(() => [...books].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt), [books]);
+> src\App.tsx:372:  const visibleBooks = useMemo(() => {
+> src\App.tsx:373:    const needle = bookSearch.trim().toLowerCase();
+> src\App.tsx:374:    return sortedBooks.filter((item) => {
+  src\App.tsx:375:      const matchesTab = true;
+  src\App.tsx:376:      return matchesTab && item.title.toLowerCase().includes(needle);
+  src\App.tsx:377:    });
+> src\App.tsx:378:  }, [bookSearch, libraryTab, sessionIndex, sortedBooks]);
+  src\App.tsx:379:
+  src\App.tsx:380:  const openingLine = useMemo(
+  src\App.tsx:381:    () => parseOpeningLine(openingExplorerInput),
+  src\App.tsx:518:  }
+  src\App.tsx:519:
+> src\App.tsx:520:  function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+  src\App.tsx:521:    setSession((current) => {
+  src\App.tsx:522:      if (!current) return current;
+  src\App.tsx:523:      return typeof change === "function" ? change(current) : { ...current, ...change };
+  src\App.tsx:590:      const opened = { ...item, lastOpenedAt: Date.now() };
+  src\App.tsx:591:      await Promise.all([putBook(opened), putSession(nextSession), setActiveBookId(opened.id)]);
+> src\App.tsx:592:      setBooks((current) => [...current.filter((candidate) => candidate.id !== opened.id), opened].sort((a, b) => b.lastOpenedAt 
+- a.lastOpenedAt));
+  src\App.tsx:593:      setSessionIndex((current) => ({ ...current, [opened.id]: nextSession }));
+  src\App.tsx:594:      setBook(opened);
+  src\App.tsx:595:      setSession(nextSession);
+  src\App.tsx:619:      const blank = newSession(created.id);
+  src\App.tsx:620:      await Promise.all([putBook(created), putSession(blank), setActiveBookId(created.id)]);
+> src\App.tsx:621:      setBooks((current) => [created, ...current]);
+  src\App.tsx:622:      setSessionIndex((current) => ({ ...current, [created.id]: blank }));
+  src\App.tsx:623:      setBook(created);
+  src\App.tsx:624:      setSession(blank);
+> src\App.tsx:625:      setNotice("PDF added to this browser's local library.");
+  src\App.tsx:626:      setError("");
+  src\App.tsx:627:      if (fileInput.current) fileInput.current.value = "";
+  src\App.tsx:628:    } catch (cause) {
+  src\App.tsx:638:      await removeSession(item.id);
+  src\App.tsx:639:
+> src\App.tsx:640:      setBooks((current) => current.filter((entry) => entry.id !== item.id));
+  src\App.tsx:641:      setSessionIndex((current) => {
+  src\App.tsx:642:        const next = { ...current };
+  src\App.tsx:643:        delete next[item.id];
+  src\App.tsx:651:      }
+  src\App.tsx:652:
+> src\App.tsx:653:      setNotice(`Removed "${item.title}" from your library.`);
+  src\App.tsx:654:      setError("");
+  src\App.tsx:655:    } catch (cause) {
+  src\App.tsx:656:      setError(`Could not remove book: ${messageOf(cause)}`);
+  src\App.tsx:663:    try {
+  src\App.tsx:664:      await putBook(renamed);
+> src\App.tsx:665:      setBooks((current) => current.map((entry) => entry.id === item.id ? renamed : entry));
+  src\App.tsx:666:      if (book?.id === item.id) setBook(renamed);
+  src\App.tsx:667:    } catch (cause) {
+  src\App.tsx:668:      setError(`Could not rename book: ${messageOf(cause)}`);
+  src\App.tsx:809:      // the explicit confirmation button remains available for corrected FENs.
+  src\App.tsx:810:      if (moveToPosition(result.fen)) {
+> src\App.tsx:811:        setNotice("Scanned position loaded automatically onto the analysis board. Review the diagram and correct any uncertain 
+squares before continuing.");
+  src\App.tsx:812:      }
+  src\App.tsx:813:    } catch (cause) {
+  src\App.tsx:814:      if (requestId !== transferRequestRef.current) return;
+  src\App.tsx:1153:      setNotice(
+  src\App.tsx:1154:        candidates.length
+> src\App.tsx:1155:          ? `Found ${candidates.length} board candidate${candidates.length === 1 ? "" : "s"}. Select a candidate to recognize 
+its chess position and load it onto the analysis board.`
+  src\App.tsx:1156:          : "No board candidates found.",
+  src\App.tsx:1157:      );
+  src\App.tsx:1158:    } catch (cause) {
+  src\App.tsx:1303:    patchSession((current) => ({
+  src\App.tsx:1304:      ...current,
+> src\App.tsx:1305:      bookmarks: current.bookmarks.includes(current.page)
+> src\App.tsx:1306:        ? current.bookmarks.filter((page) => page !== current.page)
+> src\App.tsx:1307:        : [...current.bookmarks, current.page].sort((a, b) => a - b),
+  src\App.tsx:1308:    }));
+  src\App.tsx:1309:  }
+  src\App.tsx:1310:
+  src\App.tsx:1369:      <header className="topbar">
+  src\App.tsx:1370:        <div className="brand-mark">&#9822;</div>
+> src\App.tsx:1371:        <button className="icon-button library-toggle" aria-label="Toggle library" onClick={() => setLibraryOpen((value) => 
+!value)}>&#9776;</button>
+  src\App.tsx:1372:        <div className="brand-name">ChessBook <span>Reader</span></div>
+  src\App.tsx:1373:        <div className="top-divider" />
+  src\App.tsx:1374:        <div className="current-book" title={book?.title ?? "No book open"}>
+  src\App.tsx:1378:        </div>
+  src\App.tsx:1379:        <div className="top-spacer" />
+> src\App.tsx:1380:        <span className="storage-label"><i /> LOCAL LIBRARY</span>
+  src\App.tsx:1381:        <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+  src\App.tsx:1382:      </header>
+  src\App.tsx:1383:
+> src\App.tsx:1384:      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? 
+"opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""}`}>
+> src\App.tsx:1385:        {libraryOpen && (
+> src\App.tsx:1386:          <aside className="library-panel">
+> src\App.tsx:1387:            <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => 
+fileInput.current?.click()}>&#10133; Add Book</button></div>
+  src\App.tsx:1388:            <input
+  src\App.tsx:1389:              ref={fileInput}
+  src\App.tsx:1390:              className="hidden-input"
+  src\App.tsx:1393:              onChange={(event) => void addBook(event.target.files?.[0])}
+  src\App.tsx:1394:            />
+> src\App.tsx:1395:            <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) 
+=> setBookSearch(event.target.value)} placeholder="Search library" /></label>
+> src\App.tsx:1396:            <nav className="library-nav" aria-label="Library sections">
+> src\App.tsx:1397:                            <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} 
+label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+  src\App.tsx:1398:
+  src\App.tsx:1399:
+  src\App.tsx:1400:
+  src\App.tsx:1401:</nav>
+> src\App.tsx:1402:            <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+  src\App.tsx:1403:            <div className="book-list">
+> src\App.tsx:1404:                {visibleBooks.map((item, index) => {
+  src\App.tsx:1405:                  const saved = sessionIndex[item.id];
+  src\App.tsx:1406:                  const progress = saved?.pageCount ? Math.min(100, Math.round((saved.page / saved.pageCount) * 100)) : 0;
+  src\App.tsx:1407:                  return (
+  src\App.tsx:1416:                  );
+  src\App.tsx:1417:                })}
+> src\App.tsx:1418:                {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in 
+this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button 
+className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+  src\App.tsx:1419:              </div>
+  src\App.tsx:1420:            <section className="sidebar-moves-panel" aria-label="Move list">
+  src\App.tsx:1421:<div className="moves-panel">
+  src\App.tsx:1437:          </div>
+  src\App.tsx:1438:            </section>
+> src\App.tsx:1439:            <div className="library-footer"><span className="local-dot" /> Stored on this device <span 
+className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+  src\App.tsx:1440:          </aside>
+  src\App.tsx:1441:        )}
+  src\App.tsx:1442:
+  src\App.tsx:1443:        <section className="board-panel" aria-label="Chessboard analysis">
+  src\App.tsx:1444:          <div className="board-header">
+> src\App.tsx:1445:            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === 
+"opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : 
+"Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} · ${session.selectedDiagramId.startsWith("manual-") ? "Manual 
+region" : "Board candidate"}` : "Ready for a position"}</span></div>
+  src\App.tsx:1446:            <div className="board-header-actions">
+  src\App.tsx:1447:              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus 
+mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+  src\App.tsx:1448:              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: 
+!boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+  src\App.tsx:1632:          <div className="opening-explorer-right-workspace">
+  src\App.tsx:1633:          {workspaceMode === "opening-explorer" && (
+> src\App.tsx:1634:            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+> src\App.tsx:1635:              <h3>Opening Explorer</h3>
+  src\App.tsx:1636:              <div className="lichess-connection-controls">
+  src\App.tsx:1637:                {lichessStatus?.connected ? (
+  src\App.tsx:1638:                  <>
+  src\App.tsx:1724:                    <div className="opening-stats-heading">
+  src\App.tsx:1725:                      <h4>Position statistics</h4>
+> src\App.tsx:1726:                      <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess 
+Opening Explorer</a></span>
+  src\App.tsx:1727:                    </div>
+  src\App.tsx:1728:                    {openingStatsStatus === "loading" && <p>Loading game statistics…</p>}
+  src\App.tsx:1729:                    {openingStatsStatus === "error" && (
+  src\App.tsx:1787:                      setStudyMode(false);
+  src\App.tsx:1788:                      setWorkspaceMode("analysis");
+> src\App.tsx:1789:                      setNotice("Opening position copied to the independent Analysis Board.");
+  src\App.tsx:1790:                    }}
+> src\App.tsx:1791:                  >Open position in Analysis Board</button>
+  src\App.tsx:1792:                  <p className="muted">Position FEN: {openingPosition.fen}</p>
+  src\App.tsx:1793:                </>
+  src\App.tsx:1794:              )}
+  src\App.tsx:1800:            <div className="reader-title"><div className="document-icon" aria-hidden="true"><BookOpenText size={20} 
+strokeWidth={1.8} /></div><div><strong>{book?.title ?? "Book reader"}</strong><span>{pdf ? `${session?.pageCount} pages \u00b7 PDF document` : "Add 
+a PDF book to begin"}</span></div></div>
+  src\App.tsx:1801:            <div className="reader-actions">
+> src\App.tsx:1802:              <button className={session?.bookmarks.includes(session.page) ? "active-action" : ""} title="Bookmark this page" 
+disabled={!book} onClick={saveBookmark}>&#9734;</button>
+  src\App.tsx:1803:              <button title="Zoom out" disabled={!session} onClick={() => patchSession({ zoom: Math.max(0.65, (session?.zoom ?? 
+1) - 0.1) })}>&#8722;</button>
+  src\App.tsx:1804:              <span className="zoom-value">{Math.round((session?.zoom ?? 1) * 100)}%</span>
+  src\App.tsx:1805:              <button title="Zoom in" disabled={!session} onClick={() => patchSession({ zoom: Math.min(1.8, (session?.zoom ?? 1) 
++ 0.1) })}><Plus size={15} aria-hidden="true" /></button>
+  src\App.tsx:1896:      </div>
+  src\App.tsx:1897:
+> src\App.tsx:1898:      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions 
+are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button 
+onClick={() => setSettingsOpen(false)}>Close</button></div>}
+  src\App.tsx:1899:      {transferCandidate && (
+  src\App.tsx:1900:        <ManualBoardEditor
+  src\App.tsx:1901:          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+  src\App.tsx:1902:          title="Review recognized position"
+> src\App.tsx:1903:          subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm 
+your edits."
+  src\App.tsx:1904:          confirmLabel="Use on Board"
+  src\App.tsx:1905:          cropPreviewUrl={transferPreview}
+  src\App.tsx:1906:          recognitionStatus={recognitionStatus}
+  src\App.tsx:1967:}
+  src\App.tsx:1968:
+> src\App.tsx:1969:function LibraryNavItem({
+  src\App.tsx:1970:  active,
+  src\App.tsx:1971:  onClick,
+  src\App.tsx:1972:  icon: Icon,
+  src\App.tsx:1981:    <button
+  src\App.tsx:1982:      type="button"
+> src\App.tsx:1983:      className={`library-nav-item ${active ? "nav-active" : ""}`}
+  src\App.tsx:1984:      onClick={onClick}
+  src\App.tsx:1985:      aria-current={active ? "page" : undefined}
+  src\App.tsx:1986:    >
+
+
+
+========== AVAILABLE NPM SCRIPTS ==========
+Lifecycle scripts included in chessbook-reader@0.1.0:
+  test
+    vitest run
+available via `npm run`:
+  dev
+    vite
+  build
+    tsc -b && vite build
+  preview
+    vite preview
+  test:watch
+    vitest
+
+========== PROJECT FILES ==========
+
+Mode   Name                                            
+----   ----                                            
+d--h-- .git                                            
+d----- .pytest_cache                                   
+d----- backend                                         
+d----- backup-lichess-oauth-20261026-002231            
+d----- backup-oauth-frontend-20261026-002503           
+d----- backup-oauth-security-20261026-002326           
+d----- backup-oauth-security-final-20261026-002410     
+d----- backups                                         
+d----- backup_before_recognition_update_20261015_215549
+d----- dist                                            
+d----- docs                                            
+d----- local-logs                                      
+d----- node_modules                                    
+d----- public                                          
+d----- research                                        
+d----- scripts                                         
+d----- src                                             
+-a---- .env.example                                    
+-a---- .gitignore                                      
+-a---- .gitignore.backup-20261016-213746               
+-a---- add-book-audit.txt                              
+-a---- apply-oauth-frontend.py                         
+-a---- apply-oauth-security.py                         
+-a---- board-overflow-diagnostic.txt                   
+-a---- board-recognition-scanner-audit.txt             
+-a---- board-transfer-focused-audit.txt                
+-a---- BOARD_ARROW_CURRENT_SOURCE.txt                  
+-a---- BOARD_ARROW_DIAGNOSTIC.txt                      
+-a---- BOARD_DIAGNOSTIC_REPORT.txt                     
+-a---- BOARD_GRID_RULES.txt                            
+-a---- board_picker_source.txt                         
+-a---- build-diagnostic.txt                            
+-a---- chess-debug-20261024-002710.txt                 
+-a---- ChessBookReader-AnalysisBoard-Patch.ps1         
+-a---- chessbookreader-audit.txt                       
+-a---- ChessBookReader-Full-Audit.txt                  
+-a---- ChessBookReader-Repair-Preflight.txt            
+-a---- ChessBookReader-Targeted-Audit.txt              
+-a---- ChessBookReader.bat                             
+-a---- CHESSBOOKREADER_AUDIT.txt                       
+-a---- clean-git-whitespace.py                         
+-a---- current-source-snapshot.txt                     
+-a---- deployment-readiness-audit.txt                  
+-a---- evaluation-bar-audit.txt                        
+-a---- evaluation-layout-review-20261017-213248.txt    
+-a---- evaluation-layout-review.txt                    
+-a---- FINAL_BOARD_ARROW_RULES.txt                     
+-a---- fix-active-board.py                             
+-a---- fix-board-hover-colors.py                       
+-a---- fix-engine-fallbacks.py                         
+-a---- fix-engine-text.py                              
+-a---- fix-evaluation-orientation.py                   
+-a---- fix-promotion-symbols.py                        
+-a---- fix-square-focus.py                             
+-a---- fix-square-hover.py                             
+-a---- fix-study-handlers.py                           
+-a---- fix-study-navigation.py                         
+-a---- fix-study-null-final.py                         
+-a---- fix-study-null.py                               
+-a---- focused-board-fix-audit.txt                     
+-a---- focused-recognition-audit.txt                   
+-a---- HIGHLIGHT_TYPE_ERROR.txt                        
+-a---- index.html                                      
+-a---- inspect-engine-text.py                          
+-a---- layout-100-percent-audit-20261016-214922.txt    
+-a---- layout-audit.txt                                
+-a---- Main-Board-Piece-Rendering.txt                  
+-a---- package-lock.json                               
+-a---- package.json                                    
+-a---- patch-board-controls.py                         
+-a---- patch-study-handlers.py                         
+-a---- patch-study-state.py                            
+-a---- patch-study-ui.py                               
+-a---- piece-render-audit-20261016-224010.txt          
+-a---- piece-render-diagnostic.txt                     
+-a---- Piece-Sprite-Structure.txt                      
+-a---- reader-layout-audit.txt                         
+-a---- README.md                                       
+-a---- recognition-audit.txt                           
+-a---- recognition-board-diagnostic.txt                
+-a---- recognition-piece-fix-check.txt                 
+-a---- render.yaml                                     
+-a---- repair-encoding.py                              
+-a---- repair-symbols.py                               
+-a---- review-panel-fix-input.txt                      
+-a---- scanner-audit.txt                               
+-a---- smooth-evaluation-bar.py                        
+-a---- tsconfig.app.json                               
+-a---- tsconfig.json                                   
+-a---- tsconfig.node.json                              
+-a---- ui-audit-bundle.txt                             
+-a---- ui-corruption-report.txt                        
+-a---- ui-encoding-audit.txt                           
+-a---- ui-encoding-preview.txt                         
+-a---- ui-repair-source.txt                            
+-a---- vite.config.ts                                  
+-a---- workspace-diagnostics.txt                       
+
+
+

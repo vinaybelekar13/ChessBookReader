@@ -1,5 +1,24 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
+def load_backend_env() -> None:
+    env_file = Path(__file__).resolve().parents[1] / ".env"
+    if not env_file.is_file():
+        return
+    for raw_line in env_file.read_text(encoding="utf-8-sig").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key, value = key.strip(), value.strip()
+        if key and key not in os.environ:
+            os.environ[key] = value.strip().strip('"').strip("'")
+
+load_backend_env()
+
+
 from functools import lru_cache
 from io import BytesIO
 from typing import Annotated
@@ -10,6 +29,8 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.lichess_oauth import router as lichess_oauth_router
+
 from app.recognition import (
     RecognitionUnavailable,
     detect_board_candidates,
@@ -17,6 +38,7 @@ from app.recognition import (
 )
 
 app = FastAPI(title="ChessBook Reader CV API", version="0.1.0")
+app.include_router(lichess_oauth_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://chessbookreader.netlify.app"],
@@ -350,3 +372,4 @@ def intersection_over_union(a: tuple[int, int, int, int, float], b: tuple[int, i
     intersection = overlap_width * overlap_height
     union = aw * ah + bw * bh - intersection
     return intersection / union if union else 0.0
+

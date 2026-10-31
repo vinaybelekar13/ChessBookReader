@@ -1,0 +1,139 @@
+
+> chessbook-reader@0.1.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.4 [39m[90mD:/chess/BookChess/ChessBookReader[39m
+
+ [32m✓[39m src/chess-state.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/opening-explorer.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/stockfish.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/pgn-import.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/storage.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/crop-geometry.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/board-annotations.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/position-editor.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+[90mstderr[2m | src/App.test.tsx
+[22m[39mWarning: Please use the `legacy` build in Node.js environments.
+
+[90mstderr[2m | src/App.test.tsx[2m > [22m[2mApp - Manual Position Setup & Stockfish Analysis[2m > [22m[2mrenders 'Set Up Position' buttons on the analysis board and toggles setup mode
+[22m[39mAn error occurred in the <App> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ [32m✓[39m src/ManualBoardEditor.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 1243[2mms[22m[39m
+[90mstderr[2m | src/App.test.tsx[2m > [22m[2mApp - Manual Position Setup & Stockfish Analysis[2m > [22m[2mloads a custom manual position, reflects side to move, and triggers Stockfish analysis
+[22m[39mAn error occurred in the <App> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ [31m❯[39m src/App.test.tsx [2m([22m[2m2 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 2059[2mms[22m[39m
+   [31m❯[39m App - Manual Position Setup & Stockfish Analysis [2m(2)[22m
+[31m     [31m×[31m renders 'Set Up Position' buttons on the analysis board and toggles setup mode[39m[33m 1041[2mms[22m[39m
+[31m     [31m×[31m loads a custom manual position, reflects side to move, and triggers Stockfish analysis[39m[33m 1016[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/App.test.tsx[2m > [22mApp - Manual Position Setup & Stockfish Analysis[2m > [22mrenders 'Set Up Position' buttons on the analysis board and toggles setup mode
+[31m[1mTestingLibraryElementError[22m: Unable to find role="button" and name `/set up position/i`
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div />[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div />[31m
+[36m</body>[31m[39m
+[90m [2m❯[22m waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m86:33[22m[39m
+[36m [2m❯[22m src/App.test.tsx:[2m55:36[22m[39m
+    [90m 53|[39m
+    [90m 54|[39m     // Wait for app initialization
+    [90m 55|[39m     const setupBtns = await screen.findAllByRole("button", { name: /se…
+    [90m   |[39m                                    [31m^[39m
+    [90m 56|[39m     expect(setupBtns.length).toBeGreaterThanOrEqual(1);
+    [90m 57|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/App.test.tsx[2m > [22mApp - Manual Position Setup & Stockfish Analysis[2m > [22mloads a custom manual position, reflects side to move, and triggers Stockfish analysis
+[31m[1mTestingLibraryElementError[22m: Unable to find role="button" and name `/set up position/i`
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div />[31m
+[36m</body>[31m
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div />[31m
+[36m</body>[31m[39m
+[90m [2m❯[22m waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m86:33[22m[39m
+[36m [2m❯[22m src/App.test.tsx:[2m75:36[22m[39m
+    [90m 73|[39m     render(<App />);
+    [90m 74|[39m
+    [90m 75|[39m     const setupBtns = await screen.findAllByRole("button", { name: /se…
+    [90m   |[39m                                    [31m^[39m
+    [90m 76|[39m     fireEvent.click(setupBtns[0]);
+    [90m 77|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Unhandled Errors [49m[22m[31m⎯⎯⎯⎯⎯⎯[39m
+[31m[1m
+Vitest caught 2 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.[22m[39m
+
+[31m⎯⎯⎯⎯⎯[39m[1m[41m Uncaught Exception [49m[22m[31m⎯⎯⎯⎯⎯[39m
+[31m[1mReferenceError[22m: BarChart3 is not defined[39m
+[36m [2m❯[22m App src/App.tsx:[2m1450:78[22m[39m
+
+[90m [2m❯[22m Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:[2m28571:20[22m[39m
+[90m [2m❯[22m renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:[2m8030:22[22m[39m
+[90m [2m❯[22m updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:[2m10569:19[22m[39m
+[90m [2m❯[22m beginWork node_modules/react-dom/cjs/react-dom-client.development.js:[2m12205:18[22m[39m
+[90m [2m❯[22m runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:[2m1048:13[22m[39m
+[90m [2m❯[22m performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:[2m19176:22[22m[39m
+[90m [2m❯[22m workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:[2m19004:41[22m[39m
+[90m [2m❯[22m renderRootSync node_modules/react-dom/cjs/react-dom-client.development.js:[2m18985:11[22m[39m
+[90m [2m❯[22m performWorkOnRoot node_modules/react-dom/cjs/react-dom-client.development.js:[2m18094:35[22m[39m
+
+[31mThis error originated in "[1msrc/App.test.tsx[22m" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.[39m
+[31mThe last test to run before this error was "[1mrenders 'Set Up Position' buttons on the analysis board and toggles setup mode[22m". This means either:
+- the error was thrown while Vitest was running this test, or
+- the error was thrown after the test completed, and this was the most recent test at that point.[39m
+
+[31m⎯⎯⎯⎯⎯[39m[1m[41m Uncaught Exception [49m[22m[31m⎯⎯⎯⎯⎯[39m
+[31m[1mReferenceError[22m: BarChart3 is not defined[39m
+[36m [2m❯[22m App src/App.tsx:[2m1450:78[22m[39m
+
+[90m [2m❯[22m Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:[2m28571:20[22m[39m
+[90m [2m❯[22m renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:[2m8030:22[22m[39m
+[90m [2m❯[22m updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:[2m10569:19[22m[39m
+[90m [2m❯[22m beginWork node_modules/react-dom/cjs/react-dom-client.development.js:[2m12205:18[22m[39m
+[90m [2m❯[22m runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:[2m1048:13[22m[39m
+[90m [2m❯[22m performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:[2m19176:22[22m[39m
+[90m [2m❯[22m workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:[2m19004:41[22m[39m
+[90m [2m❯[22m renderRootSync node_modules/react-dom/cjs/react-dom-client.development.js:[2m18985:11[22m[39m
+[90m [2m❯[22m performWorkOnRoot node_modules/react-dom/cjs/react-dom-client.development.js:[2m18094:35[22m[39m
+
+[31mThis error originated in "[1msrc/App.test.tsx[22m" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.[39m
+[31mThe last test to run before this error was "[1mloads a custom manual position, reflects side to move, and triggers Stockfish analysis[22m". This means either:
+- the error was thrown while Vitest was running this test, or
+- the error was thrown after the test completed, and this was the most recent test at that point.[39m
+[31m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m9 passed[39m[22m[90m (10)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m51 passed[39m[22m[90m (53)[39m
+[2m     Errors [22m [1m[31m2 errors[39m[22m
+[2m   Start at [22m 01:34:44
+[2m   Duration [22m 4.07s[2m (environment 53%, tests 21%, setup 19%, transform 4%, import 3%, worker 1%)[22m
+

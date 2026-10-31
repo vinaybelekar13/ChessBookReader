@@ -1,0 +1,55 @@
+﻿GAME REVIEW UI VERIFICATION
+
+BUILD EXIT CODE: 0
+
+> chessbook-reader@0.1.0 build
+> tsc -b && vite build
+
+[36mvite v6.4.4 [32mbuilding for production...[36m[39m
+transforming...
+[32mâœ“[39m 1963 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                          [39m[1m[2m    0.56 kB[22m[1m[22m[2m â”‚ gzip:   0.34 kB[22m
+[2mdist/[22m[32massets/pdf.worker.min-CjEcRF4W.mjs  [39m[1m[2m1,264.34 kB[22m[1m[22m
+[2mdist/[22m[35massets/index-CCHws3CF.css           [39m[1m[2m  128.28 kB[22m[1m[22m[2m â”‚ gzip:  20.97 kB[22m
+[2mdist/[22m[36massets/index-2EAIcpiy.js            [39m[1m[33m  858.08 kB[39m[22m[2m â”‚ gzip: 260.72 kB[22m
+[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[32mâœ“ built in 6.81s[39m
+
+
+TEST EXIT CODE: 0
+
+> chessbook-reader@0.1.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.4 [39m[90mD:/chess/BookChess/ChessBookReader[39m
+
+ [32mâœ“[39m src/pgn-import.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32mâœ“[39m src/position-editor.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32mâœ“[39m src/opening-explorer.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32mâœ“[39m src/chess-state.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32mâœ“[39m src/crop-geometry.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32mâœ“[39m src/storage.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32mâœ“[39m src/stockfish.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32mâœ“[39m src/board-annotations.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[90mstderr[2m | src/App.test.tsx
+[22m[39mWarning: Please use the `legacy` build in Node.js environments.
+
+ [32mâœ“[39m src/ManualBoardEditor.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 1153[2mms[22m[39m
+ [32mâœ“[39m src/App.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 747[2mms[22m[39m
+   [32mâœ“[39m App - Manual Position Setup & Stockfish Analysis [2m(2)[22m
+     [33m[2mâœ“[22m[39m renders 'Set Up Position' buttons on the analysis board and toggles setup mode[33m 426[2mms[22m[39m
+     [33m[2mâœ“[22m[39m loads a custom manual position, reflects side to move, and triggers Stockfish analysis[33m 319[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m      Tests [22m [1m[32m53 passed[39m[22m[90m (53)[39m
+[2m   Start at [22m 01:36:19
+[2m   Duration [22m 2.61s[2m (environment 57%, setup 21%, tests 14%, transform 4%, import 3%, worker 1%)[22m
+
+

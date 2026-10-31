@@ -1,0 +1,3039 @@
+﻿
+================================================================================
+APP: WORKSPACE STATE AND FUNCTIONS
+================================================================================
+   55:       san.push(move.san);
+   56:     } catch {
+   57:       break;
+   58:     }
+   59:   }
+   60:   return san.join(" ");
+   61: }
+   62: 
+   63: GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+   64: 
+   65: type LibraryTab = "all" | "recent";
+   66: type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer";
+   67: 
+   68: const FILE_LIMIT = 100 * 1024 * 1024;
+   69: const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+   70: const CROP_HANDLES: CropHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+   71: type CandidateInput = Omit<Candidate, "id" | "source" | "relativeScore"> &
+   72:   Partial<Pick<Candidate, "id" | "source" | "relativeScore">> & { relative_score?: number; confidence?: number };
+   73: type RecognitionResult = {
+   74:   fen: string;
+   75:   orientation: "normal" | "flipped" | "unknown";
+   76:   board_confidence: number;
+   77:   mean_piece_confidence: number | null;
+   78:   piece_count: number;
+   79:   warnings: string[];
+   80: };
+   81: type RecognitionStatus = "idle" | "loading" | "complete" | "failed";
+   82: 
+   83: function readableDate(timestamp: number): string {
+   84:   if (!timestamp) return "Not opened";
+   85:   const elapsed = Date.now() - timestamp;
+   86:   if (elapsed < 60_000) return "Just now";
+   87:   if (elapsed < 3_600_000) return `${Math.floor(elapsed / 60_000)}m ago`;
+   88:   if (elapsed < 86_400_000) return `${Math.floor(elapsed / 3_600_000)}h ago`;
+   89:   return new Date(timestamp).toLocaleDateString();
+   90: }
+   91: 
+   92: function squareName(fileIndex: number, rankIndex: number): Square {
+   93:   return `${"abcdefgh"[fileIndex]}${rankIndex + 1}` as Square;
+   94: }
+   95: 
+   96: function normalizedCandidate(value: CandidateInput, index: number): Candidate {
+   97:   const { relative_score, confidence, ...candidate } = value;
+   98:   return {
+   99:     ...candidate,
+  100:     id: candidate.id || `candidate-${index + 1}`,
+  101:     source: candidate.source ?? "automatic",
+  102:     relativeScore: candidate.relativeScore ?? relative_score ?? confidence ?? 0,
+  103:   };
+  104: }
+  105: 
+  106: export default function App() {
+  107:   const [books, setBooks] = useState<BookRecord[]>([]);
+  108:   const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
+  109:   const [book, setBook] = useState<BookRecord | null>(null);
+  110:   const [session, setSession] = useState<BookSession | null>(null);
+  111:   type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  112:   const [studyMode, setStudyMode] = useState(false);
+  113:   const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  114:   const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+  115:     lineBaseFen: START_FEN,
+  116:     currentFen: START_FEN,
+  117:     moves: [],
+  118:     moveIndex: 0,
+  119:     flipped: false,
+  120:     coordinates: true,
+  121:   }));
+  122:   const [ready, setReady] = useState(false);
+  123:   const [notice, setNotice] = useState("");
+  124:   const [error, setError] = useState("");
+  125:   const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+  126:   const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+  127:   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+  128:   const [bookSearch, setBookSearch] = useState("");
+  129:   const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+  130:   const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+  131: 
+  132:   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
+  133:   const [pdfLoading, setPdfLoading] = useState(false);
+  134:   const [rendering, setRendering] = useState(false);
+  135:   const [detecting, setDetecting] = useState(false);
+  136:   const [fenInput, setFenInput] = useState("");
+  137:   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  138:   const [promotionRequest, setPromotionRequest] = useState<{ from: Square; to: Square } | null>(null);
+  139:   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
+  140:   const [gameEndOverlay, setGameEndOverlay] = useState<{ title: string; message: string } | null>(null);
+  141:   const [userArrows, setUserArrows] = useState<BoardArrow[]>([]);
+  142:   const [redSquares, setRedSquares] = useState<Square[]>([]);
+  143:   const [arrowStart, setArrowStart] = useState<Square | null>(null);
+  144:   const [arrowHover, setArrowHover] = useState<Square | null>(null);
+  145:   const [annotationMode, setAnnotationMode] = useState(false);
+  146:   const [dragSelection, setDragSelection] = useState<{ x: number; y: number; x2: number; y2: number } | null>(null);
+  147:   const [settingsOpen, setSettingsOpen] = useState(false);
+  148:   const [setupOpen, setSetupOpen] = useState(false);
+  149:   const [manualMode, setManualMode] = useState(false);
+  150:   const [cropEditingId, setCropEditingId] = useState<string | null>(null);
+  151:   const [transferCandidate, setTransferCandidate] = useState<Candidate | null>(null);
+  152:   const [transferPreview, setTransferPreview] = useState("");
+  153:   const [transferFen, setTransferFen] = useState("");
+  154:   const [recognitionStatus, setRecognitionStatus] = useState<RecognitionStatus>("idle");
+  155:   const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
+  156:   const [recognitionError, setRecognitionError] = useState("");
+  157:   const [engineEnabled, setEngineEnabled] = useState(false);
+  158:   const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
+  159:   const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+  160:   const [engineMessage, setEngineMessage] = useState("");
+  161:   const [engineDepth, setEngineDepth] = useState(14);
+  162:   const fileInput = useRef<HTMLInputElement>(null);
+  163:   const canvasRef = useRef<HTMLCanvasElement>(null);
+  164:   const pageStageRef = useRef<HTMLDivElement>(null);
+  165:   const boardRef = useRef<HTMLDivElement>(null);
+  166:   const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  167:   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+  168:   const renderTaskRef = useRef<RenderTask | null>(null);
+  169:   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  170:   const dragCurrentRef = useRef<{ x: number; y: number; x2: number; y2: number } | null>(null);
+  171:   const arrowGestureRef = useRef<Square | null>(null);
+  172:   const suppressBoardContextMenuRef = useRef(false);
+  173:   const arrowGestureMovedRef = useRef(false);
+  174: const scanAbortControllerRef = useRef<AbortController | null>(null);
+  175:   const scanRequestIdRef = useRef(0);
+  176:   const transferRequestRef = useRef(0);
+  177:   const cropEditStartRef = useRef<{ candidate: Candidate; handle: CropHandle; point: { x: number; y: number } } | null>(null);
+  178:   const cropBaselineRef = useRef<Candidate | null>(null);
+  179:   const engineRef = useRef<StockfishEngine | null>(null);
+  180: 
+  181:   useEffect(() => {
+  182:     let cancelled = false;
+  183:     async function initialize() {
+  184:       try {
+  185:         const [storedBooks, activeId] = await Promise.all([getBooks(), getActiveBookId()]);
+  186:         const storedSessions: Record<string, BookSession> = {};
+  187:         await Promise.all(storedBooks.map(async (item) => {
+  188:           const stored = await getStoredSession(item.id);
+  189:           if (stored) storedSessions[item.id] = stored;
+  190:         }));
+  191:         if (cancelled) return;
+  192:         const ordered = storedBooks.sort((a, b) => b.lastOpenedAt - a.lastOpenedAt);
+  193:         setSessionIndex(storedSessions);
+  194:         const activeBook = ordered.find((item) => item.id === activeId) ?? ordered[0] ?? null;
+  195:         if (activeBook) {
+  196:           const resumed = { ...activeBook, lastOpenedAt: Date.now() };
+  197:           await putBook(resumed);
+  198:           setBooks([resumed, ...ordered.filter((item) => item.id !== resumed.id)]);
+  199:           setBook(resumed);
+  200:           setSession(storedSessions[activeBook.id] ?? newSession(activeBook.id));
+  201:           if (activeBook.id !== activeId) await setActiveBookId(activeBook.id);
+  202:         } else {
+  203:           setBooks(ordered);
+  204:         }
+  205:       } catch (cause) {
+  206:         if (!cancelled) setError(`Could not restore the local library: ${messageOf(cause)}`);
+  207:       } finally {
+  208:         if (!cancelled) setReady(true);
+  209:       }
+  210:     }
+  211:     void initialize();
+  212:     return () => { cancelled = true; };
+  213:   }, []);
+  214: 
+  215:   useEffect(() => {
+  216:     if (!ready || !book || !session) return;
+  217:     const snapshot = session;
+  218:     void Promise.all([putSession(snapshot), setActiveBookId(book.id)])
+  219:       .then(() => setSessionIndex((current) => ({ ...current, [snapshot.bookId]: snapshot })))
+  220:       .catch((cause: unknown) => setError(`Could not save reading session: ${messageOf(cause)}`));
+  221:   }, [ready, book, session]);
+  222: 
+  223:   useEffect(() => {
+  224:     pdfRef.current?.cleanup();
+  225:     void loadingTaskRef.current?.destroy();
+  226:     setPdf(null);
+  227:     if (!book) {
+  228:       pdfRef.current = null;
+  229:       loadingTaskRef.current = null;
+  230:       return;
+  231:     }
+  232:     let cancelled = false;
+  233:     let loadingTask: PDFDocumentLoadingTask | null = null;
+  234:     setPdfLoading(true);
+  235:     setError("");
+  236:     book.file.slice(0).arrayBuffer().then((data) => {
+  237:       if (cancelled) return;
+  238:       loadingTask = getDocument({ data });
+  239:       loadingTaskRef.current = loadingTask;
+  240:       return loadingTask.promise;
+  241:     }).then((document) => {
+  242:       if (!document) return;
+  243:       if (cancelled) {
+  244:         void document.cleanup();
+  245:         return;
+  246:       }
+  247:       pdfRef.current = document;
+  248:       setPdf(document);
+  249:       setPdfLoading(false);
+  250:       setSession((current) => current ? { ...current, pageCount: document.numPages } : current);
+  251:     }).catch((cause: unknown) => {
+  252:       if (!cancelled) {
+  253:         setPdfLoading(false);
+  254:         setError(`Could not open this PDF: ${messageOf(cause)}`);
+  255:       }
+  256:     });
+  257:     return () => {
+  258:       cancelled = true;
+  259:       if (loadingTask) void loadingTask.destroy();
+  260:     };
+  261:   }, [book]);
+  262: 
+  263:   useEffect(() => {
+  264:     if (!pdf || !session || !canvasRef.current) return;
+  265:     let cancelled = false;
+  266:     const canvas = canvasRef.current;
+  267:     setRendering(true);
+  268:     pdf.getPage(session.page).then((page) => {
+  269:       if (cancelled) return;
+  270:       const viewport = page.getViewport({ scale: session.zoom * Math.min(1.4, 1100 / page.getViewport({ scale: 1 }).width) });
+  271:       const context = canvas.getContext("2d");
+  272:       if (!context) throw new Error("Canvas rendering is unavailable in this browser.");
+  273:       canvas.width = Math.floor(viewport.width);
+  274:       canvas.height = Math.floor(viewport.height);
+  275:       const task = page.render({ canvas, canvasContext: context, viewport });
+  276:       renderTaskRef.current = task;
+  277:       return task.promise;
+  278:     }).then(() => {
+  279:       if (!cancelled) setRendering(false);
+  280:     }).catch((cause: unknown) => {
+  281:       if (!cancelled && !(cause instanceof Error && cause.name === "RenderingCancelledException")) {
+  282:         setRendering(false);
+  283:         setError(`Could not render page ${session.page}: ${messageOf(cause)}`);
+  284:       }
+  285:     });
+  286:     return () => {
+  287:       cancelled = true;
+  288:       renderTaskRef.current?.cancel();
+  289:     };
+  290:   }, [pdf, session?.page, session?.zoom]);
+  291: 
+  292:   useEffect(() => {
+  293:     function onKey(event: KeyboardEvent) {
+  294:       if (!session || !book || isTypingTarget(event.target)) return;
+  295:       if (cropEditingId && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+  296:         const candidate = (session.candidatesByPage[String(session.page)] ?? []).find((item) => item.id === cropEditingId);
+  297:         if (!candidate) return;
+  298:         const step = event.shiftKey ? 0.01 : 0.002;
+  299:         const x = event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0;
+  300:         const y = event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0;
+  301:         const next = editCrop(candidate, "move", x, y);
+  302:         patchSession((current) => {
+  303:           const pageKey = String(current.page);
+  304:           return {
+  305:             ...current,
+  306:             candidatesByPage: {
+  307:               ...current.candidatesByPage,
+  308:               [pageKey]: (current.candidatesByPage[pageKey] ?? []).map((item) =>
+  309:                 item.id === candidate.id ? { ...item, ...next } : item),
+  310:             },
+  311:           };
+  312:         });
+  313:         event.preventDefault();
+  314:         return;
+  315:       }
+  316:       if (event.key === "ArrowLeft") changePage(-1);
+  317:       if (event.key === "ArrowRight") changePage(1);
+  318:     }
+  319:     window.addEventListener("keydown", onKey);
+  320:     return () => window.removeEventListener("keydown", onKey);
+  321:   });
+  322: 
+  323:   useEffect(() => () => {
+  324:     engineRef.current?.dispose();
+  325:     engineRef.current = null;
+  326:   }, []);
+  327: 
+  328:   const sortedBooks = useMemo(() => [...books].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt), [books]);
+  329:   const visibleBooks = useMemo(() => {
+  330:     const needle = bookSearch.trim().toLowerCase();
+  331:     return sortedBooks.filter((item) => {
+  332:       const matchesTab = libraryTab === "all" || libraryTab === "recent";
+  333:       return matchesTab && item.title.toLowerCase().includes(needle);
+  334:     });
+  335:   }, [bookSearch, libraryTab, sessionIndex, sortedBooks]);
+  336: 
+  337:   const openingLine = useMemo(
+  338:     () => parseOpeningLine(openingExplorerInput),
+  339:     [openingExplorerInput],
+  340:   );
+  341:   const openingPosition = useMemo(
+  342:     () => openingPositionAt(openingExplorerInput, openingExplorerPly),
+  343:     [openingExplorerInput, openingExplorerPly],
+  344:   );
+  345: 
+  346:   const boardSession: StudyBoardState | null =
+  347:     workspaceMode === "analysis"
+  348:       ? analysisBoard
+  349:       : workspaceMode === "opening-explorer"
+  350:         ? {
+  351:             lineBaseFen: START_FEN,
+  352:             currentFen: openingPosition.fen,
+  353:             moves: openingPosition.sanMoves,
+  354:             moveIndex: openingPosition.sanMoves.length,
+  355:             flipped: false,
+  356:             coordinates: true,
+  357:           }
+  358:         : studyMode
+  359:           ? studyBoard
+  360:           : session;
+  361:   const game = useMemo(() => {
+  362:     if (!boardSession) return new Chess();
+  363:     try {
+  364:       return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+  365:     } catch {
+  366:       try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+  367:     }
+  368:   }, [boardSession]);
+  369:   const legalTargets = useMemo(() => {
+  370:     if (!selectedSquare) return new Set<string>();
+  371:     return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  372:   }, [game, selectedSquare]);
+  373:   const pieceSquares = game.board();
+  374:   const moveHistory = useMemo(() => {
+  375:     try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+  376:     catch { return []; }
+  377:   }, [boardSession]);
+  378:   const highlightedMove = lastMove ?? (moveHistory.length
+  379:     ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+  380:     : null);
+  381:   const engineArrow = useMemo(
+  382:     () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+  383:     [engineEnabled, engineScore?.bestMove],
+  384:   );
+  385: 
+  386:   useEffect(() => {
+  387:     setUserArrows([]);
+  388:     setArrowStart(null);
+  389:     setArrowHover(null);
+  390:     setAnnotationMode(false);
+  391:   }, [book?.id, session?.currentFen]);
+  392: 
+  393:   useEffect(() => {
+  394:     if (engineEnabled && boardSession) {
+  395:       engineRef.current?.analyze(game.fen(), engineDepth);
+  396:     }
+  397:   }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+  398: 
+  399:   function messageOf(cause: unknown): string {
+  400:     return cause instanceof Error ? cause.message : String(cause);
+  401:   }
+  402: 
+  403:   function toggleEngine() {
+  404:     if (engineEnabled) {
+  405:       engineRef.current?.dispose();
+  406:       engineRef.current = null;
+  407:       setEngineEnabled(false);
+  408:       setEngineStatus("off");
+  409:       setEngineScore(null);
+  410:       setEngineMessage("");
+  411:       return;
+  412:     }
+  413:     try {
+  414:       setEngineScore(null);
+  415:       setEngineMessage("");
+  416:       const client = new StockfishEngine(
+  417:         `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+  418:         (status, message) => {
+  419:           setEngineStatus(status);
+  420:           if (status === "error") {
+  421:             setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+  422:             setEngineEnabled(false);
+  423:             setEngineScore(null);
+  424:             engineRef.current?.dispose();
+  425:             engineRef.current = null;
+  426:           }
+  427:         },
+  428:         setEngineScore,
+  429:       );
+  430:       engineRef.current = client;
+  431:       setEngineEnabled(true);
+  432:     } catch (cause) {
+  433:       setEngineStatus("error");
+  434:       setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+  435:       setEngineEnabled(false);
+  436:     }
+  437:   }
+  438: 
+  439:   function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+  440:     setSession((current) => {
+  441:       if (!current) return current;
+  442:       return typeof change === "function" ? change(current) : { ...current, ...change };
+  443:     });
+  444:   }
+  445: 
+  446:   function patchBoardSession(change: Partial<StudyBoardState>) {
+  447:     if (workspaceMode === "opening-explorer") {
+  448:       return;
+  449:     }
+  450: 
+  451:     if (workspaceMode === "analysis") {
+  452:       setAnalysisBoard((current) => ({ ...current, ...change }));
+  453:     } else if (studyMode) {
+  454:       setStudyBoard((current) => current ? { ...current, ...change } : current);
+  455:     } else {
+  456:       patchSession(change);
+  457:     }
+  458:   }
+  459:   async function toggleStudyMode() {
+  460:     if (!studyMode) {
+  461:       if (!session) {
+  462:         setError("Open a book before entering study mode.");
+  463:         return;
+  464:       }
+  465:       setStudyBoard({
+  466:         lineBaseFen: session.lineBaseFen,
+  467:         currentFen: session.currentFen,
+  468:         moves: [...session.moves],
+  469:         moveIndex: session.moveIndex,
+  470:         flipped: session.flipped,
+  471:         coordinates: session.coordinates,
+  472:       });
+  473:       setStudyMode(true);
+  474:     } else {
+  475:       // Preserve the latest Focus Mode board when returning to normal mode.
+  476:       if (studyBoard) {
+  477:         patchSession({
+  478:           lineBaseFen: studyBoard.lineBaseFen,
+  479:           currentFen: studyBoard.currentFen,
+  480:           moves: [...studyBoard.moves],
+
+================================================================================
+APP: SIDEBAR AND WORKSPACE LAYOUT
+================================================================================
+ 1260:   const detectionAttempted = Boolean(session && Object.hasOwn(session.candidatesByPage, String(session.page)));
+ 1261:   const currentDiagram = currentCandidates.find((candidate) => candidate.id === session?.selectedDiagramId);
+ 1262:   const whiteTurn = game.turn() === "w";
+ 1263: 
+ 1264:   if (!ready) {
+ 1265:     return <main className="startup"><div className="loader" /><span>Restoring your reading session...</span></main>;
+ 1266:   }
+ 1267: 
+ 1268:   return (
+ 1269:     <main className={`app-shell ${studyMode ? "study-focus-mode" : ""}`}>
+ 1270:       <header className="topbar">
+ 1271:         <div className="brand-mark">&#9822;</div>
+ 1272:         <button className="icon-button library-toggle" aria-label="Toggle library" onClick={() => setLibraryOpen((value) => !value)}>&#9776;</button>
+ 1273:         <div className="brand-name">ChessBook <span>Reader</span></div>
+ 1274:         <div className="top-divider" />
+ 1275:         <div className="current-book" title={book?.title ?? "No book open"}>
+ 1276:           <span className="book-dot" />
+ 1277:           <strong>{book?.title ?? "No book open"}</strong>
+ 1278:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+ 1279:         </div>
+ 1280:         <div className="top-spacer" />
+ 1281:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1282:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+ 1283:       </header>
+ 1284: 
+ 1285:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"}`}>
+ 1286:         {libraryOpen && (
+ 1287:           <aside className="library-panel">
+ 1288:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+ 1289:             <input
+ 1290:               ref={fileInput}
+ 1291:               className="hidden-input"
+ 1292:               type="file"
+ 1293:               accept="application/pdf,.pdf"
+ 1294:               onChange={(event) => void addBook(event.target.files?.[0])}
+ 1295:             />
+ 1296:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+ 1297:             <nav className="library-nav" aria-label="Library sections">
+ 1298:                             <LibraryNavItem active={libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => setLibraryTab("all")} />
+ 1299:               <LibraryNavItem active={libraryTab === "recent"} icon={History} label="Recently Opened" onClick={() => setLibraryTab("recent")} />
+ 1300:             
+ 1301:               <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => setWorkspaceMode("analysis")} />
+ 1302:               <LibraryNavItem active={workspaceMode === "opening-prep"} icon={BookOpenText} label="Opening Prep" onClick={() => setWorkspaceMode("opening-prep")} />
+ 1303:               <LibraryNavItem active={workspaceMode === "opening-explorer"} icon={Search} label="Opening Explorer" onClick={() => setWorkspaceMode("opening-explorer")} /></nav>
+ 1304:             <div className="library-list-title"><span>{libraryTab === "recent" ? "RECENTLY OPENED" : "ALL BOOKS"}</span><span>{visibleBooks.length}</span></div>
+ 1305:             <div className="book-list">
+ 1306:                 {visibleBooks.map((item, index) => {
+ 1307:                   const saved = sessionIndex[item.id];
+ 1308:                   const progress = saved?.pageCount ? Math.min(100, Math.round((saved.page / saved.pageCount) * 100)) : 0;
+ 1309:                   return (
+ 1310:                     <div key={item.id} className={`book-row ${book?.id === item.id ? "active" : ""}`}>
+ 1311:                       <button className="book-open" onClick={() => void openBook(item)} aria-label={`Open ${item.title}`}>
+ 1312:                         <div className="book-cover"><span><BookOpenText size={16} aria-hidden="true" /></span><small>{index + 1}</small></div>
+ 1313:                         <span className="book-meta"><strong>{item.title}</strong><small>Page {saved?.page ?? 1}{saved?.pageCount ? ` of ${saved.pageCount}` : ""} ? {readableDate(item.lastOpenedAt)}</small><span className="progress-track"><i style={{ width: `${progress}%` }} /></span></span>
+ 1314:                       </button>
+ 1315:                       <button type="button" className="book-delete-button" title={"Delete " + item.title} aria-label={"Delete " + item.title} onClick={(event) => { event.stopPropagation(); void deleteBook(item); }}>&#215;</button>
+ 1316:                       <details className="book-menu"><summary aria-label={`Options for ${item.title}`}>&#8942;</summary><div className="book-menu-items"><button onClick={() => void renameBook(item)}>Rename</button><button onClick={() => void deleteBook(item)}>Delete book</button></div></details>
+ 1317:                     </div>
+ 1318:                   );
+ 1319:                 })}
+ 1320:                 {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+ 1321:               </div>
+ 1322:             <section className="sidebar-moves-panel" aria-label="Move list">
+ 1323: <div className="moves-panel">
+ 1324:             <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+ 1325:               if (!session) return;
+ 1326:               patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+ 1327:               setLastMove(null);
+ 1328:               setNotice("New analysis line started from the current position.");
+ 1329:             }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+ 1330:             <div className="move-list">
+ 1331:               {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+ 1332:                 <div className="move-pair" key={row}>
+ 1333:                   <span className="move-number">{row + 1}.</span>
+ 1334:                   {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+ 1335:                   {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+ 1336:                 </div>
+ 1337:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+ 1338:             </div>
+ 1339:           </div>
+ 1340:             </section>
+ 1341:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+ 1342:           </aside>
+ 1343:         )}
+ 1344: 
+ 1345:         <section className="board-panel" aria-label="Chessboard analysis">
+ 1346:           <div className="board-header">
+ 1347:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+ 1348:             <div className="board-header-actions">
+ 1349:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+ 1350:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+ 1351:             </div>
+ 1352:           </div>
+ 1353:           <div className="board-area">
+ 1354:             <div
+ 1355:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+ 1356:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+ 1357:               title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+ 1358:             >
+ 1359:               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+ 1360:               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+ 1361:             </div>
+ 1362:             <div className="board-frame">
+ 1363:               <div
+ 1364:                 className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+ 1365:                 ref={boardRef}
+ 1366:                 onPointerDown={boardArrowPointerDown}
+ 1367:                 onPointerMove={boardArrowPointerMove}
+ 1368:                 onPointerUp={boardArrowPointerUp}
+ 1369:                 onPointerCancel={cancelBoardArrowGesture}
+ 1370:                 onContextMenu={(event) => {
+ 1371:   event.preventDefault();
+ 1372: 
+ 1373:   if (suppressBoardContextMenuRef.current || arrowGestureMovedRef.current) {
+ 1374:     suppressBoardContextMenuRef.current = false;
+ 1375:     return;
+ 1376:   }
+ 1377: 
+ 1378:   const bounds = boardRef.current?.getBoundingClientRect();
+ 1379:   if (!bounds) return;
+ 1380: 
+ 1381:   const square = boardSquareAtPoint(
+ 1382:     event.clientX,
+ 1383:     event.clientY,
+ 1384:     bounds,
+ 1385:     Boolean(boardSession?.flipped),
+ 1386:   );
+ 1387:   if (!square) return;
+ 1388: 
+ 1389:   setRedSquares((current) =>
+ 1390:     current.includes(square)
+ 1391:       ? current.filter((item) => item !== square)
+ 1392:       : [...current, square]
+ 1393:   );
+ 1394: }}
+ 1395:               >
+ 1396:                 {Array.from({ length: 64 }, (_, index) => {
+ 1397:                   const visibleRow = Math.floor(index / 8);
+ 1398:                   const visibleCol = index % 8;
+ 1399:                   const fileIndex = boardSession?.flipped ? 7 - visibleCol : visibleCol;
+ 1400:                   const rankIndex = boardSession?.flipped ? visibleRow : 7 - visibleRow;
+ 1401:                   const square = squareName(fileIndex, rankIndex);
+ 1402:                   const piece = pieceSquares[7 - rankIndex]?.[fileIndex];
+ 1403:                   const legal = legalTargets.has(square);
+ 1404:                   const isLast = highlightedMove?.from === square || highlightedMove?.to === square;
+ 1405:                   const light = (fileIndex + rankIndex) % 2 === 1;
+ 1406:                   return (
+ 1407:                     <button
+ 1408:                       key={square}
+ 1409:                       className={`square ${light ? "light-square" : "dark-square"} ${selectedSquare === square ? "selected-square" : ""} ${isLast ? "last-square" : ""} ${redSquares.includes(square) ? "red-highlight" : ""}`}
+ 1410:                       aria-label={`${square}${piece ? ` ${piece.color === "w" ? "white" : "black"} ${piece.type}` : ""}`}
+ 1411:                       draggable={Boolean(piece && piece.color === game.turn())}
+ 1412:                       onClick={() => handleSquareClick(square)}
+ 1413:                       onDragStart={(event) => {
+ 1414:                         const image = event.currentTarget.querySelector("img");
+ 1415:                         if (image) {
+ 1416:                           const bounds = event.currentTarget.getBoundingClientRect();
+ 1417:                           event.dataTransfer.setDragImage(image, bounds.width / 2, bounds.height / 2);
+ 1418:                         }
+ 1419:                         event.dataTransfer.setData("text/plain", square);
+ 1420:                         setSelectedSquare(square);
+ 1421:                       }}
+ 1422:                       onDragOver={(event) => event.preventDefault()}
+ 1423:                       onDrop={(event) => { event.preventDefault(); const from = event.dataTransfer.getData("text/plain") as Square; if (from) makeMove(from, square); }}
+ 1424:                       onDragEnd={() => setSelectedSquare(null)}
+ 1425:                     >
+ 1426:                       {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece.color}${piece.type}.svg`} /></span>}
+ 1427:                       {legal && <span className={piece ? "legal-capture" : "legal-dot"} />}
+ 1428:                       {boardSession?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
+ 1429:                       {boardSession?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
+ 1430:                     </button>
+ 1431:                   );
+ 1432:                 })}
+ 1433:                 <svg className="board-arrows" viewBox="0 0 8 8" aria-hidden="true">
+ 1434:                   {[
+ 1435:                     ...userArrows.map((arrow) => ({ arrow, kind: "user" as const })),
+ 1436:                     ...(engineArrow ? [{ arrow: engineArrow, kind: "engine" as const }] : []),
+ 1437:                     ...(arrowStart && arrowHover && arrowStart !== arrowHover
+ 1438:                       ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
+ 1439:                       : []),
+ 1440:                   ].map(({ arrow, kind }, index) => {
+ 1441:                     const from = squareCenter(arrow.from, Boolean(boardSession?.flipped));
+ 1442:                     const to = squareCenter(arrow.to, Boolean(boardSession?.flipped));
+ 1443:                     const dx = to.x - from.x;
+ 1444:                     const dy = to.y - from.y;
+ 1445:                     const length = Math.hypot(dx, dy);
+ 1446:                     if (length < 0.001) return null;
+ 1447: 
+ 1448:                     const ux = dx / length;
+ 1449:                     const uy = dy / length;
+ 1450:                     const px = -uy;
+ 1451:                     const py = ux;
+ 1452: 
+ 1453:                     const headLength = Math.min(0.34, length * 0.30);
+ 1454:                     const headHalfWidth = 0.19;
+ 1455:                     const shaftHalfWidth = kind === "preview" ? 0.045 : 0.055;
+ 1456:                     const tipX = to.x - ux * 0.04;
+ 1457:                     const tipY = to.y - uy * 0.04;
+ 1458:                     const baseX = tipX - ux * headLength;
+ 1459:                     const baseY = tipY - uy * headLength;
+ 1460:                     const startX = from.x + ux * 0.12;
+ 1461:                     const startY = from.y + uy * 0.12;
+ 1462: 
+ 1463:                     const points = [
+ 1464:                       [startX + px * shaftHalfWidth, startY + py * shaftHalfWidth],
+ 1465:                       [baseX + px * shaftHalfWidth, baseY + py * shaftHalfWidth],
+ 1466:                       [baseX + px * headHalfWidth, baseY + py * headHalfWidth],
+ 1467:                       [tipX, tipY],
+ 1468:                       [baseX - px * headHalfWidth, baseY - py * headHalfWidth],
+ 1469:                       [baseX - px * shaftHalfWidth, baseY - py * shaftHalfWidth],
+ 1470:                       [startX - px * shaftHalfWidth, startY - py * shaftHalfWidth],
+ 1471:                     ];
+ 1472:                     const color = kind === "engine" ? "#f0a23b" : "#81b64c";
+ 1473:                     const opacity = kind === "preview" ? 0.52 : kind === "engine" ? 0.78 : 0.80;
+ 1474: 
+ 1475:                     return (
+ 1476:                       <polygon
+ 1477:                         key={`${kind}-${arrow.from}-${arrow.to}-${index}`}
+ 1478:                         points={points.map(([x, y]) => `${x},${y}`).join(" ")}
+ 1479:                         fill={color}
+ 1480:                         opacity={opacity}
+ 1481:                         className={`board-arrow board-arrow-${kind}`}
+ 1482:                       />
+ 1483:                     );
+ 1484:                   })}
+ 1485:                 </svg>
+ 1486:               </div>
+ 1487:             </div>
+ 1488:           </div>
+ 1489:           <div className="board-controls">
+ 1490:             <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+ 1491:             <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+ 1492:             <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+ 1493:             <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+ 1494:             <span className="controls-separator" />
+ 1495:             <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+ 1496:             <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+ 1497:             <button
+ 1498:               className={annotationMode ? "annotation-active" : ""}
+ 1499:               title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+ 1500:               aria-pressed={annotationMode}
+ 1501:               onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+ 1502:             ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+ 1503:             {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+ 1504:             <span className="controls-spacer" />
+ 1505:             <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+ 1506:             <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+ 1507:           </div>
+ 1508:           <div className="turn-row">
+ 1509:             <span>TO MOVE</span>
+ 1510:             <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+ 1511:               try {
+ 1512:                 const fen = fenWithTurn(game.fen(), "w");
+ 1513:                 patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+ 1514:                 setLastMove(null);
+ 1515:               } catch (cause) { setError(messageOf(cause)); }
+ 1516:             }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+ 1517:             <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+ 1518:               try {
+ 1519:                 const fen = fenWithTurn(game.fen(), "b");
+ 1520:                 patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+ 1521:                 setLastMove(null);
+ 1522:               } catch (cause) { setError(messageOf(cause)); }
+ 1523:             }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+ 1524:             <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+ 1525:           </div>
+ 1526:           <details className="position-editor">
+ 1527:             <summary>Board position Â· enter FEN to correct selected diagram</summary>
+ 1528:             <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+ 1529:           </details>
+ 1530:           <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+ 1531:           {workspaceMode === "opening-explorer" && (
+ 1532:             <section className="opening-explorer-panel" aria-label="Opening Explorer">
+ 1533:               <h3>Opening Explorer</h3>
+ 1534:               <p>Enter a legal opening line in SAN or UCI notation. The board follows the selected move.</p>
+ 1535:               <label htmlFor="opening-line-input">Opening moves</label>
+ 1536:               <textarea
+ 1537:                 id="opening-line-input"
+ 1538:                 aria-label="Opening line input"
+ 1539:                 rows={3}
+ 1540:                 value={openingExplorerInput}
+ 1541:                 onChange={(event) => {
+ 1542:                   setOpeningExplorerInput(event.target.value);
+ 1543:                   setOpeningExplorerPly(0);
+ 1544:                 }}
+ 1545:                 placeholder="1. e4 e5 2. Nf3 Nc6"
+ 1546:               />
+ 1547:               {openingLine.error && <p role="alert">{openingLine.error}</p>}
+ 1548:               {!openingLine.error && (
+ 1549:                 <>
+ 1550:                   <div className="opening-explorer-moves" aria-label="Opening moves">
+ 1551:                     <button
+ 1552:                       type="button"
+ 1553:                       disabled={openingExplorerPly === 0}
+ 1554:                       onClick={() => setOpeningExplorerPly(0)}
+ 1555:                     >Start</button>
+ 1556:                     <button
+ 1557:                       type="button"
+ 1558:                       disabled={openingExplorerPly === 0}
+ 1559:                       onClick={() => setOpeningExplorerPly((ply) => Math.max(0, ply - 1))}
+ 1560:                     >Previous</button>
+ 1561:                     <span>Move {openingExplorerPly} / {openingLine.sanMoves.length}</span>
+ 1562:                     <button
+ 1563:                       type="button"
+ 1564:                       disabled={openingExplorerPly >= openingLine.sanMoves.length}
+ 1565:                       onClick={() => setOpeningExplorerPly((ply) => Math.min(openingLine.sanMoves.length, ply + 1))}
+ 1566:                     >Next</button>
+ 1567:                     <button
+ 1568:                       type="button"
+ 1569:                       disabled={openingExplorerPly >= openingLine.sanMoves.length}
+ 1570:                       onClick={() => setOpeningExplorerPly(openingLine.sanMoves.length)}
+ 1571:                     >End</button>
+ 1572:                   </div>
+ 1573:                   <div className="opening-explorer-notation">
+ 1574:                     {openingLine.sanMoves.length
+ 1575:                       ? openingLine.sanMoves.map((move, index) => (
+ 1576:                           <button
+ 1577:                             type="button"
+ 1578:                             key={`${index}-${move}`}
+ 1579:                             className={index < openingExplorerPly ? "opening-move-played" : ""}
+ 1580:                             onClick={() => setOpeningExplorerPly(index + 1)}
+ 1581:                           >{index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ` : ""}{move}</button>
+ 1582:                         ))
+ 1583:                       : <span>Enter moves to explore a line.</span>}
+ 1584:                   </div>
+ 1585:                   <button
+ 1586:                     type="button"
+ 1587:                     className="green-button"
+ 1588:                     onClick={() => {
+ 1589:                       setAnalysisBoard({
+ 1590:                         lineBaseFen: START_FEN,
+ 1591:                         currentFen: openingPosition.fen,
+ 1592:                         moves: [...openingPosition.sanMoves],
+ 1593:                         moveIndex: openingPosition.sanMoves.length,
+ 1594:                         flipped: false,
+ 1595:                         coordinates: true,
+ 1596:                       });
+ 1597:                       setStudyMode(false);
+ 1598:                       setWorkspaceMode("analysis");
+ 1599:                       setNotice("Opening position copied to the independent Analysis Board.");
+ 1600:                     }}
+ 1601:                   >Open position in Analysis Board</button>
+ 1602:                   <p className="muted">Position FEN: {openingPosition.fen}</p>
+ 1603:                 </>
+ 1604:               )}
+ 1605:             </section>
+ 1606:           )}
+ 1607:         </section>
+ 1608: 
+ 1609:         <section className="reader-panel" aria-label="PDF book reader">
+ 1610:           <div className="reader-toolbar">
+ 1611:             <div className="reader-title"><div className="document-icon" aria-hidden="true"><BookOpenText size={20} strokeWidth={1.8} /></div><div><strong>{book?.title ?? "Book reader"}</strong><span>{pdf ? `${session?.pageCount} pages \u00b7 PDF document` : "Add a PDF book to begin"}</span></div></div>
+ 1612:             <div className="reader-actions">
+ 1613:               <button className={session?.bookmarks.includes(session.page) ? "active-action" : ""} title="Bookmark this page" disabled={!book} onClick={saveBookmark}>&#9734;</button>
+ 1614:               <button title="Zoom out" disabled={!session} onClick={() => patchSession({ zoom: Math.max(0.65, (session?.zoom ?? 1) - 0.1) })}>&#8722;</button>
+ 1615:               <span className="zoom-value">{Math.round((session?.zoom ?? 1) * 100)}%</span>
+ 1616:               <button title="Zoom in" disabled={!session} onClick={() => patchSession({ zoom: Math.min(1.8, (session?.zoom ?? 1) + 0.1) })}><Plus size={15} aria-hidden="true" /></button>
+ 1617:               <button title="Fit to width" disabled={!pdf} onClick={() => void fitPage("width")}>Fit width</button>
+ 1618:               <button title="Fit page" disabled={!pdf} onClick={() => void fitPage("page")}>Fit page</button>
+ 1619:             </div>
+ 1620:           </div>
+ 1621:           <div className="page-navigation">
+ 1622:             <button aria-label="Previous page" disabled={!pdf || session?.page === 1} onClick={() => changePage(-1)}>&#8249;</button>
+ 1623:             <label>PAGE <input aria-label="Current page" type="number" min="1" max={session?.pageCount || 1} value={session?.page ?? 1} disabled={!pdf} onChange={(event) => goToPage(Number(event.target.value))} /> <span>of {session?.pageCount || "?"}</span></label>
+ 1624:             <button aria-label="Next page" disabled={!pdf || (session?.page ?? 1) >= (session?.pageCount ?? 1)} onClick={() => changePage(1)}>&#8250;</button>
+ 1625:             <span className="nav-separator" />
+ 1626:             <button className={`scan-button ${detecting ? "scan-active" : ""}`} disabled={!pdf || rendering} onClick={() => void detectBoards()}>{detecting ? "&#8211;Ã‚Â  Stop scan" : "Detect boards"}</button>
+ 1627:             <button
+ 1628:               type="button"
+ 1629:               className="clear-scan-button"
+ 1630:               disabled={!pdf}
+ 1631:               onClick={clearBoardScan}
+ 1632:               title="Stop scanning and remove detected board overlays"
+ 1633:             >Clear</button>
+ 1634:             <span className="detection-status">{detecting ? "Scanning current page..." : currentCandidates.length ? `${currentCandidates.length} candidate${currentCandidates.length === 1 ? "" : "s"}` : detectionAttempted ? "No boards found" : "Not scanned"}</span>
+ 1635:           </div>
+ 1636:           <div className="page-workspace">
+ 1637:             {!book && <div className="reader-empty"><div className="empty-glyph">&#128218;</div><strong>Open a chess book</strong><span>Import a PDF to read pages and mark chess diagrams.</span><button className="green-button" onClick={() => fileInput.current?.click()}>Add a book</button></div>}
+ 1638:             {book && (
+ 1639:               <div className="page-scroll">
+ 1640:                 <div
+ 1641:                   className={`page-stage ${rendering ? "is-rendering" : ""} ${manualMode ? "manual-mode" : ""}`}
+ 1642:                   ref={pageStageRef}
+ 1643:                   onPointerDown={startRegion}
+ 1644:                   onPointerMove={moveRegion}
+ 1645:                   onPointerUp={finishRegion}
+ 1646:                   onPointerCancel={cancelRegion}
+ 1647:                 >
+ 1648:                   <canvas ref={canvasRef} aria-label={`PDF page ${session?.page ?? 1}`} />
+ 1649:                   {!pdf && !pdfLoading && <div className="page-error">PDF is unavailable. Your saved reading state has been kept.</div>}
+ 1650:                   {currentCandidates.map((candidate, index) => (
+ 1651:                     candidate.id === cropEditingId ? (
+ 1652:                       <div
+ 1653:                         key={candidate.id}
+ 1654:                         className="diagram-overlay diagram-selected crop-editor"
+ 1655:                         style={{ left: `${candidate.x * 100}%`, top: `${candidate.y * 100}%`, width: `${candidate.width * 100}%`, height: `${candidate.height * 100}%` }}
+ 1656:                         aria-label={`Adjust crop region ${index + 1}`}
+ 1657:                         onPointerDown={(event) => startCropEdit(event, candidate, "move")}
+ 1658:                       >
+ 1659:                         <span>{index + 1} ? Drag to move</span>
+ 1660:                         {CROP_HANDLES.map((handle) => <button
+
+================================================================================
+CSS: MAIN LAYOUT AND SIDEBAR
+================================================================================
+    1: @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap");
+    2: /* Desktop viewport sizing */
+    3: html, body, #root {
+    4:   width: 100%;
+    5:   min-width: 0;
+    6:   height: 100%;
+    7:   min-height: 0;
+    8:   margin: 0;
+    9: }
+   10: 
+   11: #root {
+   12:   display: flex;
+   13:   flex-direction: column;
+   14:   overflow: hidden;
+   15: }
+   16: 
+   17: .workspace {
+   18:   flex: 1 1 auto;
+   19:   min-width: 0;
+   20:   min-height: 0;
+   21:   height: auto;
+   22:   max-height: none;
+   23:   overflow: hidden;
+   24: }
+   25: 
+   26: .library-panel,
+   27: .board-panel,
+   28: .reader-panel {
+   29:   min-width: 0;
+   30:   min-height: 0;
+   31:   box-sizing: border-box;
+   32: }
+   33: 
+   34: .board-panel {
+   35:   overflow-x: hidden;
+   36:   overflow-y: auto;
+   37: }
+   38: 
+   39: .board-area {
+   40:   display: flex;
+   41:   flex-direction: row;
+   42:   justify-content: center;
+   43:   align-items: stretch;
+   44:   width: 100%;
+   45:   min-width: 0;
+   46:   margin: 0 auto;
+   47:   gap: 8px;
+   48: }
+   49: 
+   50: .board-frame {
+   51:   width: min(100%, 48vh, 440px);
+   52:   min-width: 0;
+   53:   flex: 0 1 auto;
+   54:   aspect-ratio: 1 / 1;
+   55: }
+   56: 
+   57: .reader-panel {
+   58:   display: flex;
+   59:   flex-direction: column;
+   60:   height: 100%;
+   61:   overflow: hidden;
+   62: }
+   63: 
+   64: .reader-toolbar {
+   65:   flex: 0 0 auto;
+   66:   min-width: 0;
+   67: }
+   68: 
+   69: .page-workspace {
+   70:   flex: 1 1 auto;
+   71:   min-height: 0;
+   72:   min-width: 0;
+   73:   overflow: auto;
+   74: }
+   75: 
+   76: .reader-footer,
+   77: .analysis-strip {
+   78:   flex: 0 0 auto;
+   79:   min-width: 0;
+   80:   max-width: 100%;
+   81:   box-sizing: border-box;
+   82: }
+   83: 
+   84: @media (max-width: 1280px) and (min-width: 821px) {
+   85:   .workspace {
+   86:     grid-template-columns: 190px minmax(300px, 340px) minmax(0, 1fr);
+   87:   }
+   88: 
+   89:   .board-panel {
+   90:     padding-left: 8px;
+   91:     padding-right: 8px;
+   92:   }
+   93: 
+   94:   .board-frame {
+   95:     width: min(100%, 42vh, 340px);
+   96:   }
+   97: }
+   98: 
+   99: @media (max-width: 820px) {
+  100:   .workspace,
+  101:   .workspace.library-collapsed {
+  102:     grid-template-columns: minmax(0, 1fr);
+  103:   }
+  104: 
+  105:   .library-panel {
+  106:     display: none;
+  107:   }
+  108: 
+  109:   .board-panel {
+  110:     max-height: 48vh;
+  111:   }
+  112: 
+  113:   .board-frame {
+  114:     width: min(100%, 38vh, 300px);
+  115:   }
+  116: }
+  117: 
+  118: 
+  119: /* ==========================================================
+  120:    1. CHESS.COM INSPIRED DESIGN TOKENS & SYSTEM
+  121:    ========================================================== */
+  122: 
+  123: :root {
+  124:   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  125:   color-scheme: dark;
+  126:   font-synthesis: none;
+  127:   text-rendering: optimizeLegibility;
+  128:   -webkit-font-smoothing: antialiased;
+  129:   -moz-osx-font-smoothing: grayscale;
+  130: 
+  131:   /* Palette */
+  132:   --bg-app: #161512;
+  133:   --panel-primary: #262421;
+  134:   --panel-secondary: #312E2B;
+  135:   --panel-elevated: #3A3733;
+  136:   --panel-hover: #45423E;
+  137: 
+  138:   --text-primary: #FFFFFF;
+  139:   --text-secondary: #B8B5AC;
+  140:   --text-muted: #8F8B83;
+  141: 
+  142:   --board-light: #F0D9B5;
+  143:   --board-dark: #B58863;
+  144: 
+  145:   --green-primary: #81B64C;
+  146:   --green-hover: #95C85A;
+  147:   --green-active: #6F9F40;
+  148:   --green-subtle: rgba(129, 182, 76, 0.16);
+  149:   --green-glow: rgba(129, 182, 76, 0.32);
+  150: 
+  151:   --border-subtle: rgba(255, 255, 255, 0.10);
+  152:   --border-light: rgba(255, 255, 255, 0.16);
+  153: 
+  154:   --glass-surface: rgba(49, 46, 43, 0.82);
+  155:   --glass-border: rgba(255, 255, 255, 0.09);
+  156:   --glass-subtle: rgba(255, 255, 255, 0.035);
+  157: 
+  158:   --focus-outline: #A3D160;
+  159:   --error: #F07178;
+  160:   --success: #81B64C;
+  161:   --amber: #E5B45E;
+  162: 
+  163:   /* Backwards compatibility aliases */
+  164:   --bg: var(--bg-app);
+  165:   --panel: var(--panel-primary);
+  166:   --panel-raised: var(--panel-secondary);
+  167:   --line: var(--border-subtle);
+  168:   --line-soft: rgba(255, 255, 255, 0.06);
+  169:   --text: var(--text-primary);
+  170:   --muted: var(--text-muted);
+  171:   --green: var(--green-primary);
+  172:   --green-strong: var(--green-hover);
+  173: }
+  174: 
+  175: * {
+  176:   box-sizing: border-box;
+  177: }
+  178: 
+  179: body {
+  180:   margin: 0;
+  181:   min-width: 320px;
+  182:   min-height: 100vh;
+  183:   background: var(--bg-app);
+  184:   color: var(--text-primary);
+  185:   font-size: 13px;
+  186:   line-height: 1.45;
+  187:   overflow: hidden;
+  188: }
+  189: 
+  190: /* ==========================================================
+  191:    2. GLOBAL TYPOGRAPHY, BUTTONS & FORM NORMALIZATION
+  192:    ========================================================== */
+  193: 
+  194: button, input, select, textarea {
+  195:   font-family: inherit;
+  196:   font-size: inherit;
+  197:   line-height: inherit;
+  198:   color: inherit;
+  199: }
+  200: 
+  201: button {
+  202:   display: inline-flex;
+  203:   align-items: center;
+  204:   justify-content: center;
+  205:   gap: 6px;
+  206:   min-width: 0;
+  207:   max-width: 100%;
+  208:   padding: 6px 12px;
+  209:   border: 1px solid var(--border-subtle);
+  210:   border-radius: 6px;
+  211:   background: var(--panel-elevated);
+  212:   color: var(--text-primary);
+  213:   cursor: pointer;
+  214:   white-space: nowrap;
+  215:   user-select: none;
+  216:   transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, transform 0.08s ease, filter 0.14s ease;
+  217: }
+  218: 
+  219: button:hover:not(:disabled) {
+  220:   background: var(--panel-hover);
+  221:   border-color: var(--border-light);
+  222: }
+  223: 
+  224: button:active:not(:disabled) {
+  225:   transform: translateY(1px);
+  226: }
+  227: 
+  228: button:disabled {
+  229:   cursor: not-allowed;
+  230:   opacity: 0.45;
+  231: }
+  232: 
+  233: /* Accessible focus rings */
+  234: :focus-visible {
+  235:   outline: 2px solid var(--focus-outline) !important;
+  236:   outline-offset: 2px !important;
+  237: }
+  238: 
+  239: /* Action button variants */
+  240: .green-button,
+  241: .engine-toggle.engine-active {
+  242:   background: linear-gradient(180deg, var(--green-hover) 0%, var(--green-primary) 100%);
+  243:   border: 1px solid var(--green-hover);
+  244:   color: #FFFFFF;
+  245:   font-weight: 600;
+  246:   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  247:   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  248: }
+  249: 
+  250: .green-button:hover:not(:disabled),
+  251: .engine-toggle.engine-active:hover:not(:disabled) {
+  252:   background: linear-gradient(180deg, #9FDD62 0%, var(--green-hover) 100%);
+  253:   border-color: #A8E56B;
+  254: }
+  255: 
+  256: .text-button {
+  257:   background: var(--panel-elevated);
+  258:   border: 1px solid var(--border-subtle);
+  259:   color: var(--text-primary);
+  260:   font-weight: 500;
+  261:   font-size: 12px;
+  262: }
+  263: 
+  264: .text-button:hover:not(:disabled) {
+  265:   background: var(--panel-hover);
+  266:   border-color: var(--border-light);
+  267: }
+  268: 
+  269: .mini-button {
+  270:   height: 30px;
+  271:   min-height: 30px;
+  272:   padding: 0 10px;
+  273:   font-size: 12px;
+  274:   font-weight: 500;
+  275:   border-radius: 6px;
+  276:   background: var(--panel-secondary);
+  277:   border: 1px solid var(--border-subtle);
+  278:   color: var(--text-secondary);
+  279: }
+  280: 
+  281: .mini-button:hover:not(:disabled) {
+  282:   background: var(--panel-elevated);
+  283:   border-color: var(--border-light);
+  284:   color: var(--text-primary);
+  285: }
+  286: 
+  287: .icon-button {
+  288:   width: 32px;
+  289:   height: 32px;
+  290:   min-width: 32px;
+  291:   padding: 0;
+  292:   border: 0;
+  293:   background: transparent;
+  294:   color: var(--text-secondary);
+  295:   border-radius: 6px;
+  296:   font-size: 16px;
+  297: }
+  298: 
+  299: .icon-button:hover:not(:disabled) {
+  300:   background: var(--panel-secondary);
+  301:   color: var(--text-primary);
+  302: }
+  303: 
+  304: /* Inputs & Selects */
+  305: input[type="text"],
+  306: input[type="number"],
+  307: input[type="search"],
+  308: select {
+  309:   height: 34px;
+  310:   padding: 0 10px;
+  311:   border: 1px solid var(--border-subtle);
+  312:   border-radius: 6px;
+  313:   background: var(--bg-app);
+  314:   color: var(--text-primary);
+  315:   font-size: 13px;
+  316:   outline: none;
+  317:   transition: border-color 0.14s ease, box-shadow 0.14s ease;
+  318: }
+  319: 
+  320: input:focus,
+  321: select:focus {
+  322:   border-color: var(--focus-outline);
+  323:   box-shadow: 0 0 0 1px var(--focus-outline);
+  324: }
+  325: 
+  326: /* ==========================================================
+  327:    3. APPLICATION SHELL & HEADER (TOPBAR)
+  328:    ========================================================== */
+  329: 
+  330: .app-shell {
+  331:   min-height: 100vh;
+  332:   height: 100vh;
+  333:   display: flex;
+  334:   flex-direction: column;
+  335:   overflow: hidden;
+  336:   background: var(--bg-app);
+  337: }
+  338: 
+  339: .topbar {
+  340:   height: 50px;
+  341:   flex: 0 0 50px;
+  342:   display: flex;
+  343:   align-items: center;
+  344:   padding: 0 16px;
+  345:   gap: 12px;
+  346:   background: #1B1917;
+  347:   border-bottom: 1px solid var(--border-subtle);
+  348:   z-index: 10;
+  349: }
+  350: 
+  351: .brand-mark {
+  352:   width: 28px;
+  353:   height: 28px;
+  354:   display: grid;
+  355:   place-items: center;
+  356:   color: var(--green-primary);
+  357:   background: rgba(129, 182, 76, 0.12);
+  358:   border: 1px solid rgba(129, 182, 76, 0.28);
+  359:   border-radius: 6px;
+  360:   font-size: 18px;
+  361:   flex-shrink: 0;
+  362: }
+  363: 
+  364: .brand-name {
+  365:   font-size: 17px;
+  366:   color: var(--text-primary);
+  367:   font-weight: 700;
+  368:   letter-spacing: -0.2px;
+  369:   white-space: nowrap;
+  370: }
+  371: 
+  372: .brand-name span {
+  373:   color: var(--green-primary);
+  374:   font-weight: 600;
+  375: }
+  376: 
+  377: .top-divider {
+  378:   width: 1px;
+  379:   height: 22px;
+  380:   background: var(--border-subtle);
+  381:   margin: 0 2px;
+  382:   flex-shrink: 0;
+  383: }
+  384: 
+  385: .current-book {
+  386:   display: flex;
+  387:   align-items: center;
+  388:   gap: 8px;
+  389:   max-width: 38vw;
+  390:   min-width: 0;
+  391:   font-size: 12px;
+  392: }
+  393: 
+  394: .current-book strong {
+  395:   overflow: hidden;
+  396:   white-space: nowrap;
+  397:   text-overflow: ellipsis;
+  398:   font-weight: 600;
+  399:   color: var(--text-primary);
+  400: }
+  401: 
+  402: .book-dot {
+  403:   width: 7px;
+  404:   height: 7px;
+  405:   border-radius: 50%;
+  406:   background: var(--green-primary);
+  407:   box-shadow: 0 0 6px var(--green-glow);
+  408:   flex-shrink: 0;
+  409: }
+  410: 
+  411: .top-spacer {
+  412:   flex: 1 1 auto;
+  413: }
+  414: 
+  415: .storage-label {
+  416:   display: flex;
+  417:   gap: 6px;
+  418:   align-items: center;
+  419:   font-size: 11px;
+  420:   color: var(--text-muted);
+  421:   white-space: nowrap;
+  422: }
+  423: 
+  424: .storage-label i,
+  425: .local-dot {
+  426:   width: 6px;
+  427:   height: 6px;
+  428:   border-radius: 50%;
+  429:   background: var(--green-primary);
+  430:   display: inline-block;
+  431:   flex-shrink: 0;
+  432: }
+  433: 
+  434: /* ==========================================================
+  435:    4. MAIN WORKSPACE THREE-COLUMN LAYOUT
+  436:    ========================================================== */
+  437: 
+  438: .workspace {
+  439:   flex: 1 1 auto;
+  440:   min-height: 0;
+  441:   display: grid;
+  442:   grid-template-columns: minmax(190px, 220px) minmax(320px, 380px) minmax(0, 1fr);
+  443:   background: var(--bg-app);
+  444:   overflow: hidden;
+  445: }
+  446: 
+  447: .workspace.library-collapsed {
+  448:   grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  449: }
+  450: 
+  451: /* ==========================================================
+  452:    5. LEFT SIDEBAR: LIBRARY & NAVIGATION
+  453:    ========================================================== */
+  454: 
+  455: .library-panel {
+  456:   background: var(--panel-primary);
+  457:   border-right: 1px solid var(--border-subtle);
+  458:   min-width: 0;
+  459:   display: flex;
+  460:   flex-direction: column;
+  461:   overflow: hidden;
+  462: }
+  463: 
+  464: .library-heading {
+  465:   height: 46px;
+  466:   flex: 0 0 46px;
+  467:   padding: 0 14px;
+  468:   display: flex;
+  469:   align-items: center;
+  470:   justify-content: space-between;
+  471:   border-bottom: 1px solid var(--border-subtle);
+  472:   color: var(--text-muted);
+  473:   font-size: 11px;
+  474:   letter-spacing: 0.8px;
+  475:   font-weight: 700;
+  476: }
+  477: 
+  478: .library-heading .text-button {
+  479:   height: 28px;
+  480:   min-height: 28px;
+  481:   padding: 0 10px;
+  482:   font-size: 11px;
+  483:   background: var(--green-primary);
+  484:   border-color: var(--green-hover);
+  485:   color: #FFFFFF;
+  486:   font-weight: 600;
+  487: }
+  488: 
+  489: .library-heading .text-button:hover {
+  490:   background: var(--green-hover);
+  491: }
+  492: 
+  493: .hidden-input {
+  494:   display: none !important;
+  495: }
+  496: 
+  497: .search-field {
+  498:   margin: 10px 12px 8px;
+  499:   padding: 0 8px;
+  500:   height: 32px;
+  501:   display: flex;
+  502:   gap: 8px;
+  503:   align-items: center;
+  504:   border: 1px solid var(--border-subtle);
+  505:   border-radius: 6px;
+  506:   background: var(--bg-app);
+  507:   color: var(--text-muted);
+  508: }
+  509: 
+  510: .search-field input {
+  511:   width: 100%;
+  512:   height: 100%;
+  513:   border: 0;
+  514:   outline: 0;
+  515:   padding: 0;
+  516:   background: transparent;
+  517:   color: var(--text-primary);
+  518:   font-size: 12px;
+  519: }
+  520: 
+  521: .search-field input::placeholder {
+  522:   color: var(--text-muted);
+  523: }
+  524: 
+  525: .library-nav {
+  526:   padding: 4px 8px 10px;
+  527:   display: grid;
+  528:   gap: 2px;
+  529:   border-bottom: 1px solid var(--border-subtle);
+  530: }
+  531: 
+  532: .library-nav-item {
+  533:   height: 34px;
+  534:   min-height: 34px;
+  535:   display: flex;
+  536:   align-items: center;
+  537:   gap: 9px;
+  538:   border: 0;
+  539:   border-radius: 6px;
+  540:   background: transparent;
+  541:   text-align: left;
+  542:   padding: 0 10px;
+  543:   font-size: 12px;
+  544:   color: var(--text-secondary);
+  545: }
+  546: 
+  547: .library-nav-item span {
+  548:   width: 16px;
+  549:   text-align: center;
+  550:   font-size: 14px;
+  551:   color: var(--text-muted);
+  552: }
+  553: 
+  554: .library-nav-item:hover {
+  555:   background: var(--panel-secondary);
+  556:   color: var(--text-primary);
+  557: }
+  558: 
+  559: .library-nav-item.nav-active {
+  560:   background: var(--green-subtle);
+  561:   color: var(--text-primary);
+  562:   font-weight: 600;
+  563: }
+  564: 
+  565: .library-nav-item.nav-active span {
+  566:   color: var(--green-primary);
+  567: }
+  568: 
+  569: .library-list-title {
+  570:   padding: 10px 14px 6px;
+  571:   display: flex;
+  572:   justify-content: space-between;
+  573:   font-size: 10px;
+  574:   font-weight: 700;
+  575:   letter-spacing: 0.8px;
+  576:   color: var(--text-muted);
+  577: }
+  578: 
+  579: .book-list {
+  580:   overflow-y: auto;
+  581:   flex: 1 1 auto;
+  582:   min-height: 0;
+  583:   padding: 2px 8px 12px;
+  584: }
+  585: 
+  586: .book-row {
+  587:   display: flex;
+  588:   align-items: center;
+  589:   position: relative;
+  590:   border-radius: 6px;
+  591:   margin-bottom: 3px;
+  592: }
+  593: 
+  594: .book-row:hover {
+  595:   background: var(--panel-secondary);
+  596: }
+  597: 
+  598: .book-row.active {
+  599:   background: var(--panel-elevated);
+  600: }
+  601: 
+  602: .book-open {
+  603:   width: 100%;
+  604:   display: flex;
+  605:   align-items: center;
+  606:   gap: 10px;
+  607:   border: 0;
+  608:   background: none;
+  609:   text-align: left;
+  610:   padding: 6px 8px;
+  611:   min-width: 0;
+  612: }
+  613: 
+  614: .book-cover {
+  615:   flex: 0 0 32px;
+  616:   width: 32px;
+  617:   height: 40px;
+  618:   background: linear-gradient(135deg, #42382c, #262019);
+  619:   border: 1px solid #5a4b38;
+  620:   display: flex;
+  621:   flex-direction: column;
+  622:   align-items: center;
+  623:   justify-content: center;
+  624:   position: relative;
+  625:   color: #d6be90;
+  626:   border-radius: 3px;
+  627: }
+  628: 
+  629: .book-cover span {
+  630:   font-size: 16px;
+  631:   line-height: 18px;
+  632: }
+  633: 
+  634: .book-cover small {
+  635:   font: 8px "DM Mono", monospace;
+  636:   color: #a89470;
+  637:   position: absolute;
+  638:   bottom: 2px;
+  639: }
+  640: 
+  641: .book-meta {
+  642:   display: flex;
+  643:   flex-direction: column;
+  644:   min-width: 0;
+  645:   flex: 1 1 auto;
+  646:   gap: 2px;
+  647: }
+  648: 
+  649: .book-meta strong {
+  650:   color: var(--text-primary);
+  651:   white-space: nowrap;
+  652:   text-overflow: ellipsis;
+  653:   overflow: hidden;
+  654:   font-size: 12px;
+  655:   font-weight: 600;
+  656: }
+  657: 
+  658: .book-meta small {
+  659:   color: var(--text-muted);
+  660:   font-size: 10px;
+  661:   white-space: nowrap;
+  662:   overflow: hidden;
+  663:   text-overflow: ellipsis;
+  664: }
+  665: 
+  666: .progress-track {
+  667:   height: 2px;
+  668:   background: rgba(255, 255, 255, 0.08);
+  669:   width: 100%;
+  670:   margin-top: 2px;
+  671: }
+  672: 
+  673: .progress-track i {
+  674:   display: block;
+  675:   height: 100%;
+  676:   background: var(--green-primary);
+  677: }
+  678: 
+  679: .book-delete-button {
+  680:   position: absolute;
+  681:   right: 6px;
+  682:   top: 50%;
+  683:   transform: translateY(-50%);
+  684:   z-index: 4;
+  685:   width: 24px;
+  686:   height: 24px;
+  687:   min-width: 24px;
+  688:   padding: 0;
+  689:   border: 1px solid var(--border-subtle);
+  690:   border-radius: 4px;
+  691:   background: var(--panel-elevated);
+  692:   color: var(--text-muted);
+  693:   font-size: 14px;
+  694:   line-height: 1;
+  695:   opacity: 0;
+  696:   transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+  697: }
+  698: 
+  699: .book-row:hover .book-delete-button,
+  700: .book-row:focus-within .book-delete-button {
+  701:   opacity: 1;
+  702: }
+  703: 
+  704: .book-delete-button:hover {
+  705:   background: #4A2826;
+  706:   border-color: #703D3A;
+  707:   color: #FFB0A8;
+  708: }
+  709: 
+  710: .library-footer {
+  711:   height: 34px;
+  712:   flex: 0 0 34px;
+  713:   border-top: 1px solid var(--border-subtle);
+  714:   padding: 0 14px;
+  715:   color: var(--text-muted);
+  716:   font-size: 11px;
+  717:   display: flex;
+  718:   align-items: center;
+  719:   gap: 6px;
+  720: }
+  721: 
+  722: .footer-size {
+  723:   margin-left: auto;
+  724:   font-family: "DM Mono", monospace;
+  725:   font-size: 10px;
+  726: }
+  727: 
+  728: .empty-library {
+  729:   padding: 24px 14px;
+  730:   display: flex;
+  731:   flex-direction: column;
+  732:   gap: 8px;
+  733:   align-items: center;
+  734:   text-align: center;
+  735:   color: var(--text-muted);
+  736:   font-size: 12px;
+  737: }
+  738: 
+  739: .empty-library div {
+  740:   font-size: 26px;
+  741: }
+  742: 
+  743: .empty-library strong {
+  744:   color: var(--text-primary);
+  745:   font-size: 13px;
+  746: }
+  747: 
+  748: /* ==========================================================
+  749:    6. CENTER ANALYSIS PANEL & CHESSBOARD
+  750:    ========================================================== */
+  751: 
+  752: .board-panel {
+  753:   min-width: 0;
+  754:   background: var(--panel-primary);
+  755:   border-right: 1px solid var(--border-subtle);
+  756:   padding: 10px 14px 10px;
+  757:   overflow-y: auto;
+  758:   display: flex;
+  759:   flex-direction: column;
+  760: }
+  761: 
+  762: .section-kicker {
+  763:   box-sizing: border-box;
+  764:   padding: 5px 8px;
+  765:   margin-bottom: 6px;
+  766:   display: flex;
+  767:   align-items: center;
+  768:   justify-content: space-between;
+  769:   color: var(--text-muted);
+  770:   font-size: 10px;
+  771:   font-weight: 700;
+  772:   letter-spacing: 0.9px;
+  773:   border-bottom: 1px solid var(--border-subtle);
+  774: }
+  775: 
+  776: .engine-idle {
+  777:   font-size: 9px;
+  778:   color: var(--text-muted);
+  779:   letter-spacing: 0.6px;
+  780:   display: flex;
+  781:   align-items: center;
+  782:   gap: 5px;
+  783:   font-weight: 600;
+  784: }
+  785: 
+  786: .engine-idle i {
+  787:   width: 6px;
+  788:   height: 6px;
+  789:   border-radius: 50%;
+  790:   background: #757069;
+  791: }
+  792: 
+  793: .engine-idle.engine-ready i {
+  794:   background: var(--green-primary);
+  795:   box-shadow: 0 0 5px var(--green-glow);
+  796: }
+  797: 
+  798: .engine-idle.engine-analyzing i,
+  799: .engine-idle.engine-loading i {
+  800:   background: var(--amber);
+  801:   box-shadow: 0 0 5px rgba(229, 180, 94, 0.4);
+  802: }
+  803: 
+  804: .engine-idle.engine-error i {
+  805:   background: var(--error);
+  806: }
+  807: 
+  808: .board-header {
+  809:   display: flex;
+  810:   justify-content: space-between;
+  811:   align-items: center;
+  812:   padding: 2px 0 8px;
+  813:   min-height: 38px;
+  814: }
+  815: 
+  816: .board-header div {
+  817:   display: flex;
+  818:   flex-direction: column;
+  819:   gap: 2px;
+  820:   min-width: 0;
+  821: }
+  822: 
+  823: .board-header strong {
+  824:   color: var(--text-primary);
+  825:   font-size: 15px;
+  826:   font-weight: 600;
+  827:   letter-spacing: -0.1px;
+  828: }
+  829: 
+  830: .board-header span {
+  831:   font-size: 11px;
+  832:   color: var(--text-muted);
+  833: }
+  834: 
+  835: .board-header-actions {
+  836:   display: flex;
+  837:   align-items: center;
+  838:   gap: 6px;
+  839: }
+  840: 
+  841: .board-header-actions .setup-position-btn {
+  842:   color: #BEE5C8;
+  843:   border-color: rgba(129, 182, 76, 0.35);
+  844:   background: rgba(129, 182, 76, 0.12);
+  845: }
+  846: 
+  847: .board-header-actions .setup-position-btn:hover {
+  848:   background: rgba(129, 182, 76, 0.22);
+  849:   border-color: var(--green-primary);
+  850: }
+  851: 
+  852: /* Board frame and evaluation bar */
+  853: .board-area {
+  854:   display: flex;
+  855:   flex-direction: row;
+  856:   align-items: stretch;
+  857:   justify-content: center;
+  858:   gap: 8px;
+  859:   min-width: 0;
+  860:   margin: 0 auto;
+  861:   width: 100%;
+  862: }
+  863: 
+  864: .evaluation-bar {
+  865:   display: flex;
+  866:   flex: 0 0 14px;
+  867:   width: 14px;
+  868:   align-self: stretch;
+  869:   min-height: 0;
+  870:   border-radius: 3px;
+  871:   border: 1px solid rgba(255, 255, 255, 0.14);
+  872:   background: #201E1B;
+  873:   overflow: hidden;
+  874:   flex-direction: column;
+  875: }
+  876: 
+  877: .eval-white {
+  878:   width: 100%;
+  879:   background: #FFFFFF;
+  880:   transition: height 0.2s ease;
+  881: }
+  882: 
+  883: .eval-black {
+  884:   width: 100%;
+  885:   background: #2B2824;
+  886:   transition: height 0.2s ease;
+  887: }
+  888: 
+  889: .board-frame {
+  890:   box-sizing: border-box;
+  891:   width: min(100%, min(52vh, 480px));
+  892:   max-width: 100%;
+  893:   min-width: 220px;
+  894:   aspect-ratio: 1 / 1;
+  895:   padding: 3px;
+  896:   background: #2D2822;
+  897:   border: 2px solid #3E372F;
+  898:   border-radius: 4px;
+  899:   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  900: }
+
+================================================================================
+CSS: OPENING EXPLORER AND RECENT OVERRIDES
+================================================================================
+ 5350:   flex-shrink: 0;
+ 5351: }
+ 5352: 
+ 5353: 
+ 5354: 
+ 5355: .board-panel {
+ 5356:   min-width: 0 !important;
+ 5357:   max-width: 100% !important;
+ 5358:   box-sizing: border-box !important;
+ 5359: }
+ 5360: 
+ 5361: .board-panel .board-controls {
+ 5362:   display: grid !important;
+ 5363:   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+ 5364:   width: 100% !important;
+ 5365:   min-width: 0 !important;
+ 5366:   box-sizing: border-box !important;
+ 5367:   gap: 5px !important;
+ 5368: }
+ 5369: 
+ 5370: .board-panel .board-controls button {
+ 5371:   min-width: 0 !important;
+ 5372:   max-width: 100% !important;
+ 5373:   width: 100% !important;
+ 5374:   box-sizing: border-box !important;
+ 5375:   white-space: normal !important;
+ 5376:   overflow-wrap: anywhere;
+ 5377: }
+ 5378: 
+ 5379: .board-panel .turn-row {
+ 5380:   width: 100% !important;
+ 5381:   min-width: 0 !important;
+ 5382:   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+ 5383:   box-sizing: border-box !important;
+ 5384: }
+ 5385: 
+ 5386: .board-panel .turn-row > *,
+ 5387: .board-panel .turn-row button {
+ 5388:   min-width: 0 !important;
+ 5389:   max-width: 100% !important;
+ 5390:   box-sizing: border-box !important;
+ 5391: }
+ 5392: 
+ 5393: @media (max-width: 1100px) {
+ 5394:   .board-panel .board-controls {
+ 5395:     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+ 5396:   }
+ 5397: 
+ 5398:   .board-panel .board-controls button.setup-position-button {
+ 5399:     grid-column: 1 / -1 !important;
+ 5400:   }
+ 5401: }
+ 5402: 
+ 5403: 
+ 5404: 
+ 5405: /* ==========================================================
+ 5406:    STABLE RESPONSIVE WORKSPACE LAYOUT
+ 5407:    One authoritative grid; keep every panel inside the viewport.
+ 5408:    ========================================================== */
+ 5409: 
+ 5410: .workspace {
+ 5411:   display: grid;
+ 5412:   grid-template-columns: 220px minmax(0, 1.05fr) minmax(280px, 0.95fr);
+ 5413:   width: 100%;
+ 5414:   min-width: 0;
+ 5415:   min-height: 0;
+ 5416:   overflow: hidden;
+ 5417:   box-sizing: border-box;
+ 5418: }
+ 5419: 
+ 5420: .workspace.library-collapsed {
+ 5421:   grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+ 5422: }
+ 5423: 
+ 5424: .workspace > .library-panel,
+ 5425: .workspace > .board-panel,
+ 5426: .workspace > .reader-panel {
+ 5427:   width: 100%;
+ 5428:   min-width: 0;
+ 5429:   max-width: 100%;
+ 5430:   box-sizing: border-box;
+ 5431: }
+ 5432: 
+ 5433: .workspace > .library-panel {
+ 5434:   overflow: hidden;
+ 5435: }
+ 5436: 
+ 5437: .workspace .library-nav {
+ 5438:   width: 100%;
+ 5439:   min-width: 0;
+ 5440:   padding-inline: 8px;
+ 5441:   box-sizing: border-box;
+ 5442: }
+ 5443: 
+ 5444: .workspace .library-nav-item {
+ 5445:   display: grid;
+ 5446:   grid-template-columns: 20px minmax(0, 1fr);
+ 5447:   justify-content: stretch;
+ 5448:   align-items: center;
+ 5449:   gap: 10px;
+ 5450:   width: 100%;
+ 5451:   min-width: 0;
+ 5452:   box-sizing: border-box;
+ 5453:   overflow: hidden;
+ 5454:   white-space: nowrap;
+ 5455:   text-align: left;
+ 5456: }
+ 5457: 
+ 5458: .workspace .library-nav-item > span {
+ 5459:   min-width: 0;
+ 5460:   overflow: hidden;
+ 5461:   text-overflow: ellipsis;
+ 5462:   white-space: nowrap;
+ 5463: }
+ 5464: 
+ 5465: .workspace > .board-panel {
+ 5466:   overflow-x: hidden;
+ 5467:   overflow-y: auto;
+ 5468: }
+ 5469: 
+ 5470: .workspace .board-area {
+ 5471:   display: flex;
+ 5472:   justify-content: center;
+ 5473:   align-items: flex-start;
+ 5474:   width: 100%;
+ 5475:   min-width: 0;
+ 5476:   box-sizing: border-box;
+ 5477: }
+ 5478: 
+ 5479: .workspace .board-frame {
+ 5480:   width: min(100%, 56vh, 520px);
+ 5481:   max-width: 100%;
+ 5482:   min-width: 0;
+ 5483:   flex: 0 1 auto;
+ 5484:   aspect-ratio: 1 / 1;
+ 5485:   box-sizing: border-box;
+ 5486: }
+ 5487: 
+ 5488: .workspace .board-controls {
+ 5489:   width: 100%;
+ 5490:   min-width: 0;
+ 5491:   box-sizing: border-box;
+ 5492: }
+ 5493: 
+ 5494: .workspace > .reader-panel {
+ 5495:   overflow: hidden;
+ 5496: }
+ 5497: 
+ 5498: .workspace .page-workspace {
+ 5499:   min-width: 0;
+ 5500:   max-width: 100%;
+ 5501:   overflow: auto;
+ 5502:   box-sizing: border-box;
+ 5503: }
+ 5504: 
+ 5505: @media (max-width: 1150px) and (min-width: 901px) {
+ 5506:   .workspace {
+ 5507:     grid-template-columns: 190px minmax(0, 1.1fr) minmax(240px, 0.9fr);
+ 5508:   }
+ 5509: 
+ 5510:   .workspace.library-collapsed {
+ 5511:     grid-template-columns: minmax(0, 1.1fr) minmax(240px, 0.9fr);
+ 5512:   }
+ 5513: 
+ 5514:   .workspace .board-frame {
+ 5515:     width: min(100%, 48vh, 430px);
+ 5516:   }
+ 5517: }
+ 5518: 
+ 5519: @media (max-width: 900px) {
+ 5520:   .workspace,
+ 5521:   .workspace.library-collapsed {
+ 5522:     grid-template-columns: minmax(0, 1fr);
+ 5523:     overflow-y: auto;
+ 5524:     overflow-x: hidden;
+ 5525:   }
+ 5526: 
+ 5527:   .workspace > .library-panel {
+ 5528:     max-height: 42vh;
+ 5529:   }
+ 5530: 
+ 5531:   .workspace > .board-panel {
+ 5532:     max-height: none;
+ 5533:   }
+ 5534: 
+ 5535:   .workspace .board-frame {
+ 5536:     width: min(100%, 64vw, 440px);
+ 5537:   }
+ 5538: 
+ 5539:   .workspace > .reader-panel {
+ 5540:     min-height: 420px;
+ 5541:   }
+ 5542: }
+ 5543: 
+ 5544: /* Sidebar labels: readable, full text, no unnecessary truncation */
+ 5545: .workspace .library-nav-item {
+ 5546:   grid-template-columns: 20px minmax(0, 1fr) !important;
+ 5547:   justify-content: stretch !important;
+ 5548:   column-gap: 12px !important;
+ 5549:   padding-left: 12px !important;
+ 5550:   padding-right: 12px !important;
+ 5551:   overflow: visible !important;
+ 5552: }
+ 5553: 
+ 5554: .workspace .library-nav-item > span {
+ 5555:   display: block !important;
+ 5556:   min-width: 0 !important;
+ 5557:   width: 100% !important;
+ 5558:   overflow: visible !important;
+ 5559:   text-overflow: clip !important;
+ 5560:   white-space: nowrap !important;
+ 5561:   font-size: 14px !important;
+ 5562:   line-height: 1.5 !important;
+ 5563:   letter-spacing: 0 !important;
+ 5564: }
+ 5565: 
+ 5566: .workspace .library-nav-item svg {
+ 5567:   width: 18px !important;
+ 5568:   height: 18px !important;
+ 5569:   flex-shrink: 0 !important;
+ 5570: }
+ 5571: 
+ 5572: .workspace .library-nav-item.nav-active {
+ 5573:   padding-left: 12px !important;
+ 5574:   padding-right: 12px !important;
+ 5575: }
+ 5576: 
+ 5577: /* Prevent navigation labels from inheriting centered or clipped text */
+ 5578: .workspace .library-nav {
+ 5579:   align-items: stretch !important;
+ 5580:   overflow: visible !important;
+ 5581: }
+ 5582: 
+ 5583: /* Final icon alignment: engine badge and side-to-move buttons */
+ 5584: .analysis-name .stockfish-mark,
+ 5585: .analysis-strip .stockfish-mark {
+ 5586:   display: inline-flex !important;
+ 5587:   align-items: center !important;
+ 5588:   justify-content: center !important;
+ 5589:   align-self: center !important;
+ 5590:   flex: 0 0 34px !important;
+ 5591:   width: 34px !important;
+ 5592:   height: 34px !important;
+ 5593:   min-width: 34px !important;
+ 5594:   min-height: 34px !important;
+ 5595:   padding: 0 !important;
+ 5596:   line-height: 1 !important;
+ 5597:   box-sizing: border-box !important;
+ 5598: }
+ 5599: 
+ 5600: .stockfish-mark svg {
+ 5601:   display: block !important;
+ 5602:   width: 19px !important;
+ 5603:   height: 19px !important;
+ 5604:   margin: 0 !important;
+ 5605:   flex: 0 0 auto !important;
+ 5606: }
+ 5607: 
+ 5608: .board-panel .turn-row button {
+ 5609:   display: inline-flex !important;
+ 5610:   align-items: center !important;
+ 5611:   justify-content: center !important;
+ 5612:   gap: 7px !important;
+ 5613: }
+ 5614: 
+ 5615: .board-panel .turn-row button svg {
+ 5616:   display: block !important;
+ 5617:   width: 16px !important;
+ 5618:   height: 16px !important;
+ 5619:   flex: 0 0 16px !important;
+ 5620:   margin: 0 !important;
+ 5621: }
+ 5622: 
+ 5623: /* Stockfish badge: precise horizontal and vertical centering */
+ 5624: .analysis-strip .analysis-name .stockfish-mark,
+ 5625: .analysis-name .stockfish-mark {
+ 5626:   display: flex !important;
+ 5627:   align-items: center !important;
+ 5628:   justify-content: center !important;
+ 5629:   place-items: center !important;
+ 5630:   padding: 0 !important;
+ 5631:   line-height: 0 !important;
+ 5632:   text-align: center !important;
+ 5633:   box-sizing: border-box !important;
+ 5634: }
+ 5635: 
+ 5636: .analysis-strip .analysis-name .stockfish-mark > svg,
+ 5637: .analysis-name .stockfish-mark > svg {
+ 5638:   display: block !important;
+ 5639:   position: static !important;
+ 5640:   margin: 0 auto !important;
+ 5641:   padding: 0 !important;
+ 5642:   transform: none !important;
+ 5643:   flex: 0 0 19px !important;
+ 5644:   width: 19px !important;
+ 5645:   height: 19px !important;
+ 5646: }
+ 5647: 
+ 5648: /* Consistent SVG icon system for chess analysis controls */
+ 5649: .board-panel .board-controls button,
+ 5650: .board-panel .turn-row button {
+ 5651:   display: inline-flex;
+ 5652:   align-items: center;
+ 5653:   justify-content: center;
+ 5654:   gap: 7px;
+ 5655: }
+ 5656: 
+ 5657: .board-panel .board-controls button > svg,
+ 5658: .board-panel .turn-row button > svg {
+ 5659:   display: block;
+ 5660:   width: 16px;
+ 5661:   height: 16px;
+ 5662:   flex: 0 0 16px;
+ 5663:   margin: 0;
+ 5664:   stroke-width: 1.9;
+ 5665: }
+ 5666: 
+ 5667: .board-panel .board-controls button.setup-position-button > svg {
+ 5668:   width: 17px;
+ 5669:   height: 17px;
+ 5670:   flex-basis: 17px;
+ 5671: }
+ 5672: 
+ 5673: /* Refined analysis header actions */
+ 5674: .board-header {
+ 5675:   border-top: 0 !important;
+ 5676: }
+ 5677: 
+ 5678: .board-header .mini-button {
+ 5679:   display: inline-flex;
+ 5680:   align-items: center;
+ 5681:   justify-content: center;
+ 5682:   gap: 8px;
+ 5683:   min-height: 38px;
+ 5684:   padding: 0 13px;
+ 5685:   border: 1px solid var(--border-subtle);
+ 5686:   border-radius: 10px;
+ 5687:   font: inherit;
+ 5688:   font-size: 13px;
+ 5689:   font-weight: 600;
+ 5690:   line-height: 1;
+ 5691:   white-space: nowrap;
+ 5692:   transition: background-color 160ms ease, border-color 160ms ease;
+ 5693: }
+ 5694: 
+ 5695: .board-header .mini-button svg {
+ 5696:   display: block;
+ 5697:   width: 16px;
+ 5698:   height: 16px;
+ 5699:   flex: 0 0 16px;
+ 5700: }
+ 5701: 
+ 5702: .board-header .mini-button:hover {
+ 5703:   border-color: var(--green-primary);
+ 5704:   background: rgba(139, 195, 74, 0.10);
+ 5705: }
+ 5706: 
+ 5707: .board-header .setup-position-btn {
+ 5708:   border-color: rgba(139, 195, 74, 0.45);
+ 5709:   color: var(--green-primary);
+ 5710: }
+ 5711: 
+ 5712: .board-header .setup-position-btn:hover {
+ 5713:   background: rgba(139, 195, 74, 0.16);
+ 5714: }
+ 5715: 
+ 5716: /* Analysis workspace title bar */
+ 5717: .board-panel .board-header {
+ 5718:   display: flex !important;
+ 5719:   align-items: center !important;
+ 5720:   justify-content: space-between !important;
+ 5721:   gap: 16px !important;
+ 5722:   width: 100% !important;
+ 5723:   min-width: 0 !important;
+ 5724:   margin: -1px 0 12px !important;
+ 5725:   padding: 12px 14px !important;
+ 5726:   background: linear-gradient(
+ 5727:     110deg,
+ 5728:     rgba(55, 65, 48, 0.48),
+ 5729:     rgba(40, 39, 36, 0.96) 72%
+ 5730:   ) !important;
+ 5731:   border: 1px solid rgba(139, 195, 74, 0.18) !important;
+ 5732:   border-bottom: 2px solid rgba(139, 195, 74, 0.55) !important;
+ 5733:   border-radius: 12px !important;
+ 5734:   box-sizing: border-box !important;
+ 5735: }
+ 5736: 
+ 5737: .board-panel .board-header > div:first-child {
+ 5738:   min-width: 0 !important;
+ 5739:   display: flex !important;
+ 5740:   flex-direction: column !important;
+ 5741:   gap: 4px !important;
+ 5742: }
+ 5743: 
+ 5744: .board-panel .board-header > div:first-child strong {
+ 5745:   font-size: 17px !important;
+ 5746:   line-height: 1.3 !important;
+ 5747:   font-weight: 700 !important;
+ 5748:   letter-spacing: -0.2px !important;
+ 5749:   color: var(--text-primary, #f5f5f5) !important;
+ 5750: }
+ 5751: 
+ 5752: .board-panel .board-header > div:first-child span {
+ 5753:   font-size: 12px !important;
+ 5754:   line-height: 1.4 !important;
+ 5755:   color: var(--text-secondary, #a8a8a8) !important;
+ 5756: }
+ 5757: 
+ 5758: .board-panel .board-header > div:last-child {
+ 5759:   display: flex !important;
+ 5760:   align-items: center !important;
+ 5761:   justify-content: flex-end !important;
+ 5762:   gap: 8px !important;
+ 5763:   flex: 0 0 auto !important;
+ 5764: }
+ 5765: 
+ 5766: .board-panel .board-header .flip-board-button {
+ 5767:   min-height: 36px !important;
+ 5768:   padding: 0 13px !important;
+ 5769:   border-radius: 9px !important;
+ 5770:   background: rgba(255, 255, 255, 0.045) !important;
+ 5771:   border: 1px solid rgba(255, 255, 255, 0.12) !important;
+ 5772:   color: var(--text-primary, #f5f5f5) !important;
+ 5773: }
+ 5774: 
+ 5775: .board-panel .board-header .flip-board-button:hover {
+ 5776:   background: rgba(139, 195, 74, 0.12) !important;
+ 5777:   border-color: rgba(139, 195, 74, 0.55) !important;
+ 5778: }
+ 5779: 
+ 5780: @media (max-width: 520px) {
+ 5781:   .board-panel .board-header {
+ 5782:     gap: 8px !important;
+ 5783:     padding: 10px !important;
+ 5784:   }
+ 5785: 
+ 5786:   .board-panel .board-header > div:first-child strong {
+ 5787:     font-size: 15px !important;
+ 5788:   }
+ 5789: 
+ 5790:   .board-panel .board-header .flip-board-button {
+ 5791:     padding: 0 9px !important;
+ 5792:   }
+ 5793: }
+ 5794: 
+ 5795: /* Premium analysis board header */
+ 5796: .board-panel .board-header {
+ 5797:   position: relative !important;
+ 5798:   display: flex !important;
+ 5799:   align-items: center !important;
+ 5800:   justify-content: space-between !important;
+ 5801:   gap: 14px !important;
+ 5802:   width: 100% !important;
+ 5803:   min-width: 0 !important;
+ 5804:   margin: 0 0 12px !important;
+ 5805:   padding: 13px 15px 13px 17px !important;
+ 5806:   overflow: hidden !important;
+ 5807:   background:
+ 5808:     radial-gradient(ellipse at 0% 0%, rgba(139, 195, 74, 0.12), transparent 62%),
+ 5809:     linear-gradient(135deg, #292b26 0%, #222321 58%, #252522 100%) !important;
+ 5810:   border: 1px solid rgba(255, 255, 255, 0.075) !important;
+ 5811:   border-radius: 13px !important;
+ 5812:   box-shadow:
+ 5813:     0 4px 14px rgba(0, 0, 0, 0.16),
+ 5814:     inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+ 5815:   box-sizing: border-box !important;
+ 5816: }
+ 5817: 
+ 5818: .board-panel .board-header::before {
+ 5819:   content: "" !important;
+ 5820:   position: absolute !important;
+ 5821:   inset: 10px auto 10px 0 !important;
+ 5822:   width: 3px !important;
+ 5823:   border-radius: 0 4px 4px 0 !important;
+ 5824:   background: var(--green-primary, #8bc34a) !important;
+ 5825:   pointer-events: none !important;
+ 5826: }
+ 5827: 
+ 5828: .board-panel .board-header > div:first-child {
+ 5829:   display: flex !important;
+ 5830:   flex: 1 1 auto !important;
+ 5831:   flex-direction: column !important;
+ 5832:   align-items: flex-start !important;
+ 5833:   gap: 5px !important;
+ 5834:   min-width: 0 !important;
+ 5835: }
+ 5836: 
+ 5837: .board-panel .board-header .analysis-title-text {
+ 5838:   display: inline-flex !important;
+ 5839:   align-items: center !important;
+ 5840:   gap: 8px !important;
+ 5841:   margin: 0 !important;
+ 5842:   color: #f4f5f0 !important;
+ 5843:   font-size: 16px !important;
+ 5844:   font-weight: 700 !important;
+ 5845:   letter-spacing: -0.25px !important;
+ 5846:   line-height: 1.25 !important;
+ 5847: }
+ 5848: 
+ 5849: .board-panel .board-header .analysis-title-text svg {
+ 5850:   flex: 0 0 17px !important;
+ 5851:   color: var(--green-primary, #8bc34a) !important;
+ 5852: }
+ 5853: 
+ 5854: .board-panel .board-header > div:first-child > span {
+ 5855:   color: #a7aaa0 !important;
+ 5856:   font-size: 12px !important;
+ 5857:   line-height: 1.4 !important;
+ 5858: }
+ 5859: 
+ 5860: .board-panel .board-header > div:last-child {
+ 5861:   display: flex !important;
+ 5862:   flex: 0 0 auto !important;
+ 5863:   align-items: center !important;
+ 5864:   justify-content: flex-end !important;
+ 5865:   gap: 8px !important;
+ 5866: }
+ 5867: 
+ 5868: .board-panel .board-header .flip-board-button {
+ 5869:   display: inline-flex !important;
+ 5870:   align-items: center !important;
+ 5871:   justify-content: center !important;
+ 5872:   gap: 7px !important;
+ 5873:   min-height: 35px !important;
+ 5874:   padding: 0 12px !important;
+ 5875:   border: 1px solid rgba(255, 255, 255, 0.11) !important;
+ 5876:   border-radius: 9px !important;
+ 5877:   background: rgba(255, 255, 255, 0.045) !important;
+ 5878:   color: #e5e7df !important;
+ 5879:   font-size: 12px !important;
+ 5880:   font-weight: 600 !important;
+ 5881:   white-space: nowrap !important;
+ 5882:   transition: background 150ms ease, border-color 150ms ease, transform 150ms ease !important;
+ 5883: }
+ 5884: 
+ 5885: .board-panel .board-header .flip-board-button:hover {
+ 5886:   background: rgba(139, 195, 74, 0.12) !important;
+ 5887:   border-color: rgba(139, 195, 74, 0.42) !important;
+ 5888: }
+ 5889: 
+ 5890: .board-panel .board-header .flip-board-button:active {
+ 5891:   transform: translateY(1px) !important;
+ 5892: }
+ 5893: 
+ 5894: .board-panel .board-header .flip-board-button svg {
+ 5895:   width: 15px !important;
+ 5896:   height: 15px !important;
+ 5897:   color: var(--green-primary, #8bc34a) !important;
+ 5898: }
+ 5899: 
+ 5900: @media (max-width: 520px) {
+ 5901:   .board-panel .board-header {
+ 5902:     gap: 8px !important;
+ 5903:     padding: 11px 10px 11px 13px !important;
+ 5904:   }
+ 5905: 
+ 5906:   .board-panel .board-header .analysis-title-text {
+ 5907:     gap: 6px !important;
+ 5908:     font-size: 14px !important;
+ 5909:   }
+ 5910: 
+ 5911:   .board-panel .board-header .flip-board-button {
+ 5912:     min-height: 33px !important;
+ 5913:     padding: 0 8px !important;
+ 5914:     font-size: 11px !important;
+ 5915:   }
+ 5916: }
+ 5917: 
+ 5918: /* Polished PDF book toolbar */
+ 5919: .reader-panel .reader-toolbar {
+ 5920:   display: flex;
+ 5921:   align-items: center;
+ 5922:   justify-content: space-between;
+ 5923:   gap: 12px;
+ 5924:   min-width: 0;
+ 5925:   padding: 9px 12px;
+ 5926:   height: auto;
+ 5927:   min-height: 58px;
+ 5928:   flex: 0 0 auto;
+ 5929:   background: linear-gradient(110deg, #292a27, #232421);
+ 5930:   border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+ 5931:   box-sizing: border-box;
+ 5932: }
+ 5933: 
+ 5934: .reader-panel .reader-title {
+ 5935:   display: flex;
+ 5936:   align-items: center;
+ 5937:   gap: 10px;
+ 5938:   flex: 1 1 auto;
+ 5939:   min-width: 0;
+ 5940: }
+ 5941: 
+ 5942: .reader-panel .reader-title .document-icon {
+ 5943:   display: flex;
+ 5944:   align-items: center;
+ 5945:   justify-content: center;
+ 5946:   flex: 0 0 36px;
+ 5947:   width: 36px;
+ 5948:   height: 36px;
+ 5949:   border-radius: 9px;
+ 5950:   background: rgba(139, 195, 74, 0.09);
+ 5951:   border: 1px solid rgba(139, 195, 74, 0.24);
+ 5952:   color: var(--green-primary, #8bc34a);
+ 5953:   font-size: 18px;
+ 5954: }
+ 5955: 
+ 5956: .reader-panel .reader-title > div:last-child {
+ 5957:   flex: 1 1 auto;
+ 5958:   min-width: 0;
+ 5959: }
+ 5960: 
+ 5961: .reader-panel .reader-title strong {
+ 5962:   display: block;
+ 5963:   overflow: hidden;
+ 5964:   text-overflow: ellipsis;
+ 5965:   white-space: nowrap;
+ 5966:   font-size: 13px;
+ 5967:   line-height: 1.45;
+ 5968: }
+ 5969: 
+ 5970: .reader-panel .reader-title span {
+ 5971:   display: block;
+ 5972:   margin-top: 2px;
+ 5973:   font-size: 11px;
+ 5974:   line-height: 1.35;
+ 5975: }
+ 5976: 
+ 5977: .reader-panel .reader-actions {
+ 5978:   display: flex;
+ 5979:   align-items: center;
+ 5980:   justify-content: flex-end;
+ 5981:   flex: 0 0 auto;
+ 5982:   gap: 6px;
+ 5983:   min-width: 0;
+ 5984: }
+ 5985: 
+ 5986: .reader-panel .reader-actions button {
+ 5987:   display: inline-flex;
+ 5988:   align-items: center;
+ 5989:   justify-content: center;
+ 5990:   gap: 6px;
+ 5991:   min-width: 34px;
+ 5992:   height: 34px;
+ 5993:   padding: 0 10px;
+ 5994:   border: 1px solid rgba(255, 255, 255, 0.10);
+ 5995:   border-radius: 8px;
+ 5996:   background: rgba(255, 255, 255, 0.035);
+ 5997:   color: var(--text-primary, #f5f5f5);
+ 5998:   font-size: 12px;
+ 5999:   white-space: nowrap;
+ 6000: }
+ 6001: 
+ 6002: .reader-panel .reader-actions button:hover:not(:disabled) {
+ 6003:   border-color: rgba(139, 195, 74, 0.48);
+ 6004:   background: rgba(139, 195, 74, 0.09);
+ 6005: }
+ 6006: 
+ 6007: .reader-panel .reader-actions button:disabled {
+ 6008:   opacity: 0.42;
+ 6009: }
+ 6010: 
+ 6011: .reader-panel .reader-actions button svg {
+ 6012:   display: block;
+ 6013:   width: 15px;
+ 6014:   height: 15px;
+ 6015:   flex: 0 0 15px;
+ 6016: }
+ 6017: 
+ 6018: .reader-panel .reader-actions .zoom-value {
+ 6019:   min-width: 38px;
+ 6020:   text-align: center;
+ 6021:   font-variant-numeric: tabular-nums;
+ 6022: }
+ 6023: 
+ 6024: .reader-panel .page-navigation {
+ 6025:   display: flex;
+ 6026:   align-items: center;
+ 6027:   gap: 8px;
+ 6028:   min-width: 0;
+ 6029:   padding: 8px 12px;
+ 6030:   background: #292a27;
+ 6031:   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+ 6032:   box-sizing: border-box;
+ 6033: }
+ 6034: 
+ 6035: .reader-panel .scan-button {
+ 6036:   display: inline-flex;
+ 6037:   align-items: center;
+ 6038:   justify-content: center;
+ 6039:   min-height: 34px;
+ 6040:   padding: 0 12px;
+ 6041:   border-radius: 8px;
+ 6042:   font-weight: 600;
+ 6043:   white-space: nowrap;
+ 6044: }
+ 6045: 
+ 6046: .reader-panel .detection-status {
+ 6047:   min-width: 0;
+ 6048:   overflow: hidden;
+ 6049:   text-overflow: ellipsis;
+ 6050:   white-space: nowrap;
+ 6051:   font-size: 11px;
+ 6052: }
+ 6053: 
+ 6054: @media (max-width: 1150px) {
+ 6055:   .reader-panel .reader-toolbar {
+ 6056:     flex-wrap: wrap;
+ 6057:     align-items: flex-start;
+ 6058:   }
+ 6059: 
+ 6060:   .reader-panel .reader-title {
+ 6061:     flex-basis: 100%;
+ 6062:   }
+ 6063: 
+ 6064:   .reader-panel .reader-actions {
+ 6065:     flex-wrap: wrap;
+ 6066:     justify-content: flex-start;
+ 6067:     width: 100%;
+ 6068:   }
+ 6069: 
+ 6070:   .reader-panel .page-navigation {
+ 6071:     flex-wrap: wrap;
+ 6072:   }
+ 6073: }
+ 6074: 
+ 6075: /* Animated ChessBook Reader document logo */
+ 6076: .reader-panel .reader-title .document-icon {
+ 6077:   position: relative;
+ 6078:   display: inline-flex;
+ 6079:   align-items: center;
+ 6080:   justify-content: center;
+ 6081:   flex: 0 0 40px;
+ 6082:   width: 40px;
+ 6083:   height: 40px;
+ 6084:   padding: 0;
+ 6085:   overflow: hidden;
+ 6086:   border: 1px solid rgba(139, 195, 74, 0.34);
+ 6087:   border-radius: 12px;
+ 6088:   color: #a7df62;
+ 6089:   background:
+ 6090:     radial-gradient(circle at 50% 0%, rgba(139, 195, 74, 0.18), transparent 72%),
+ 6091:     linear-gradient(145deg, #30372a, #242820);
+ 6092:   box-shadow:
+ 6093:     inset 0 1px 0 rgba(255, 255, 255, 0.07),
+ 6094:     0 3px 10px rgba(0, 0, 0, 0.15);
+ 6095:   transition:
+ 6096:     transform 220ms ease,
+ 6097:     border-color 220ms ease,
+ 6098:     box-shadow 220ms ease,
+ 6099:     background 220ms ease;
+ 6100: }
+ 6101: 
+ 6102: .reader-panel .reader-title .document-icon::after {
+ 6103:   content: "";
+ 6104:   position: absolute;
+ 6105:   inset: -35%;
+ 6106:   background: linear-gradient(
+ 6107:     115deg,
+ 6108:     transparent 38%,
+ 6109:     rgba(255, 255, 255, 0.11) 49%,
+ 6110:     transparent 60%
+ 6111:   );
+ 6112:   transform: translateX(-75%);
+ 6113:   transition: transform 450ms ease;
+ 6114:   pointer-events: none;
+ 6115: }
+ 6116: 
+ 6117: .reader-panel .reader-title .document-icon svg {
+ 6118:   position: relative;
+ 6119:   z-index: 1;
+ 6120:   display: block;
+ 6121:   width: 20px;
+ 6122:   height: 20px;
+ 6123:   color: inherit;
+ 6124:   filter: drop-shadow(0 0 4px rgba(139, 195, 74, 0.12));
+ 6125:   transition: transform 220ms ease;
+ 6126: }
+ 6127: 
+ 6128: .reader-panel .reader-title:hover .document-icon {
+ 6129:   transform: translateY(-1px);
+ 6130:   border-color: rgba(167, 223, 98, 0.7);
+ 6131:   box-shadow:
+ 6132:     inset 0 1px 0 rgba(255, 255, 255, 0.09),
+ 6133:     0 0 0 3px rgba(139, 195, 74, 0.06),
+ 6134:     0 5px 16px rgba(0, 0, 0, 0.22);
+ 6135: }
+ 6136: 
+ 6137: .reader-panel .reader-title:hover .document-icon::after {
+ 6138:   transform: translateX(75%);
+ 6139: }
+ 6140: 
+ 6141: .reader-panel .reader-title:hover .document-icon svg {
+ 6142:   transform: scale(1.08);
+ 6143: }
+ 6144: 
+ 6145: @media (prefers-reduced-motion: reduce) {
+ 6146:   .reader-panel .reader-title .document-icon,
+ 6147:   .reader-panel .reader-title .document-icon::after,
+ 6148:   .reader-panel .reader-title .document-icon svg {
+ 6149:     transition: none !important;
+ 6150:   }
+ 6151: }
+ 6152: 
+ 6153: 
+ 6154: /* Persistent library notes */
+ 6155: .notes-sidebar {
+ 6156:   display: flex;
+ 6157:   flex: 1 1 auto;
+ 6158:   flex-direction: column;
+ 6159:   gap: 8px;
+ 6160:   min-height: 0;
+ 6161:   padding: 10px 12px 16px;
+ 6162:   overflow-y: auto;
+ 6163: }
+ 6164: 
+ 6165: .library-notes-input {
+ 6166:   display: block;
+ 6167:   width: 100%;
+ 6168:   min-height: 220px;
+ 6169:   flex: 1 1 auto;
+ 6170:   box-sizing: border-box;
+ 6171:   resize: vertical;
+ 6172:   padding: 12px;
+ 6173:   border: 1px solid var(--border, #3a3935);
+ 6174:   border-radius: 8px;
+ 6175:   background: var(--panel, #242321);
+ 6176:   color: inherit;
+ 6177:   font: inherit;
+ 6178:   line-height: 1.6;
+ 6179: }
+ 6180: 
+ 6181: .library-notes-input:focus {
+ 6182:   outline: 2px solid var(--green-primary, #84cc16);
+ 6183:   outline-offset: 1px;
+ 6184: }
+ 6185: 
+ 6186: .notes-save-status {
+ 6187:   font-size: 11px;
+ 6188:   opacity: 0.65;
+ 6189: }
+ 6190: 
+ 6191: /* Study library and document editor */
+ 6192: .study-library {
+ 6193:   display: flex;
+ 6194:   flex-direction: column;
+ 6195:   flex: 1 1 auto;
+ 6196:   min-height: 0;
+ 6197:   gap: 8px;
+ 6198:   padding: 10px 10px 12px;
+ 6199:   overflow: hidden;
+ 6200: }
+ 6201: 
+ 6202: .study-library-toolbar {
+ 6203:   display: flex;
+ 6204:   align-items: center;
+ 6205:   gap: 5px;
+ 6206: }
+ 6207: 
+ 6208: .study-library-toolbar button,
+ 6209: .study-tool-button {
+ 6210:   display: inline-flex;
+ 6211:   align-items: center;
+ 6212:   justify-content: center;
+ 6213:   width: 32px;
+ 6214:   height: 30px;
+ 6215:   padding: 0;
+ 6216:   border: 1px solid var(--border-subtle);
+ 6217:   border-radius: 7px;
+ 6218:   background: var(--panel-secondary);
+ 6219:   color: var(--text-secondary);
+ 6220:   cursor: pointer;
+ 6221: }
+ 6222: 
+ 6223: .study-library-toolbar button:hover,
+ 6224: .study-tool-button:hover {
+ 6225:   color: var(--text-primary);
+ 6226:   background: var(--panel-elevated);
+ 6227: }
+ 6228: 
+ 6229: .study-library-toolbar button:disabled {
+ 6230:   opacity: .35;
+ 6231:   cursor: not-allowed;
+ 6232: }
+ 6233: 
+ 6234: .study-tool-button input {
+ 6235:   display: none;
+ 6236: }
+ 6237: 
+ 6238: .study-search {
+ 6239:   display: flex;
+ 6240:   align-items: center;
+ 6241:   gap: 7px;
+ 6242:   min-height: 32px;
+ 6243:   padding: 0 9px;
+ 6244:   border: 1px solid var(--border-subtle);
+ 6245:   border-radius: 7px;
+ 6246:   color: var(--text-muted);
+ 6247:   background: var(--bg-app);
+ 6248: }
+ 6249: 
+ 6250: .study-search input {
+ 6251:   min-width: 0;
+ 6252:   width: 100%;
+ 6253:   border: 0;
+ 6254:   outline: 0;
+ 6255:   color: var(--text-primary);
+ 6256:   background: transparent;
+ 6257:   font: inherit;
+ 6258:   font-size: 12px;
+ 6259: }
+ 6260: 
+ 6261: .study-breadcrumb {
+ 6262:   display: flex;
+ 6263:   align-items: center;
+ 6264:   gap: 5px;
+ 6265:   min-width: 0;
+ 6266:   color: var(--text-muted);
+ 6267:   font-size: 11px;
+ 6268: }
+ 6269: 
+ 6270: .study-breadcrumb button {
+ 6271:   display: inline-flex;
+ 6272:   align-items: center;
+ 6273:   gap: 5px;
+ 6274:   padding: 3px;
+ 6275:   border: 0;
+ 6276:   background: transparent;
+ 6277:   color: var(--text-secondary);
+ 6278:   cursor: pointer;
+ 6279: }
+ 6280: 
+ 6281: .study-breadcrumb .study-up-button {
+ 6282:   margin-left: auto;
+ 6283: }
+ 6284: 
+ 6285: .study-item-list {
+ 6286:   flex: 0 1 40%;
+ 6287:   min-height: 80px;
+ 6288:   overflow-y: auto;
+ 6289: }
+ 6290: 
+ 6291: .study-item {
+ 6292:   display: flex;
+ 6293:   align-items: center;
+ 6294:   gap: 3px;
+ 6295:   min-width: 0;
+ 6296:   border-radius: 6px;
+ 6297: }
+ 6298: 
+ 6299: .study-item:hover,
+ 6300: .study-item-active {
+ 6301:   background: var(--panel-secondary);
+ 6302: }
+ 6303: 
+ 6304: .study-item-open {
+ 6305:   display: flex;
+ 6306:   align-items: center;
+ 6307:   gap: 8px;
+ 6308:   flex: 1;
+ 6309:   min-width: 0;
+ 6310:   padding: 8px 6px;
+ 6311:   border: 0;
+ 6312:   background: transparent;
+ 6313:   color: var(--text-secondary);
+ 6314:   text-align: left;
+ 6315:   cursor: pointer;
+ 6316: }
+ 6317: 
+ 6318: .study-item-open svg {
+ 6319:   flex: 0 0 auto;
+ 6320:   color: #B89568;
+ 6321: }
+ 6322: 
+ 6323: .study-item-open span {
+ 6324:   overflow: hidden;
+ 6325:   text-overflow: ellipsis;
+ 6326:   white-space: nowrap;
+ 6327:   font-size: 12px;
+ 6328: }
+ 6329: 
+ 6330: .study-item-menu {
+ 6331:   position: relative;
+ 6332:   flex: 0 0 auto;
+ 6333: }
+ 6334: 
+ 6335: .study-item-menu summary {
+ 6336:   display: grid;
+ 6337:   place-items: center;
+ 6338:   width: 26px;
+ 6339:   height: 28px;
+ 6340:   border-radius: 5px;
+ 6341:   color: var(--text-muted);
+ 6342:   cursor: pointer;
+ 6343:   list-style: none;
+ 6344: }
+ 6345: 
+ 6346: .study-item-menu summary::-webkit-details-marker {
+ 6347:   display: none;
+ 6348: }
+ 6349: 
+ 6350: .study-item-menu > div {
+ 6351:   position: absolute;
+ 6352:   z-index: 30;
+ 6353:   top: 26px;
+ 6354:   right: 0;
+ 6355:   display: flex;
+ 6356:   flex-direction: column;
+ 6357:   min-width: 130px;
+ 6358:   padding: 4px;
+ 6359:   border: 1px solid var(--border-light);
+ 6360:   border-radius: 8px;
+ 6361:   background: var(--panel-elevated);
+ 6362:   box-shadow: 0 10px 28px rgba(0,0,0,.35);
+ 6363: }
+ 6364: 
+ 6365: .study-item-menu > div button {
+ 6366:   display: flex;
+ 6367:   align-items: center;
+ 6368:   gap: 7px;
+ 6369:   padding: 8px;
+ 6370:   border: 0;
+ 6371:   border-radius: 5px;
+ 6372:   background: transparent;
+ 6373:   color: var(--text-primary);
+ 6374:   text-align: left;
+ 6375:   font-size: 12px;
+ 6376:   cursor: pointer;
+ 6377: }
+ 6378: 
+ 6379: .study-item-menu > div button:hover {
+ 6380:   background: var(--panel-hover);
+ 6381: }
+ 6382: 
+ 6383: .study-item-menu > div .study-delete-action {
+ 6384:   color: #FCA5A5;
+ 6385: }
+ 6386: 
+ 6387: .study-editor {
+ 6388:   display: flex;
+ 6389:   flex: 1 1 60%;
+ 6390:   flex-direction: column;
+ 6391:   min-height: 160px;
+ 6392:   gap: 7px;
+ 6393:   padding-top: 8px;
+ 6394:   border-top: 1px solid var(--border-subtle);
+ 6395: }
+ 6396: 
+ 6397: .study-editor-heading {
+ 6398:   display: flex;
+ 6399:   align-items: center;
+ 6400:   gap: 6px;
+ 6401:   min-width: 0;
+ 6402:   color: var(--text-secondary);
+ 6403:   font-size: 11px;
+ 6404: }
+ 6405: 
+ 6406: .study-editor-heading strong {
+ 6407:   flex: 1;
+ 6408:   overflow: hidden;
+ 6409:   color: var(--text-primary);
+ 6410:   text-overflow: ellipsis;
+ 6411:   white-space: nowrap;
+ 6412: }
+ 6413: 
+ 6414: .study-editor-heading span {
+ 6415:   display: inline-flex;
+ 6416:   align-items: center;
+ 6417:   gap: 3px;
+ 6418:   color: var(--text-muted);
+ 6419:   font-size: 10px;
+ 6420: }
+ 6421: 
+ 6422: .study-editor textarea {
+ 6423:   flex: 1;
+ 6424:   width: 100%;
+ 6425:   min-height: 120px;
+ 6426:   box-sizing: border-box;
+ 6427:   resize: vertical;
+ 6428:   padding: 10px;
+ 6429:   border: 1px solid var(--border-subtle);
+ 6430:   border-radius: 8px;
+ 6431:   outline: none;
+ 6432:   background: var(--bg-app);
+ 6433:   color: var(--text-primary);
+ 6434:   font: inherit;
+ 6435:   font-size: 12px;
+ 6436:   line-height: 1.65;
+ 6437: }
+ 6438: 
+ 6439: .study-editor textarea:focus {
+ 6440:   border-color: var(--focus-outline);
+ 6441: }
+ 6442: 
+ 6443: .study-empty {
+ 6444:   padding: 12px 5px;
+ 6445:   color: var(--text-muted);
+ 6446:   font-size: 11px;
+ 6447:   line-height: 1.5;
+ 6448: }
+ 6449: 
+ 6450: .study-error {
+ 6451:   color: #FCA5A5;
+ 6452:   font-size: 11px;
+ 6453:   line-height: 1.4;
+ 6454: }
+ 6455: 
+ 6456: .study-library-footer {
+ 6457:   margin-top: auto;
+ 6458:   padding-top: 7px;
+ 6459:   border-top: 1px solid var(--border-subtle);
+ 6460:   color: var(--text-muted);
+ 6461:   font-size: 10px;
+ 6462:   line-height: 1.45;
+ 6463: }
+ 6464: 
+ 6465: 
+ 6466: /* Refined search focus styling */
+ 6467: .library-panel input:focus,
+ 6468: .library-panel input:focus-visible,
+ 6469: .library-panel textarea:focus,
+ 6470: .library-panel textarea:focus-visible,
+ 6471: .study-library input:focus,
+ 6472: .study-library input:focus-visible,
+ 6473: .study-library textarea:focus,
+ 6474: .study-library textarea:focus-visible {
+ 6475:   outline: none;
+ 6476:   border-color: rgba(139, 190, 86, 0.7);
+ 6477:   box-shadow: 0 0 0 2px rgba(139, 190, 86, 0.16);
+ 6478: }
+ 6479: 
+ 6480: .library-panel input:focus:not(:focus-visible),
+ 6481: .study-library input:focus:not(:focus-visible) {
+ 6482:   box-shadow: none;
+ 6483: }
+ 6484: 
+ 6485: 
+ 6486: /* STUDY FOCUS LAYOUT */
+ 6487: @media (min-width: 901px) {
+ 6488:   .app-shell.study-focus-mode {
+ 6489:     width: 100%;
+ 6490:     max-width: 100%;
+ 6491:   }
+ 6492: 
+ 6493:   .app-shell.study-focus-mode .workspace {
+ 6494:     grid-template-columns: minmax(0, 1.12fr) minmax(360px, 0.88fr) !important;
+ 6495:     width: 100%;
+ 6496:     min-width: 0;
+ 6497:   }
+ 6498: 
+ 6499:   .app-shell.study-focus-mode .workspace > .library-panel {
+ 6500:     display: none !important;
+ 6501:   }
+ 6502: 
+ 6503:   .app-shell.study-focus-mode .workspace > .board-panel,
+ 6504:   .app-shell.study-focus-mode .workspace > .reader-panel {
+ 6505:     width: 100% !important;
+ 6506:     min-width: 0 !important;
+ 6507:     max-width: none !important;
+ 6508:   }
+ 6509: 
+ 6510:   .app-shell.study-focus-mode .board-panel {
+ 6511:     border-left: 0;
+ 6512:   }
+ 6513: }
+ 6514: 
+ 6515: @media (max-width: 900px) {
+ 6516:   .app-shell.study-focus-mode .workspace > .library-panel {
+ 6517:     display: none !important;
+ 6518:   }
+ 6519: }
+ 6520: 
+ 6521: 
+ 6522: /* FULL-VIEWPORT FOCUS MODE */
+ 6523: html:has(.app-shell.study-focus-mode),
+ 6524: body:has(.app-shell.study-focus-mode),
+ 6525: #root:has(.app-shell.study-focus-mode) {
+ 6526:   width: 100%;
+ 6527:   height: 100%;
+ 6528:   min-height: 100%;
+ 6529:   margin: 0;
+ 6530:   overflow: hidden !important;
+ 6531: }
+ 6532: 
+ 6533: .app-shell.study-focus-mode {
+ 6534:   position: fixed !important;
+ 6535:   inset: 0 !important;
+ 6536:   z-index: 9999 !important;
+ 6537:   width: 100vw !important;
+ 6538:   height: 100dvh !important;
+ 6539:   min-height: 0 !important;
+ 6540:   max-width: none !important;
+ 6541:   margin: 0 !important;
+ 6542:   padding: 0 !important;
+ 6543:   overflow: hidden !important;
+ 6544:   display: flex !important;
+ 6545:   flex-direction: column !important;
+ 6546: }
+ 6547: 
+ 6548: .app-shell.study-focus-mode > .topbar {
+ 6549:   display: none !important;
+ 6550: }
+ 6551: 
+ 6552: .app-shell.study-focus-mode > .workspace {
+ 6553:   flex: 1 1 auto !important;
+ 6554:   min-height: 0 !important;
+ 6555:   height: 100% !important;
+ 6556:   max-height: none !important;
+ 6557:   width: 100% !important;
+ 6558:   grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr) !important;
+ 6559:   overflow: hidden !important;
+ 6560: }
+ 6561: 
+ 6562: .app-shell.study-focus-mode .workspace > .library-panel {
+ 6563:   display: none !important;
+ 6564: }
+ 6565: 
+ 6566: .app-shell.study-focus-mode .workspace > .board-panel,
+ 6567: .app-shell.study-focus-mode .workspace > .reader-panel {
+ 6568:   height: 100% !important;
+ 6569:   min-height: 0 !important;
+ 6570:   max-height: none !important;
+ 6571:   width: 100% !important;
+ 6572:   min-width: 0 !important;
+ 6573:   max-width: none !important;
+ 6574:   overflow-y: auto !important;
+ 6575: }
+ 6576: 
+ 6577: .app-shell.study-focus-mode .workspace > .reader-panel {
+ 6578:   overflow: hidden !important;
+ 6579: }
+ 6580: 
+ 6581: .app-shell.study-focus-mode .board-panel .board-frame {
+ 6582:   width: min(100%, calc(100dvh - 300px), 760px) !important;
+ 6583:   max-width: 100% !important;
+ 6584: }
+ 6585: 
+ 6586: @media (max-width: 900px) {
+ 6587:   .app-shell.study-focus-mode > .workspace {
+ 6588:     grid-template-columns: minmax(0, 1fr) !important;
+ 6589:     grid-template-rows: minmax(400px, 1fr) minmax(300px, 0.9fr) !important;
+ 6590:     overflow-y: auto !important;
+ 6591:   }
+ 6592: 
+ 6593:   .app-shell.study-focus-mode .workspace > .board-panel,
+ 6594:   .app-shell.study-focus-mode .workspace > .reader-panel {
+ 6595:     min-height: 0 !important;
+ 6596:   }
+ 6597: }
+ 6598: 
+ 6599: 
+ 6600: /* Opening Explorer workspace */
+ 6601: .opening-explorer-panel {
+ 6602:   display: grid;
+ 6603:   gap: 10px;
+ 6604:   margin-top: 14px;
+ 6605:   padding: 16px;
+ 6606:   border: 1px solid var(--border, #d9ded8);
+ 6607:   border-radius: 12px;
+ 6608:   background: var(--panel, #fff);
+ 6609: }
+ 6610: .opening-explorer-panel h3,
+ 6611: .opening-explorer-panel p {
+ 6612:   margin: 0;
+ 6613: }
+ 6614: .opening-explorer-panel textarea {
+ 6615:   width: 100%;
+ 6616:   box-sizing: border-box;
+ 6617:   resize: vertical;
+ 6618:   padding: 10px;
+ 6619:   border: 1px solid var(--border, #d9ded8);
+ 6620:   border-radius: 8px;
+ 6621:   font: inherit;
+ 6622: }
+ 6623: .opening-explorer-moves,
+ 6624: .opening-explorer-notation {
+ 6625:   display: flex;
+ 6626:   align-items: center;
+ 6627:   flex-wrap: wrap;
+ 6628:   gap: 8px;
+ 6629: }
+ 6630: .opening-explorer-moves button,
+ 6631: .opening-explorer-notation button {
+ 6632:   padding: 6px 9px;
+ 6633:   border: 1px solid var(--border, #d9ded8);
+ 6634:   border-radius: 7px;
+ 6635:   background: transparent;
+ 6636:   cursor: pointer;
+ 6637: }
+ 6638: .opening-explorer-moves button:disabled {
+ 6639:   opacity: 0.45;
+ 6640:   cursor: not-allowed;
+ 6641: }
+ 6642: .opening-explorer-notation .opening-move-played {
+ 6643:   background: var(--surface, #eef3e9);
+ 6644:   font-weight: 600;
+ 6645: }

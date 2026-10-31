@@ -1,0 +1,521 @@
+﻿
+========== APP IMPORTS AND STATE ==========
+1: import { useEffect, useMemo, useRef, useState } from "react";
+2: import CoordinateTraining from "./CoordinateTraining";
+3: import NotationLearner from "./NotationLearner";
+4: import {
+5:   Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+6:   ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+7: import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+8: import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+9: import { fenWithTurn, makePosition } from "./chess-state";
+10: import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+11: import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+12: import { ManualBoardEditor } from "./ManualBoardEditor";
+13: import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+14: import {
+15:   getActiveBookId,
+16:   getBooks,
+17:   getSession,
+18:   getSession as getStoredSession,
+19:   putBook,
+20:   putSession,
+21:   removeBook,
+22:   removeSession,
+23:   setActiveBookId,
+24: } from "./storage";
+25: import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+26: import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+27: import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+28: 
+29: 
+30: function formatUciMove(fen: string, uci: string): string {
+31:   const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+32:   if (!match) return uci;
+33:   try {
+34:     const position = new Chess(fen);
+35:     const move = position.move({
+36:       from: match[1] as Square,
+37:       to: match[2] as Square,
+38:       ...(match[3] ? { promotion: match[3] as "q" | "r" | "b" | "n" } : {}),
+39:     });
+40:     return move.san;
+41:   } catch {
+42:     return uci;
+43:   }
+44: }
+45: 
+46: function formatUciPv(fen: string, pv: string[]): string {
+47:   const position = new Chess(fen);
+48:   const san: string[] = [];
+49:   for (const uci of pv) {
+50:     const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+51:     if (!match) break;
+52:     try {
+53:       const move = position.move({
+54:         from: match[1] as Square,
+55:         to: match[2] as Square,
+56:         ...(match[3] ? { promotion: match[3] as "q" | "r" | "b" | "n" } : {}),
+57:       });
+58:       san.push(move.san);
+59:     } catch {
+60:       break;
+61:     }
+62:   }
+63:   return san.join(" ");
+64: }
+65: 
+66: GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+67: 
+68: type LibraryTab = "all" | "recent";
+69: type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "notation-learner";
+70: 
+71: const FILE_LIMIT = 100 * 1024 * 1024;
+72: const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+73: const CROP_HANDLES: CropHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+74: type CandidateInput = Omit<Candidate, "id" | "source" | "relativeScore"> &
+75:   Partial<Pick<Candidate, "id" | "source" | "relativeScore">> & { relative_score?: number; confidence?: number };
+76: type RecognitionResult = {
+77:   fen: string;
+78:   orientation: "normal" | "flipped" | "unknown";
+79:   board_confidence: number;
+80:   mean_piece_confidence: number | null;
+81:   piece_count: number;
+82:   warnings: string[];
+83: };
+84: type RecognitionStatus = "idle" | "loading" | "complete" | "failed";
+85: 
+86: function readableDate(timestamp: number): string {
+87:   if (!timestamp) return "Not opened";
+88:   const elapsed = Date.now() - timestamp;
+89:   if (elapsed < 60_000) return "Just now";
+90:   if (elapsed < 3_600_000) return `${Math.floor(elapsed / 60_000)}m ago`;
+91:   if (elapsed < 86_400_000) return `${Math.floor(elapsed / 3_600_000)}h ago`;
+92:   return new Date(timestamp).toLocaleDateString();
+93: }
+94: 
+95: function squareName(fileIndex: number, rankIndex: number): Square {
+96:   return `${"abcdefgh"[fileIndex]}${rankIndex + 1}` as Square;
+97: }
+98: 
+99: function normalizedCandidate(value: CandidateInput, index: number): Candidate {
+100:   const { relative_score, confidence, ...candidate } = value;
+101:   return {
+102:     ...candidate,
+103:     id: candidate.id || `candidate-${index + 1}`,
+104:     source: candidate.source ?? "automatic",
+105:     relativeScore: candidate.relativeScore ?? relative_score ?? confidence ?? 0,
+106:   };
+107: }
+108: 
+109: export default function App() {
+110:   const [books, setBooks] = useState<BookRecord[]>([]);
+111:   const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
+112:   const [book, setBook] = useState<BookRecord | null>(null);
+113:   const [session, setSession] = useState<BookSession | null>(null);
+114:   type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+115:   const [studyMode, setStudyMode] = useState(false);
+116:   const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+117:   const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+118:     lineBaseFen: START_FEN,
+119:     currentFen: START_FEN,
+120:     moves: [],
+121:     moveIndex: 0,
+122:     flipped: false,
+123:     coordinates: true,
+124:   }));
+125:   const [openingPrepBoard, setOpeningPrepBoard] = useState<StudyBoardState>(() => ({
+126:     lineBaseFen: START_FEN,
+127:     currentFen: START_FEN,
+128:     moves: [],
+129:     moveIndex: 0,
+130:     flipped: false,
+131:     coordinates: true,
+132:   }));
+133:   const [ready, setReady] = useState(false);
+134:   const [notice, setNotice] = useState("");
+135:   const [error, setError] = useState("");
+136:   const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+137:   const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+138:   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+139:   const [bookSearch, setBookSearch] = useState("");
+140:   const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+141:   const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+142:   const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+143:   const [openingStatsStatus, setOpeningStatsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+144:   const [lichessStatus, setLichessStatus] = useState<LichessConnectionStatus | null>(null);
+145:   const [lichessStatusError, setLichessStatusError] = useState("");
+146:   const [lichessActionBusy, setLichessActionBusy] = useState(false);
+147: 
+148:   useEffect(() => {
+149:     const controller = new AbortController();
+150:     const params = new URLSearchParams(window.location.search);
+151:     const result = params.get("lichess");
+152:     if (result === "connected" || result === "denied") {
+153:       params.delete("lichess");
+154:       const rest = params.toString();
+155:       window.history.replaceState(
+156:         {},
+157:         "",
+158:         window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash,
+159:       );
+160:       if (result === "denied") setLichessStatusError("Lichess authorization was cancelled.");
+161:     }
+162:     void getLichessConnectionStatus(controller.signal)
+163:       .then((status) => {
+164:         setLichessStatus(status);
+165:         setLichessStatusError("");
+166:       })
+167:       .catch(() => {
+168:         if (!controller.signal.aborted) {
+169:           setLichessStatus(null);
+170:           setLichessStatusError("Could not check Lichess connection. Ensure the backend is running.");
+171:         }
+172:       });
+173:     return () => controller.abort();
+174:   }, []);
+175: 
+176: 
+177:   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
+178:   const [pdfLoading, setPdfLoading] = useState(false);
+179:   const [rendering, setRendering] = useState(false);
+180:   const [detecting, setDetecting] = useState(false);
+
+========== BOARD TOOLBAR ==========
+1570:                       [tipX, tipY],
+1571:                       [baseX - px * headHalfWidth, baseY - py * headHalfWidth],
+1572:                       [baseX - px * shaftHalfWidth, baseY - py * shaftHalfWidth],
+1573:                       [startX - px * shaftHalfWidth, startY - py * shaftHalfWidth],
+1574:                     ];
+1575:                     const color = kind === "engine" ? "#f0a23b" : "#81b64c";
+1576:                     const opacity = kind === "preview" ? 0.52 : kind === "engine" ? 0.78 : 0.80;
+1577: 
+1578:                     return (
+1579:                       <polygon
+1580:                         key={`${kind}-${arrow.from}-${arrow.to}-${index}`}
+1581:                         points={points.map(([x, y]) => `${x},${y}`).join(" ")}
+1582:                         fill={color}
+1583:                         opacity={opacity}
+1584:                         className={`board-arrow board-arrow-${kind}`}
+1585:                       />
+1586:                     );
+1587:                   })}
+1588:                 </svg>
+1589:               </div>
+1590:             </div>
+1591:           </div>
+1592:           <div className="board-controls">
+1593:             <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+1594:             <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+1595:             <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+1596:             <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+1597:             <span className="controls-separator" />
+1598:             <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+1599:             <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+1600:             <button
+1601:               className={annotationMode ? "annotation-active" : ""}
+1602:               title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+1603:               aria-pressed={annotationMode}
+1604:               onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+1605:             ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+1606:             {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+1607:             <span className="controls-spacer" />
+1608:             <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+1609:             <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+1610:           </div>
+1611:           <div className="turn-row">
+1612:             <span>TO MOVE</span>
+1613:             <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+1614:               try {
+1615:                 const fen = fenWithTurn(game.fen(), "w");
+1616:                 patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+1617:                 setLastMove(null);
+1618:               } catch (cause) { setError(messageOf(cause)); }
+1619:             }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+1620:             <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+1621:               try {
+1622:                 const fen = fenWithTurn(game.fen(), "b");
+1623:                 patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+1624:                 setLastMove(null);
+1625:               } catch (cause) { setError(messageOf(cause)); }
+1626:             }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+1627:             <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+1628:           </div>
+1629:           <details className="position-editor">
+1630:             <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+1631:             <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+1632:           </details>
+1633:           <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+1634:         </section>
+1635: 
+1636:         <section className="reader-panel" aria-label="PDF book reader">
+1637:           <div className="opening-explorer-right-workspace">
+1638:           {workspaceMode === "opening-explorer" && (
+1639:             <section className="opening-explorer-panel" aria-label="Opening Explorer">
+1640:               <h3>Opening Explorer</h3>
+1641:               <div className="lichess-connection-controls">
+1642:                 {lichessStatus?.connected ? (
+1643:                   <>
+1644:                     <span role="status">Lichess connected</span>
+1645:                     <button
+1646:                       type="button"
+1647:                       disabled={lichessActionBusy}
+1648:                       onClick={() => {
+1649:                         setLichessActionBusy(true);
+1650:                         void disconnectLichess()
+1651:                           .then(() => {
+1652:                             setLichessStatus((current) => current ? { ...current, connected: false } : current);
+1653:                             setOpeningStats(null);
+1654:                             setOpeningStatsStatus("idle");
+1655:                             setNotice("Lichess disconnected.");
+1656:                           })
+1657:                           .catch(() => setLichessStatusError("Could not disconnect. Check that the backend is running."))
+1658:                           .finally(() => setLichessActionBusy(false));
+1659:                       }}
+1660:                     >{lichessActionBusy ? "DisconnectingÃ¢â‚¬Â¦" : "Disconnect"}</button>
+1661:                   </>
+1662:                 ) : (
+1663:                   <>
+1664:                     <span>{lichessStatus?.configured === false
+1665:                       ? "Lichess OAuth needs configuration."
+1666:                       : "Connect Lichess to load opening statistics."}</span>
+1667:                     <button
+1668:                       type="button"
+1669:                       className="green-button"
+
+========== BOARD PANEL AND MOVE LIST ==========
+1420:                   );
+1421:                 })}
+1422:                 {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+1423:               </div>
+1424:             <section className="sidebar-moves-panel" aria-label="Move list">
+1425: <div className="moves-panel">
+1426:             <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+1427:               if (!session) return;
+1428:               patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+1429:               setLastMove(null);
+1430:               setNotice("New analysis line started from the current position.");
+1431:             }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+1432:             <div className="move-list">
+1433:               {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+1434:                 <div className="move-pair" key={row}>
+1435:                   <span className="move-number">{row + 1}.</span>
+1436:                   {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+1437:                   {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+1438:                 </div>
+1439:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+1440:             </div>
+1441:           </div>
+1442:             </section>
+1443:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+1444:           </aside>
+1445:         )}
+1446: 
+1447:         {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1448:         <section className="board-panel" aria-label="Chessboard analysis">
+1449:           <div className="board-header">
+1450:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1451:             <div className="board-header-actions">
+1452:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+1453:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+1454:             </div>
+1455:           </div>
+1456:           <div className="board-area">
+1457:             <div
+1458:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+1459:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+1460:               title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+1461:             >
+1462:               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+1463:               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+1464:             </div>
+1465:             <div className="board-frame">
+1466:               <div
+1467:                 className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+1468:                 ref={boardRef}
+1469:                 onPointerDown={boardArrowPointerDown}
+1470:                 onPointerMove={boardArrowPointerMove}
+1471:                 onPointerUp={boardArrowPointerUp}
+1472:                 onPointerCancel={cancelBoardArrowGesture}
+1473:                 onContextMenu={(event) => {
+1474:   event.preventDefault();
+1475: 
+1476:   if (suppressBoardContextMenuRef.current || arrowGestureMovedRef.current) {
+1477:     suppressBoardContextMenuRef.current = false;
+1478:     return;
+1479:   }
+1480: 
+1481:   const bounds = boardRef.current?.getBoundingClientRect();
+1482:   if (!bounds) return;
+1483: 
+1484:   const square = boardSquareAtPoint(
+1485:     event.clientX,
+1486:     event.clientY,
+1487:     bounds,
+1488:     Boolean(boardSession?.flipped),
+1489:   );
+1490:   if (!square) return;
+1491: 
+1492:   setRedSquares((current) =>
+1493:     current.includes(square)
+1494:       ? current.filter((item) => item !== square)
+1495:       : [...current, square]
+1496:   );
+1497: }}
+1498:               >
+1499:                 {Array.from({ length: 64 }, (_, index) => {
+1500:                   const visibleRow = Math.floor(index / 8);
+1501:                   const visibleCol = index % 8;
+1502:                   const fileIndex = boardSession?.flipped ? 7 - visibleCol : visibleCol;
+1503:                   const rankIndex = boardSession?.flipped ? visibleRow : 7 - visibleRow;
+1504:                   const square = squareName(fileIndex, rankIndex);
+1505:                   const piece = pieceSquares[7 - rankIndex]?.[fileIndex];
+1506:                   const legal = legalTargets.has(square);
+1507:                   const isLast = highlightedMove?.from === square || highlightedMove?.to === square;
+1508:                   const light = (fileIndex + rankIndex) % 2 === 1;
+1509:                   return (
+1510:                     <button
+1511:                       key={square}
+1512:                       className={`square ${light ? "light-square" : "dark-square"} ${selectedSquare === square ? "selected-square" : ""} ${isLast ? "last-square" : ""} ${redSquares.includes(square) ? "red-highlight" : ""}`}
+1513:                       aria-label={`${square}${piece ? ` ${piece.color === "w" ? "white" : "black"} ${piece.type}` : ""}`}
+1514:                       draggable={Boolean(piece && piece.color === game.turn())}
+1515:                       onClick={() => handleSquareClick(square)}
+1516:                       onDragStart={(event) => {
+1517:                         const image = event.currentTarget.querySelector("img");
+1518:                         if (image) {
+1519:                           const bounds = event.currentTarget.getBoundingClientRect();
+
+========== TEST FILES ==========
+1: import "fake-indexeddb/auto";
+2: import { act, fireEvent, render, screen } from "@testing-library/react";
+3: import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+4: import App from "./App";
+5: 
+6: class FakeWorker {
+7:   onmessage: ((event: MessageEvent<string>) => void) | null = null;
+8:   onerror: ((event: ErrorEvent) => void) | null = null;
+9:   commands: string[] = [];
+10:   terminated = false;
+11:   postMessage(command: string) {
+12:     this.commands.push(command);
+13:     if (command === "uci") {
+14:       setTimeout(() => this.send("uciok"), 10);
+15:     } else if (command === "isready") {
+16:       setTimeout(() => this.send("readyok"), 10);
+17:     }
+18:   }
+19:   terminate() {
+20:     this.terminated = true;
+21:   }
+22:   send(data: string) {
+23:     this.onmessage?.({ data } as MessageEvent<string>);
+24:   }
+25: }
+26: 
+27: describe("App - Manual Position Setup & Stockfish Analysis", () => {
+28:   let fakeWorker: FakeWorker;
+29: 
+30:   beforeEach(() => {
+31:     fakeWorker = new FakeWorker();
+32:     vi.stubGlobal(
+33:       "Worker",
+34:       class {
+35:         constructor() {
+36:           return fakeWorker;
+37:         }
+38:       }
+39:     );
+40:   });
+41: 
+42:   afterEach(async () => {
+43:     vi.unstubAllGlobals();
+44:     await new Promise<void>((resolve, reject) => {
+45:       const request = indexedDB.deleteDatabase("chessbook-reader");
+46:       request.onsuccess = () => resolve();
+47:       request.onerror = () => reject(request.error);
+48:     });
+49:   });
+50: 
+51:   it("renders 'Set Up Position' buttons on the analysis board and toggles setup mode", async () => {
+52:     render(<App />);
+53: 
+54:     // Wait for app initialization
+55:     const setupBtns = await screen.findAllByRole("button", { name: /set up position/i });
+56:     expect(setupBtns.length).toBeGreaterThanOrEqual(1);
+57: 
+58:     // Click Set Up Position
+59:     fireEvent.click(setupBtns[0]);
+60: 
+61:     // Modal should be open
+62:     expect(screen.getByRole("dialog", { name: "Set Up Position" })).toBeInTheDocument();
+63:     expect(screen.getByRole("button", { name: "Analyze Position" })).toBeInTheDocument();
+64: 
+65:     // Click Cancel
+66:     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+67: 
+68:     // Modal should close
+69:     expect(screen.queryByRole("dialog", { name: "Set Up Position" })).not.toBeInTheDocument();
+70:   });
+71: 
+72:   it("loads a custom manual position, reflects side to move, and triggers Stockfish analysis", async () => {
+73:     render(<App />);
+74: 
+75:     const setupBtns = await screen.findAllByRole("button", { name: /set up position/i });
+76:     fireEvent.click(setupBtns[0]);
+77: 
+78:     // Set custom position with Black to move
+79:     const fenInput = screen.getByPlaceholderText(/paste a complete six-field fen/i) as HTMLInputElement;
+80:     const customFen = "4k3/8/8/8/8/8/8/4K3 b - - 0 1";
+81:     fireEvent.change(fenInput, { target: { value: customFen } });
+82: 
+83:     // Confirm with Analyze Position
+84:     const analyzeBtn = screen.getByRole("button", { name: "Analyze Position" });
+85:     await act(async () => {
+86:       fireEvent.click(analyzeBtn);
+87:     });
+88: 
+89:     // Modal should close
+90:     expect(screen.queryByRole("dialog", { name: "Set Up Position" })).not.toBeInTheDocument();
+91: 
+92:     // Board FEN should match the custom position
+93:     const boardFenElement = screen.getByText(customFen);
+94:     expect(boardFenElement).toBeInTheDocument();
+95: 
+96:     // Stockfish worker should have received uci and commands
+97:     expect(fakeWorker.commands).toContain("uci");
+98:   });
+99: });
+
+========== PACKAGE CONFIGURATION ==========
+1: {
+2:   "name": "chessbook-reader",
+3:   "private": true,
+4:   "version": "0.1.0",
+5:   "type": "module",
+6:   "scripts": {
+7:     "dev": "vite",
+8:     "build": "tsc -b && vite build",
+9:     "preview": "vite preview",
+10:     "test": "vitest run",
+11:     "test:watch": "vitest"
+12:   },
+13:   "dependencies": {
+14:     "chess.js": "^1.4.0",
+15:     "lucide-react": "^1.61.0",
+16:     "pdfjs-dist": "^6.4.299",
+17:     "react": "^19.1.0",
+18:     "react-dom": "^19.1.0"
+19:   },
+20:   "devDependencies": {
+21:     "@testing-library/jest-dom": "^6.6.4",
+22:     "@testing-library/react": "^16.3.0",
+23:     "@types/react": "^19.1.8",
+24:     "@types/react-dom": "^19.1.7",
+25:     "@vitejs/plugin-react": "^4.7.0",
+26:     "fake-indexeddb": "^6.2.5",
+27:     "jsdom": "^26.1.0",
+28:     "typescript": "~5.8.3",
+29:     "vite": "^6.3.5",
+30:     "vitest": "^5.0.4"
+31:   }
+32: }

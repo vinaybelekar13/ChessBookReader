@@ -1,0 +1,6322 @@
+CHESSBOOK READER - UI AND ANALYSIS AUDIT
+Date: 10/30/2026 23:37:22
+Root: D:\chess\BookChess\ChessBookReader
+
+========== GIT STATUS ==========
+ M backend/app/main.py
+ M src/App.tsx
+ M src/styles.css
+?? CHESSBOOK_NEXT_INSPECTION.txt
+?? CHESSBOOK_NOTATION_FEATURE_AUDIT.txt
+?? CHESSBOOK_SOURCE_ARCHITECTURE.txt
+?? CHESSBOOK_STARTUP_AUDIT.txt
+?? CHESSBOOK_UI_SOURCE_AUDIT.txt
+?? ChessBookReader-AnalysisBoard-Patch.ps1
+?? NOTATION_BUILD_FIX_BUILD.txt
+?? NOTATION_BUILD_FIX_TESTS.txt
+?? NOTATION_BUILD_OUTPUT.txt
+?? NOTATION_DECLARATION_AUDIT.txt
+?? NOTATION_FINAL_VERIFICATION.txt
+?? NOTATION_FULL_UI_AUDIT_20261030_231756.txt
+?? NOTATION_INTERACTION_REPORT.txt
+?? NOTATION_LEARNER_BUILD_FIX_REPORT.txt
+?? NOTATION_LEARNER_DIAGNOSTIC.txt
+?? NOTATION_LEARNER_NEXT_UI_AUDIT.txt
+?? NOTATION_TEST_OUTPUT.txt
+?? NOTATION_UI_AUDIT.txt
+?? NOTATION_UI_BUILD_OUTPUT.txt
+?? NOTATION_UI_REDESIGN_REPORT.txt
+?? NOTATION_UI_TEST_OUTPUT.txt
+?? NOTATION_WORKSPACE_LAYOUT_REPORT.txt
+?? Phase0_Initial_Audit.txt
+?? UI_ANALYSIS_AUDIT_20261030_233722.txt
+?? VIEWPORT_FIT_REPORT.txt
+?? VIEWPORT_LAYOUT_AUDIT.txt
+?? apply-oauth-frontend.py
+?? apply-oauth-security.py
+?? backend/app/lichess_oauth.py
+?? clean-git-whitespace.py
+?? current-source-snapshot.txt
+?? fix-active-board.py
+?? fix-board-hover-colors.py
+?? fix-engine-fallbacks.py
+?? fix-engine-text.py
+?? fix-evaluation-orientation.py
+?? fix-promotion-symbols.py
+?? fix-square-focus.py
+?? fix-square-hover.py
+?? fix-study-handlers.py
+?? fix-study-navigation.py
+?? fix-study-null-final.py
+?? fix-study-null.py
+?? inspect-engine-text.py
+?? patch-board-controls.py
+?? patch-study-handlers.py
+?? patch-study-state.py
+?? patch-study-ui.py
+?? repair-encoding.py
+?? repair-symbols.py
+?? smooth-evaluation-bar.py
+?? src/CoordinateTraining.tsx
+?? src/NotationLearner.tsx
+?? src/coordinate-training.css
+?? src/notation-learner.css
+?? src/opening-explorer-api.ts
+?? src/opening-explorer.test.ts
+?? src/opening-explorer.ts
+?? workspace-diagnostics.txt
+
+========== PACKAGE CONFIGURATION ==========
+{
+  "name": "chessbook-reader",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^5.0.4"
+  }
+}
+
+
+========== SOURCE FILE INVENTORY ==========
+.\src\App.test.tsx
+.\src\App.tsx
+.\src\board-annotations.test.ts
+.\src\board-annotations.ts
+.\src\chess-state.test.ts
+.\src\chess-state.ts
+.\src\coordinate-training.css
+.\src\CoordinateTraining.tsx
+.\src\crop-geometry.test.ts
+.\src\crop-geometry.ts
+.\src\main.tsx
+.\src\ManualBoardEditor.test.tsx
+.\src\ManualBoardEditor.tsx
+.\src\model.ts
+.\src\notation-detection.ts
+.\src\notation-learner.css
+.\src\NotationLearner.tsx
+.\src\opening-explorer-api.ts
+.\src\opening-explorer.test.ts
+.\src\opening-explorer.ts
+.\src\position-editor.test.ts
+.\src\position-editor.ts
+.\src\stockfish.test.ts
+.\src\stockfish.ts
+.\src\storage.test.ts
+.\src\storage.ts
+.\src\styles.css
+.\src\test-setup.ts
+.\src\vite-env.d.ts
+
+========== ANALYSIS / BOARD / IMPORT FILES ==========
+
+
+==================================================
+FILE: .\src\App.test.tsx
+==================================================
+import "fake-indexeddb/auto";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import App from "./App";
+
+class FakeWorker {
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  commands: string[] = [];
+  terminated = false;
+  postMessage(command: string) {
+    this.commands.push(command);
+    if (command === "uci") {
+      setTimeout(() => this.send("uciok"), 10);
+    } else if (command === "isready") {
+      setTimeout(() => this.send("readyok"), 10);
+    }
+  }
+  terminate() {
+    this.terminated = true;
+  }
+  send(data: string) {
+    this.onmessage?.({ data } as MessageEvent<string>);
+  }
+}
+
+describe("App - Manual Position Setup & Stockfish Analysis", () => {
+  let fakeWorker: FakeWorker;
+
+  beforeEach(() => {
+    fakeWorker = new FakeWorker();
+    vi.stubGlobal(
+      "Worker",
+      class {
+        constructor() {
+          return fakeWorker;
+        }
+      }
+    );
+  });
+
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase("chessbook-reader");
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  });
+
+  it("renders 'Set Up Position' buttons on the analysis board and toggles setup mode", async () => {
+    render(<App />);
+
+    // Wait for app initialization
+    const setupBtns = await screen.findAllByRole("button", { name: /set up position/i });
+    expect(setupBtns.length).toBeGreaterThanOrEqual(1);
+
+    // Click Set Up Position
+    fireEvent.click(setupBtns[0]);
+
+    // Modal should be open
+    expect(screen.getByRole("dialog", { name: "Set Up Position" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Analyze Position" })).toBeInTheDocument();
+
+    // Click Cancel
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    // Modal should close
+    expect(screen.queryByRole("dialog", { name: "Set Up Position" })).not.toBeInTheDocument();
+  });
+
+  it("loads a custom manual position, reflects side to move, and triggers Stockfish analysis", async () => {
+    render(<App />);
+
+    const setupBtns = await screen.findAllByRole("button", { name: /set up position/i });
+    fireEvent.click(setupBtns[0]);
+
+    // Set custom position with Black to move
+    const fenInput = screen.getByPlaceholderText(/paste a complete six-field fen/i) as HTMLInputElement;
+    const customFen = "4k3/8/8/8/8/8/8/4K3 b - - 0 1";
+    fireEvent.change(fenInput, { target: { value: customFen } });
+
+    // Confirm with Analyze Position
+    const analyzeBtn = screen.getByRole("button", { name: "Analyze Position" });
+    await act(async () => {
+      fireEvent.click(analyzeBtn);
+    });
+
+    // Modal should close
+    expect(screen.queryByRole("dialog", { name: "Set Up Position" })).not.toBeInTheDocument();
+
+    // Board FEN should match the custom position
+    const boardFenElement = screen.getByText(customFen);
+    expect(boardFenElement).toBeInTheDocument();
+
+    // Stockfish worker should have received uci and commands
+    expect(fakeWorker.commands).toContain("uci");
+  });
+});
+
+
+
+==================================================
+FILE: .\src\App.tsx
+==================================================
+import { useEffect, useMemo, useRef, useState } from "react";
+import CoordinateTraining from "./CoordinateTraining";
+import NotationLearner from "./NotationLearner";
+import {
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+  putSession,
+  removeBook,
+  removeSession,
+  setActiveBookId,
+} from "./storage";
+import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+
+
+function formatUciMove(fen: string, uci: string): string {
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+      from: match[1] as Square,
+      to: match[2] as Square,
+      ...(match[3] ? { promotion: match[3] as "q" | "r" | "b" | "n" } : {}),
+    });
+    return move.san;
+  } catch {
+    return uci;
+  }
+}
+
+function formatUciPv(fen: string, pv: string[]): string {
+  const position = new Chess(fen);
+  const san: string[] = [];
+  for (const uci of pv) {
+    const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+    if (!match) break;
+    try {
+      const move = position.move({
+        from: match[1] as Square,
+        to: match[2] as Square,
+        ...(match[3] ? { promotion: match[3] as "q" | "r" | "b" | "n" } : {}),
+      });
+      san.push(move.san);
+    } catch {
+      break;
+    }
+  }
+  return san.join(" ");
+}
+
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
+type LibraryTab = "all" | "recent";
+type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "notation-learner";
+
+const FILE_LIMIT = 100 * 1024 * 1024;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+const CROP_HANDLES: CropHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+type CandidateInput = Omit<Candidate, "id" | "source" | "relativeScore"> &
+  Partial<Pick<Candidate, "id" | "source" | "relativeScore">> & { relative_score?: number; confidence?: number };
+type RecognitionResult = {
+  fen: string;
+  orientation: "normal" | "flipped" | "unknown";
+  board_confidence: number;
+  mean_piece_confidence: number | null;
+  piece_count: number;
+  warnings: string[];
+};
+type RecognitionStatus = "idle" | "loading" | "complete" | "failed";
+
+function readableDate(timestamp: number): string {
+  if (!timestamp) return "Not opened";
+  const elapsed = Date.now() - timestamp;
+  if (elapsed < 60_000) return "Just now";
+  if (elapsed < 3_600_000) return `${Math.floor(elapsed / 60_000)}m ago`;
+  if (elapsed < 86_400_000) return `${Math.floor(elapsed / 3_600_000)}h ago`;
+  return new Date(timestamp).toLocaleDateString();
+}
+
+function squareName(fileIndex: number, rankIndex: number): Square {
+  return `${"abcdefgh"[fileIndex]}${rankIndex + 1}` as Square;
+}
+
+function normalizedCandidate(value: CandidateInput, index: number): Candidate {
+  const { relative_score, confidence, ...candidate } = value;
+  return {
+    ...candidate,
+    id: candidate.id || `candidate-${index + 1}`,
+    source: candidate.source ?? "automatic",
+    relativeScore: candidate.relativeScore ?? relative_score ?? confidence ?? 0,
+  };
+}
+
+export default function App() {
+  const [books, setBooks] = useState<BookRecord[]>([]);
+  const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
+  const [book, setBook] = useState<BookRecord | null>(null);
+  const [session, setSession] = useState<BookSession | null>(null);
+  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  const [studyMode, setStudyMode] = useState(false);
+  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+  }));
+  const [openingPrepBoard, setOpeningPrepBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+  }));
+  const [ready, setReady] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+  const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+  const [bookSearch, setBookSearch] = useState("");
+  const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+  const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+  const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+  const [openingStatsStatus, setOpeningStatsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [lichessStatus, setLichessStatus] = useState<LichessConnectionStatus | null>(null);
+  const [lichessStatusError, setLichessStatusError] = useState("");
+  const [lichessActionBusy, setLichessActionBusy] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("lichess");
+    if (result === "connected" || result === "denied") {
+      params.delete("lichess");
+      const rest = params.toString();
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash,
+      );
+      if (result === "denied") setLichessStatusError("Lichess authorization was cancelled.");
+    }
+    void getLichessConnectionStatus(controller.signal)
+      .then((status) => {
+        setLichessStatus(status);
+        setLichessStatusError("");
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setLichessStatus(null);
+          setLichessStatusError("Could not check Lichess connection. Ensure the backend is running.");
+        }
+      });
+    return () => controller.abort();
+  }, []);
+
+
+  const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [rendering, setRendering] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const [fenInput, setFenInput] = useState("");
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [promotionRequest, setPromotionRequest] = useState<{ from: Square; to: Square } | null>(null);
+  const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
+  const [gameEndOverlay, setGameEndOverlay] = useState<{ title: string; message: string } | null>(null);
+  const [userArrows, setUserArrows] = useState<BoardArrow[]>([]);
+  const [redSquares, setRedSquares] = useState<Square[]>([]);
+  const [arrowStart, setArrowStart] = useState<Square | null>(null);
+  const [arrowHover, setArrowHover] = useState<Square | null>(null);
+  const [annotationMode, setAnnotationMode] = useState(false);
+  const [dragSelection, setDragSelection] = useState<{ x: number; y: number; x2: number; y2: number } | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
+  const [cropEditingId, setCropEditingId] = useState<string | null>(null);
+  const [transferCandidate, setTransferCandidate] = useState<Candidate | null>(null);
+  const [transferPreview, setTransferPreview] = useState("");
+  const [transferFen, setTransferFen] = useState("");
+  const [recognitionStatus, setRecognitionStatus] = useState<RecognitionStatus>("idle");
+  const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
+  const [recognitionError, setRecognitionError] = useState("");
+  const [engineEnabled, setEngineEnabled] = useState(false);
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
+  const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+  const [engineMessage, setEngineMessage] = useState("");
+  const [engineDepth, setEngineDepth] = useState(14);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pageStageRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+  const renderTaskRef = useRef<RenderTask | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragCurrentRef = useRef<{ x: number; y: number; x2: number; y2: number } | null>(null);
+  const arrowGestureRef = useRef<Square | null>(null);
+  const suppressBoardContextMenuRef = useRef(false);
+  const arrowGestureMovedRef = useRef(false);
+const scanAbortControllerRef = useRef<AbortController | null>(null);
+  const scanRequestIdRef = useRef(0);
+  const transferRequestRef = useRef(0);
+  const cropEditStartRef = useRef<{ candidate: Candidate; handle: CropHandle; point: { x: number; y: number } } | null>(null);
+  const cropBaselineRef = useRef<Candidate | null>(null);
+  const engineRef = useRef<StockfishEngine | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function initialize() {
+      try {
+        const [storedBooks, activeId] = await Promise.all([getBooks(), getActiveBookId()]);
+        const storedSessions: Record<string, BookSession> = {};
+        await Promise.all(storedBooks.map(async (item) => {
+          const stored = await getStoredSession(item.id);
+          if (stored) storedSessions[item.id] = stored;
+        }));
+        if (cancelled) return;
+        const ordered = storedBooks.sort((a, b) => b.lastOpenedAt - a.lastOpenedAt);
+        setSessionIndex(storedSessions);
+        const activeBook = ordered.find((item) => item.id === activeId) ?? ordered[0] ?? null;
+        if (activeBook) {
+          const resumed = { ...activeBook, lastOpenedAt: Date.now() };
+          await putBook(resumed);
+          setBooks([resumed, ...ordered.filter((item) => item.id !== resumed.id)]);
+          setBook(resumed);
+          setSession(storedSessions[activeBook.id] ?? newSession(activeBook.id));
+          if (activeBook.id !== activeId) await setActiveBookId(activeBook.id);
+        } else {
+          setBooks(ordered);
+        }
+      } catch (cause) {
+        if (!cancelled) setError(`Could not restore the local library: ${messageOf(cause)}`);
+      } finally {
+        if (!cancelled) setReady(true);
+      }
+    }
+    void initialize();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!ready || !book || !session) return;
+    const snapshot = session;
+    void Promise.all([putSession(snapshot), setActiveBookId(book.id)])
+      .then(() => setSessionIndex((current) => ({ ...current, [snapshot.bookId]: snapshot })))
+      .catch((cause: unknown) => setError(`Could not save reading session: ${messageOf(cause)}`));
+  }, [ready, book, session]);
+
+  useEffect(() => {
+    pdfRef.current?.cleanup();
+    void loadingTaskRef.current?.destroy();
+    setPdf(null);
+    if (!book) {
+      pdfRef.current = null;
+      loadingTaskRef.current = null;
+      return;
+    }
+    let cancelled = false;
+    let loadingTask: PDFDocumentLoadingTask | null = null;
+    setPdfLoading(true);
+    setError("");
+    book.file.slice(0).arrayBuffer().then((data) => {
+      if (cancelled) return;
+      loadingTask = getDocument({ data });
+      loadingTaskRef.current = loadingTask;
+      return loadingTask.promise;
+    }).then((document) => {
+      if (!document) return;
+      if (cancelled) {
+        void document.cleanup();
+        return;
+      }
+      pdfRef.current = document;
+      setPdf(document);
+      setPdfLoading(false);
+      setSession((current) => current ? { ...current, pageCount: document.numPages } : current);
+    }).catch((cause: unknown) => {
+      if (!cancelled) {
+        setPdfLoading(false);
+        setError(`Could not open this PDF: ${messageOf(cause)}`);
+      }
+    });
+    return () => {
+      cancelled = true;
+      if (loadingTask) void loadingTask.destroy();
+    };
+  }, [book]);
+
+  useEffect(() => {
+    if (!pdf || !session || !canvasRef.current) return;
+    let cancelled = false;
+    const canvas = canvasRef.current;
+    setRendering(true);
+    pdf.getPage(session.page).then((page) => {
+      if (cancelled) return;
+      const viewport = page.getViewport({ scale: session.zoom * Math.min(1.4, 1100 / page.getViewport({ scale: 1 }).width) });
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas rendering is unavailable in this browser.");
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      const task = page.render({ canvas, canvasContext: context, viewport });
+      renderTaskRef.current = task;
+      return task.promise;
+    }).then(() => {
+      if (!cancelled) setRendering(false);
+    }).catch((cause: unknown) => {
+      if (!cancelled && !(cause instanceof Error && cause.name === "RenderingCancelledException")) {
+        setRendering(false);
+        setError(`Could not render page ${session.page}: ${messageOf(cause)}`);
+      }
+    });
+    return () => {
+      cancelled = true;
+      renderTaskRef.current?.cancel();
+    };
+  }, [pdf, session?.page, session?.zoom]);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (!session || !book || isTypingTarget(event.target)) return;
+      if (cropEditingId && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+        const candidate = (session.candidatesByPage[String(session.page)] ?? []).find((item) => item.id === cropEditingId);
+        if (!candidate) return;
+        const step = event.shiftKey ? 0.01 : 0.002;
+        const x = event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0;
+        const y = event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0;
+        const next = editCrop(candidate, "move", x, y);
+        patchSession((current) => {
+          const pageKey = String(current.page);
+          return {
+            ...current,
+            candidatesByPage: {
+              ...current.candidatesByPage,
+              [pageKey]: (current.candidatesByPage[pageKey] ?? []).map((item) =>
+                item.id === candidate.id ? { ...item, ...next } : item),
+            },
+          };
+        });
+        event.preventDefault();
+        return;
+      }
+      if (event.key === "ArrowLeft") changePage(-1);
+      if (event.key === "ArrowRight") changePage(1);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  useEffect(() => () => {
+    engineRef.current?.dispose();
+    engineRef.current = null;
+  }, []);
+
+  const sortedBooks = useMemo(() => [...books].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt), [books]);
+  const visibleBooks = useMemo(() => {
+    const needle = bookSearch.trim().toLowerCase();
+    return sortedBooks.filter((item) => {
+      const matchesTab = true;
+      return matchesTab && item.title.toLowerCase().includes(needle);
+    });
+  }, [bookSearch, libraryTab, sessionIndex, sortedBooks]);
+
+  const openingLine = useMemo(
+    () => parseOpeningLine(openingExplorerInput),
+    [openingExplorerInput],
+  );
+  const openingPosition = useMemo(
+    () => openingPositionAt(openingExplorerInput, openingExplorerPly),
+    [openingExplorerInput, openingExplorerPly],
+  );
+
+  useEffect(() => {
+    if (workspaceMode !== "opening-explorer") return;
+    if (!lichessStatus?.connected) {
+      setOpeningStats(null);
+      setOpeningStatsStatus("idle");
+      return;
+    }
+
+    if (openingPosition.error) {
+      setOpeningStats(null);
+      setOpeningStatsStatus("idle");
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setOpeningStatsStatus("loading");
+      fetchOpeningExplorerStats(openingPosition.uciMoves, controller.signal)
+        .then((result) => {
+          setOpeningStats(result);
+          setOpeningStatsStatus("ready");
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            setOpeningStats(null);
+            setOpeningStatsStatus("error");
+          }
+        });
+    }, 500);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+
+  const boardSession: StudyBoardState | null =
+    workspaceMode === "analysis"
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+        ? openingPrepBoard
+        : workspaceMode === "opening-explorer"
+          ? {
+              lineBaseFen: START_FEN,
+              currentFen: openingPosition.fen,
+              moves: openingPosition.sanMoves,
+              moveIndex: openingPosition.sanMoves.length,
+              flipped: false,
+              coordinates: true,
+            }
+          : studyMode
+            ? studyBoard
+            : session;
+  const game = useMemo(() => {
+    if (!boardSession) return new Chess();
+    try {
+      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+    } catch {
+      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+    }
+  }, [boardSession]);
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return new Set<string>();
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+  useEffect(() => {
+    setUserArrows([]);
+    setArrowStart(null);
+    setArrowHover(null);
+    setAnnotationMode(false);
+  }, [book?.id, session?.currentFen]);
+
+  useEffect(() => {
+    if (engineEnabled && boardSession) {
+      engineRef.current?.analyze(game.fen(), engineDepth);
+    }
+  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+
+  function messageOf(cause: unknown): string {
+    return cause instanceof Error ? cause.message : String(cause);
+  }
+
+  function toggleEngine() {
+    if (engineEnabled) {
+      engineRef.current?.dispose();
+      engineRef.current = null;
+      setEngineEnabled(false);
+      setEngineStatus("off");
+      setEngineScore(null);
+      setEngineMessage("");
+      return;
+    }
+    try {
+      setEngineScore(null);
+      setEngineMessage("");
+      const client = new StockfishEngine(
+        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+        (status, message) => {
+          setEngineStatus(status);
+          if (status === "error") {
+            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+            setEngineEnabled(false);
+            setEngineScore(null);
+            engineRef.current?.dispose();
+            engineRef.current = null;
+          }
+        },
+        setEngineScore,
+      );
+      engineRef.current = client;
+      setEngineEnabled(true);
+    } catch (cause) {
+      setEngineStatus("error");
+      setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+      setEngineEnabled(false);
+    }
+  }
+
+  function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+    setSession((current) => {
+      if (!current) return current;
+      return typeof change === "function" ? change(current) : { ...current, ...change };
+    });
+  }
+
+  function patchBoardSession(change: Partial<StudyBoardState>) {
+    if (workspaceMode === "opening-explorer") {
+      return;
+    }
+
+    if (workspaceMode === "analysis") {
+      setAnalysisBoard((current) => ({ ...current, ...change }));
+    } else if (workspaceMode === "opening-prep") {
+      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+    } else if (studyMode) {
+      setStudyBoard((current) => current ? { ...current, ...change } : current);
+    } else {
+      patchSession(change);
+    }
+  }
+  async function toggleStudyMode() {
+    if (!studyMode) {
+      if (!session) {
+        setError("Open a book before entering study mode.");
+        return;
+      }
+      setStudyBoard({
+        lineBaseFen: session.lineBaseFen,
+        currentFen: session.currentFen,
+        moves: [...session.moves],
+        moveIndex: session.moveIndex,
+        flipped: session.flipped,
+        coordinates: session.coordinates,
+      });
+      setStudyMode(true);
+    } else {
+      // Preserve the latest Focus Mode board when returning to normal mode.
+      if (studyBoard) {
+        patchSession({
+          lineBaseFen: studyBoard.lineBaseFen,
+          currentFen: studyBoard.currentFen,
+          moves: [...studyBoard.moves],
+          moveIndex: studyBoard.moveIndex,
+          flipped: studyBoard.flipped,
+          coordinates: studyBoard.coordinates,
+        });
+      }
+      setStudyMode(false);
+    }
+    setLastMove(null);
+    setSelectedSquare(null);
+    setPromotionRequest(null);
+
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // Focus layout still works when browser fullscreen is blocked.
+    }
+}
+
+  async function openBook(item: BookRecord) {
+    try {
+      const existing = sessionIndex[item.id] ?? await getSession(item.id);
+      const nextSession = existing ?? newSession(item.id);
+      const opened = { ...item, lastOpenedAt: Date.now() };
+      await Promise.all([putBook(opened), putSession(nextSession), setActiveBookId(opened.id)]);
+      setBooks((current) => [...current.filter((candidate) => candidate.id !== opened.id), opened].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt));
+      setSessionIndex((current) => ({ ...current, [opened.id]: nextSession }));
+      setBook(opened);
+      setSession(nextSession);
+      setNotice(`Opened ${opened.title}`);
+      setError("");
+      setSelectedSquare(null);
+    } catch (cause) {
+      setError(`Could not open book: ${messageOf(cause)}`);
+    }
+  }
+
+  async function addBook(file?: File) {
+    if (!file) return;
+    try {
+      if (file.size > FILE_LIMIT) throw new Error("PDFs must be 100 MB or smaller.");
+      const header = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+      if (new TextDecoder().decode(header) !== "%PDF-") throw new Error("The selected file does not contain a valid PDF header.");
+      const now = Date.now();
+      const created:
+[TRUNCATED AT 25000 CHARACTERS]
+
+
+==================================================
+FILE: .\src\board-annotations.test.ts
+==================================================
+import { describe, expect, it } from "vitest";
+import {
+  ANNOTATION_COLORS,
+  boardSquareAtPoint,
+  getAnnotationColor,
+  getArrowPath,
+  parseBestMove,
+  squareCenter,
+  toggleArrow,
+  toggleSquareHighlight,
+} from "./board-annotations";
+
+describe("chessboard annotation geometry", () => {
+  const board = { left: 100, top: 50, width: 400, height: 400 };
+
+  it("maps pointer coordinates to board squares at any displayed size", () => {
+    expect(boardSquareAtPoint(125, 75, board)).toBe("a8");
+    expect(boardSquareAtPoint(475, 425, board)).toBe("h1");
+    expect(boardSquareAtPoint(500, 100, board)).toBeNull();
+  });
+
+  it("maps squares consistently when the board is flipped", () => {
+    expect(boardSquareAtPoint(125, 75, board, true)).toBe("h1");
+    expect(squareCenter("a1", false)).toEqual({ x: 0.5, y: 7.5 });
+    expect(squareCenter("a1", true)).toEqual({ x: 7.5, y: 0.5 });
+  });
+
+  it("accepts valid UCI best moves and rejects absent or invalid moves", () => {
+    expect(parseBestMove("e2e4")).toEqual({ from: "e2", to: "e4", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("a7a8q")).toEqual({ from: "a7", to: "a8", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("(none)")).toBeNull();
+    expect(parseBestMove(undefined)).toBeNull();
+  });
+
+  it("toggles identical user arrows while preserving distinct arrows", () => {
+    const first = { from: "e2" as const, to: "e4" as const };
+    const second = { from: "d2" as const, to: "d4" as const };
+    expect(toggleArrow([first], second)).toEqual([first, second]);
+    expect(toggleArrow([first, second], first)).toEqual([second]);
+  });
+
+  it("toggles arrow colors when repeated with a different color", () => {
+    const red = { from: "e2" as const, to: "e4" as const, color: "#EF5350" };
+    const green = { from: "e2" as const, to: "e4" as const, color: "#8BC34A" };
+    expect(toggleArrow([red], green)).toEqual([green]);
+    expect(toggleArrow([green], green)).toEqual([]);
+  });
+
+  it("toggles square highlights correctly", () => {
+    expect(toggleSquareHighlight([], "e4")).toEqual([{ square: "e4", color: ANNOTATION_COLORS.red }]);
+    expect(toggleSquareHighlight([{ square: "e4", color: ANNOTATION_COLORS.red }], "e4")).toEqual([]);
+    expect(
+      toggleSquareHighlight([{ square: "e4", color: ANNOTATION_COLORS.red }], "e4", ANNOTATION_COLORS.yellow),
+    ).toEqual([{ square: "e4", color: ANNOTATION_COLORS.yellow }]);
+  });
+
+  it("resolves modifier key colors accurately", () => {
+    expect(getAnnotationColor({ shiftKey: true })).toBe(ANNOTATION_COLORS.green);
+    expect(getAnnotationColor({ ctrlKey: true })).toBe(ANNOTATION_COLORS.yellow);
+    expect(getAnnotationColor({ altKey: true })).toBe(ANNOTATION_COLORS.blue);
+    expect(getAnnotationColor({})).toBe(ANNOTATION_COLORS.red);
+  });
+
+  it("generates clean SVG arrow paths with triangular arrowhead and rounded base", () => {
+    const path = getArrowPath("e2", "e4");
+    expect(path).toContain("M ");
+    expect(path).toContain(" L ");
+    expect(path).toContain(" A ");
+    expect(path.endsWith(" Z")).toBe(true);
+    expect(getArrowPath("e4", "e4")).toBe("");
+  });
+});
+
+
+
+==================================================
+FILE: .\src\board-annotations.ts
+==================================================
+import type { Square } from "chess.js";
+
+export type BoardArrow = {
+  from: Square;
+  to: Square;
+  color?: string;
+};
+
+export type SquareHighlight = {
+  square: Square;
+  color?: string;
+};
+
+export const ANNOTATION_COLORS = {
+  red: "#EF5350",
+  yellow: "#FFB52E",
+  blue: "#29B6E6",
+  green: "#8BC34A",
+  engine: "#f0a23b",
+} as const;
+
+export function getAnnotationColor(event: {
+  shiftKey?: boolean;
+  ctrlKey?: boolean;
+  altKey?: boolean;
+  metaKey?: boolean;
+}): string {
+  if (event.shiftKey) return ANNOTATION_COLORS.green;
+  if (event.ctrlKey || event.metaKey) return ANNOTATION_COLORS.yellow;
+  if (event.altKey) return ANNOTATION_COLORS.blue;
+  return ANNOTATION_COLORS.red;
+}
+
+export function boardSquareAtPoint(
+  clientX: number,
+  clientY: number,
+  rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
+  flipped = false,
+): Square | null {
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+  if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) return null;
+  const column = Math.floor((x / rect.width) * 8);
+  const row = Math.floor((y / rect.height) * 8);
+  const file = flipped ? 7 - column : column;
+  const rank = flipped ? row + 1 : 8 - row;
+  return ("abcdefgh"[file] + rank) as Square;
+}
+
+export function squareCenter(square: Square, flipped = false): { x: number; y: number } {
+  const file = square.charCodeAt(0) - 97;
+  const rank = Number(square[1]) - 1;
+  return {
+    x: (flipped ? 7 - file : file) + 0.5,
+    y: (flipped ? rank : 7 - rank) + 0.5,
+  };
+}
+
+export function parseBestMove(move: string | undefined): BoardArrow | null {
+  const match = move?.match(/^([a-h][1-8])([a-h][1-8])[qrbn]?$/);
+  return match ? { from: match[1] as Square, to: match[2] as Square, color: ANNOTATION_COLORS.engine } : null;
+}
+
+export function toggleArrow(arrows: BoardArrow[], next: BoardArrow): BoardArrow[] {
+  const existing = arrows.findIndex((arrow) => arrow.from === next.from && arrow.to === next.to);
+  if (existing < 0) return [...arrows, next];
+  if (next.color && arrows[existing].color !== next.color) {
+    return arrows.map((arrow, index) => (index === existing ? next : arrow));
+  }
+  return arrows.filter((_, index) => index !== existing);
+}
+
+export function toggleSquareHighlight(
+  highlights: SquareHighlight[],
+  square: Square,
+  color: string = ANNOTATION_COLORS.red,
+): SquareHighlight[] {
+  const existing = highlights.findIndex((h) => h.square === square);
+  if (existing < 0) return [...highlights, { square, color }];
+  if (highlights[existing].color !== color) {
+    return highlights.map((h, index) => (index === existing ? { square, color } : h));
+  }
+  return highlights.filter((_, index) => index !== existing);
+}
+
+export function getArrowPath(
+  fromSquare: Square,
+  toSquare: Square,
+  flipped = false,
+  shaftWidth = 0.22,
+  headLength = 0.36,
+  headWidth = 0.50,
+): string {
+  const from = squareCenter(fromSquare, flipped);
+  const to = squareCenter(toSquare, flipped);
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 0.2) return "";
+
+  const ux = dx / len;
+  const uy = dy / len;
+  const nx = -uy;
+  const ny = ux;
+
+  const actualHeadLen = len < 0.7 ? len * 0.48 : headLength;
+  const actualHeadWidth = len < 0.7 ? len * 0.65 : headWidth;
+  const actualShaftWidth = len < 0.7 ? len * 0.28 : shaftWidth;
+
+  const hs = actualShaftWidth / 2;
+  const hw = actualHeadWidth / 2;
+
+  const bx = to.x - actualHeadLen * ux;
+  const by = to.y - actualHeadLen * uy;
+
+  const tipX = to.x;
+  const tipY = to.y;
+
+  const headLeftX = bx + hw * nx;
+  const headLeftY = by + hw * ny;
+  const headRightX = bx - hw * nx;
+  const headRightY = by - hw * ny;
+
+  const shaftEndLeftX = bx + hs * nx;
+  const shaftEndLeftY = by + hs * ny;
+  const shaftEndRightX = bx - hs * nx;
+  const shaftEndRightY = by - hs * ny;
+
+  const shaftStartLeftX = from.x + hs * nx;
+  const shaftStartLeftY = from.y + hs * ny;
+  const shaftStartRightX = from.x - hs * nx;
+  const shaftStartRightY = from.y - hs * ny;
+
+  return [
+    "M " + shaftStartLeftX.toFixed(4) + " " + shaftStartLeftY.toFixed(4),
+    "L " + shaftEndLeftX.toFixed(4) + " " + shaftEndLeftY.toFixed(4),
+    "L " + headLeftX.toFixed(4) + " " + headLeftY.toFixed(4),
+    "L " + tipX.toFixed(4) + " " + tipY.toFixed(4),
+    "L " + headRightX.toFixed(4) + " " + headRightY.toFixed(4),
+    "L " + shaftEndRightX.toFixed(4) + " " + shaftEndRightY.toFixed(4),
+    "L " + shaftStartRightX.toFixed(4) + " " + shaftStartRightY.toFixed(4),
+    "A " + hs.toFixed(4) + " " + hs.toFixed(4) + " 0 0 0 " + shaftStartLeftX.toFixed(4) + " " + shaftStartLeftY.toFixed(4),
+    "Z",
+  ].join(" ");
+}
+
+
+
+
+==================================================
+FILE: .\src\chess-state.test.ts
+==================================================
+import { describe, expect, it } from "vitest";
+import { START_FEN } from "./model";
+import { fenWithTurn, makePosition } from "./chess-state";
+
+describe("chess position state", () => {
+  it("replays legal SAN from an arbitrary diagram position", () => {
+    const game = makePosition(START_FEN, ["e4", "e5"], 2);
+    expect(game.fen()).toContain(" w KQkq ");
+    expect(game.history()).toEqual(["e4", "e5"]);
+  });
+
+  it("rejects invalid restored moves instead of substituting a position", () => {
+    expect(() => makePosition(START_FEN, ["e5"], 1)).toThrow();
+  });
+
+  it("changes side to move and clears en-passant metadata", () => {
+    expect(fenWithTurn("8/8/8/8/8/8/4k3/4K3 w - e6 0 1", "b"))
+      .toBe("8/8/8/8/8/8/4k3/4K3 b - - 0 1");
+  });
+});
+
+
+
+==================================================
+FILE: .\src\chess-state.ts
+==================================================
+import { Chess } from "chess.js";
+
+export function makePosition(baseFen: string, moves: string[], moveIndex: number): Chess {
+  const game = new Chess(baseFen);
+  for (const san of moves.slice(0, moveIndex)) {
+    const result = game.move(san);
+    if (!result) throw new Error(`Saved move could not be replayed: ${san}`);
+  }
+  return game;
+}
+
+export function fenWithTurn(fen: string, turn: "w" | "b"): string {
+  const fields = fen.split(/\s+/);
+  if (fields.length !== 6) throw new Error("FEN must contain six fields.");
+  fields[1] = turn;
+  fields[3] = "-";
+  fields[4] = "0";
+  return fields.join(" ");
+}
+
+
+
+==================================================
+FILE: .\src\coordinate-training.css
+==================================================
+
+/* ==========================================================
+   COORDINATE TRAINING - RESPONSIVE VIEWPORT LAYOUT
+   ========================================================== */
+
+.coordinate-training-workspace,
+.coordinate-training-workspace * {
+  box-sizing: border-box;
+}
+
+.coordinate-training-workspace {
+  --ct-bg: #111a15;
+  --ct-card: #1b2921;
+  --ct-border: #304237;
+  --ct-text: #edf3eb;
+  --ct-muted: #9eafa1;
+  --ct-accent: #a3d66b;
+  --ct-light: #e8e2d2;
+  --ct-dark: #7d9d76;
+
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: clamp(14px, 1.8vw, 26px);
+  color: var(--ct-text);
+  background: radial-gradient(ellipse at 12% 0%, rgba(131,166,103,.09), transparent 38%), var(--ct-bg);
+  font-family: Inter, "Segoe UI", sans-serif;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.coordinate-training-workspace button,
+.coordinate-training-workspace select {
+  font: inherit;
+}
+
+.ct-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.ct-eyebrow {
+  color: var(--ct-accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.7px;
+}
+
+.ct-header h1 {
+  margin: 7px 0 5px;
+  color: #f4f7f2;
+  font-size: clamp(25px, 2.4vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -1px;
+}
+
+.ct-header p {
+  margin: 0;
+  color: var(--ct-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ct-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.ct-header-actions button,
+.ct-primary {
+  min-height: 39px;
+  padding: 9px 14px;
+  border: 1px solid var(--ct-border);
+  border-radius: 9px;
+  background: #24342a;
+  color: var(--ct-text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ct-header-actions .ct-primary,
+.ct-primary {
+  border-color: transparent;
+  background: #8fc653;
+  color: #172014;
+}
+
+.ct-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr);
+  align-items: stretch;
+  gap: 18px;
+  min-width: 0;
+}
+
+.ct-layout > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+.ct-board-card,
+.ct-layout > :last-child > *,
+.ct-layout > :last-child {
+  border: 1px solid var(--ct-border);
+  border-radius: 15px;
+  background: linear-gradient(155deg, #202f26, #1a2820);
+  box-shadow: 0 10px 28px rgba(0,0,0,.13);
+}
+
+.ct-board-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 17px;
+}
+
+.ct-board-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: #b6c4b8;
+  font-size: 12px;
+}
+
+.ct-target {
+  color: #b8e78c;
+  font-size: clamp(25px, 2.5vw, 34px);
+  font-weight: 800;
+}
+
+.ct-feedback {
+  color: var(--ct-muted);
+  text-align: right;
+  font-size: 11px;
+}
+
+.ct-board {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  width: min(100%, 470px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 4px solid #344338;
+  border-radius: 6px;
+  box-shadow: 0 10px 26px rgba(0,0,0,.24);
+}
+
+.ct-square {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+.ct-square.light {
+  background: var(--ct-light);
+}
+
+.ct-square.dark {
+  background: var(--ct-dark);
+}
+
+.ct-square:disabled {
+  cursor: default;
+}
+
+.ct-square:focus-visible {
+  z-index: 2;
+  outline: 3px solid #b8e78c;
+  outline-offset: -4px;
+}
+
+.ct-rank,
+.ct-file {
+  position: absolute;
+  z-index: 1;
+  color: #526c4e;
+  font-family: "DM Mono", Consolas, monospace;
+  font-size: clamp(8px, .8vw, 11px);
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.ct-rank {
+  top: 4px;
+  left: 5px;
+}
+
+.ct-file {
+  right: 5px;
+  bottom: 4px;
+}
+
+.ct-square.dark .ct-rank,
+.ct-square.dark .ct-file {
+  color: #f1ead9;
+}
+
+.ct-layout > :last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ct-layout > :last-child > * {
+  min-width: 0;
+  padding: 17px;
+}
+
+.ct-layout > :last-child h2,
+.ct-layout > :last-child h3 {
+  margin-top: 0;
+}
+
+.ct-layout label {
+  color: #c0cec1;
+}
+
+.ct-layout select {
+  max-width: 100%;
+}
+
+@media (min-width: 901px) and (min-height: 700px) {
+  .coordinate-training-workspace {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    padding: clamp(12px, 1.5vw, 20px);
+  }
+
+  .ct-header {
+    flex: 0 0 auto;
+    margin-bottom: 12px;
+  }
+
+  .ct-layout {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1.1fr) minmax(300px, .9fr);
+    gap: 14px;
+    overflow: hidden;
+  }
+
+  .ct-board-card {
+    justify-content: flex-start;
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  .ct-board-top {
+    flex: 0 0 auto;
+    margin-bottom: 8px;
+  }
+
+  .ct-board {
+    flex: 0 1 auto;
+    width: min(100%, 440px, max(250px, calc(100dvh - 560px)));
+  }
+
+  .ct-layout > :last-child {
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+    scrollbar-width: thin;
+  }
+
+  .ct-layout > :last-child > * {
+    flex: 0 0 auto;
+    padding: 13px;
+  }
+}
+
+@media (max-width: 900px) {
+  .coordinate-training-workspace {
+    height: auto;
+    overflow: visible;
+  }
+
+  .ct-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-board {
+    width: min(100%, 620px);
+  }
+
+  .ct-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 600px) {
+  .coordinate-training-workspace {
+    padding: 13px;
+  }
+
+  .ct-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .ct-header-actions button {
+    flex: 1 1 auto;
+  }
+
+  .ct-board-card,
+  .ct-layout > :last-child > * {
+    padding: 11px;
+  }
+
+  .ct-board-top {
+    gap: 6px;
+  }
+}
+
+
+
+==================================================
+FILE: .\src\CoordinateTraining.tsx
+==================================================
+import { useEffect, useMemo, useState } from "react";
+import "./coordinate-training.css";
+
+type Orientation = "white" | "black";
+type Mode = "timed" | "untimed" | "streak";
+type SessionResult = { date: string; score: number; accuracy: number; duration: number };
+
+const FILES = "abcdefgh";
+const RANKS = "12345678";
+const randomSquare = (avoid?: string) => {
+  let next = `${FILES[Math.floor(Math.random() * 8)]}${RANKS[Math.floor(Math.random() * 8)]}`;
+  while (next === avoid) next = `${FILES[Math.floor(Math.random() * 8)]}${RANKS[Math.floor(Math.random() * 8)]}`;
+  return next;
+};
+const STORAGE_KEY = "chessbook-coordinate-training-v1";
+
+export default function CoordinateTraining() {
+  const [orientation, setOrientation] = useState<Orientation>("white");
+  const [mode, setMode] = useState<Mode>("timed");
+  const [duration, setDuration] = useState(60);
+  const [remaining, setRemaining] = useState(60);
+  const [target, setTarget] = useState(() => randomSquare());
+  const [score, setScore] = useState(0);
+  const [correct, setCorrect] = useState(0);
+  const [wrong, setWrong] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<"correct" | "wrong" | "">("");
+  const [sound, setSound] = useState(false);
+  const [showCoordinates, setShowCoordinates] = useState(true);
+  const [history, setHistory] = useState<SessionResult[]>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as SessionResult[]; } catch { return []; }
+  });
+  const finished = mode === "timed" && remaining <= 0;
+  const attempts = correct + wrong;
+  const accuracy = attempts ? Math.round((correct / attempts) * 100) : 0;
+  const squares = useMemo(() => {
+    const files = orientation === "white" ? [...FILES] : [...FILES].reverse();
+    const ranks = orientation === "white" ? [...RANKS].reverse() : [...RANKS];
+    return ranks.flatMap((rank) => files.map((file) => `${file}${rank}`));
+  }, [orientation]);
+
+  useEffect(() => {
+    if (!startedAt || finished || mode !== "timed") return;
+    const timer = window.setInterval(() => setRemaining((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [startedAt, finished, mode]);
+
+  useEffect(() => {
+    if (finished && startedAt) {
+      const result = { date: new Date().toISOString(), score, accuracy, duration: duration - remaining };
+      setHistory((previous) => {
+        const next = [result, ...previous].slice(0, 30);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* storage may be unavailable */ }
+        return next;
+      });
+      setStartedAt(null);
+    }
+  }, [finished]);
+
+  function restart(nextMode = mode, nextDuration = duration) {
+    setMode(nextMode);
+    setDuration(nextDuration);
+    setRemaining(nextDuration);
+    setTarget(randomSquare());
+    setScore(0); setCorrect(0); setWrong(0); setStreak(0);
+    setFeedback(""); setStartedAt(null);
+  }
+
+  function chooseSquare(square: string) {
+    if (finished) return;
+    if (!startedAt) setStartedAt(Date.now());
+    if (square === target) {
+      setCorrect((value) => value + 1);
+      setScore((value) => value + 1);
+      setStreak((value) => { const next = value + 1; setBestStreak((best) => Math.max(best, next)); return next; });
+      setFeedback("correct");
+    } else {
+      setWrong((value) => value + 1);
+      setStreak(0);
+      setFeedback("wrong");
+    }
+    setTarget(randomSquare(target));
+  }
+
+  return <main className="coordinate-training-workspace">
+    <header className="ct-header">
+      <div><span className="ct-eyebrow">CHESSBOOK TRAINING</span><h1>Coordinate Training</h1><p>Build instant board vision. Find the square before the clock runs out.</p></div>
+      <div className="ct-header-actions"><button onClick={() => restart()}>↻ Restart</button><button className="ct-primary" onClick={() => restart(mode, duration)}>New session</button></div>
+    </header>
+    <div className="ct-layout">
+      <section className="ct-board-card">
+        <div className="ct-board-top"><span>Find this square</span><strong className="ct-target">{finished ? "TIME!" : target}</strong><span className={`ct-feedback ${feedback}`}>{feedback === "correct" ? "Correct" : feedback === "wrong" ? "Try the next one" : "Select a square"}</span></div>
+        <div className="ct-board" role="group" aria-label="Coordinate training chessboard">
+          {squares.map((square) => {
+            const file = FILES.indexOf(square[0]);
+            const rank = Number(square[1]);
+            const dark = (file + rank) % 2 === 0;
+            return <button key={square} type="button" disabled={finished} onClick={() => chooseSquare(square)} className={`ct-square ${dark ? "dark" : "light"}`} aria-label={square}>
+              {showCoordinates && ((orientation === "white" && file === 0) || (orientation === "black" && file === 7)) && <span className="ct-rank">{rank}</span>}
+              {showCoordinates && ((orientation === "white" && rank === 1) || (orientation === "black" && rank === 8)) && <span className="ct-file">{square[0]}</span>}
+            </button>;
+          })}
+        </div>
+        <div className="ct-board-footer"><span>{orientation === "white" ? "White perspective" : "Black perspective"}</span><button onClick={() => setOrientation((value) => value === "white" ? "black" : "white")}>⇅ Flip board</button></div>
+      </section>
+      <aside className="ct-side">
+        <section className="ct-card ct-stats"><div className="ct-card-heading">SESSION</div><div className="ct-timer">{mode === "untimed" ? "∞" : mode === "streak" ? "—" : `00:${String(remaining).padStart(2, "0")}`}</div><div className="ct-progress"><i style={{ width: `${mode === "timed" ? ((duration - remaining) / duration) * 100 : 0}%` }} /></div>
+          <div className="ct-stat-grid"><div><strong>{score}</strong><span>Score</span></div><div><strong>{accuracy}%</strong><span>Accuracy</span></div><div><strong>{streak}</strong><span>Streak</span></div><div><strong>{bestStreak}</strong><span>Best streak</span></div></div>
+          {!startedAt && <p className="ct-start-note">Your timer starts with your first answer.</p>}
+          {finished && <div className="ct-finished">Session complete · {score} correct squares</div>}
+        </section>
+        <section className="ct-card"><div className="ct-card-heading">TRAINING SETTINGS</div><label>Mode<select value={mode} onChange={(e) => restart(e.target.value as Mode)}><option value="timed">Timed challenge</option><option value="untimed">Untimed practice</option><option value="streak">Streak challenge</option></select></label>
+          <label>Duration<select value={duration} onChange={(e) => restart(mode, Number(e.target.value))}><option value={30}>30 seconds</option><option value={60}>60 seconds</option><option value={120}>2 minutes</option><option value={180}>3 minutes</option></select></label>
+          <label className="ct-toggle"><input type="checkbox" checked={showCoordinates} onChange={(e) => setShowCoordinates(e.target.checked)} /> Show board coordinates</label>
+          <label className="ct-toggle"><input type="checkbox" checked={sound} onChange={(e) => setSound(e.target.checked)} /> Sound feedback (coming soon)</label>
+          <button className="ct-primary ct-full" onClick={() => restart()}>Start / Restart training</button>
+        </section>
+        <section className="ct-card"><div className="ct-card-heading">RECENT SESSIONS</div>{history.length ? history.slice(0, 4).map((item, index) => <div className="ct-history-row" key={`${item.date}-${index}`}><span>{new Date(item.date).toLocaleDateString()}</span><strong>{item.score} correct</strong><em>{item.accuracy}%</em></div>) : <p className="ct-empty">Your completed timed sessions will appear here.</p>}</section>
+      </aside>
+    </div>
+  </main>;
+}
+
+
+
+==================================================
+FILE: .\src\crop-geometry.test.ts
+==================================================
+import { describe, expect, it } from "vitest";
+import { cropToPixels, editCrop, pointOnCanvas } from "./crop-geometry";
+
+describe("page-image crop geometry", () => {
+  it("maps displayed canvas coordinates to normalized source-image coordinates", () => {
+    expect(pointOnCanvas(260, 140, { left: 60, top: 40, width: 400, height: 200 }))
+      .toEqual({ x: 0.5, y: 0.5 });
+    expect(pointOnCanvas(900, 900, { left: 60, top: 40, width: 400, height: 200 }))
+      .toEqual({ x: 1, y: 1 });
+  });
+
+  it("moves and resizes crops without crossing page bounds or minimum size", () => {
+    const initial = { x: 0.2, y: 0.25, width: 0.4, height: 0.35 };
+    expect(editCrop(initial, "move", 0.8, -0.5))
+      .toEqual({ x: 0.6, y: 0, width: 0.4, height: 0.35 });
+    const enlarged = editCrop(initial, "se", 0.2, 0.2);
+    expect(enlarged.x).toBeCloseTo(0.2);
+    expect(enlarged.y).toBeCloseTo(0.25);
+    expect(enlarged.width).toBeCloseTo(0.6);
+    expect(enlarged.height).toBeCloseTo(0.55);
+    const shrunk = editCrop(initial, "nw", 0.9, 0.9);
+    expect(shrunk.x).toBeCloseTo(0.56);
+    expect(shrunk.y).toBeCloseTo(0.56);
+    expect(shrunk.width).toBeCloseTo(0.04);
+    expect(shrunk.height).toBeCloseTo(0.04);
+  });
+
+  it("maps the confirmed crop to intrinsic canvas pixels", () => {
+    expect(cropToPixels({ x: 0.1, y: 0.2, width: 0.5, height: 0.4 }, 1200, 800))
+      .toEqual({ x: 120, y: 160, width: 600, height: 320 });
+  });
+});
+
+
+
+==================================================
+FILE: .\src\crop-geometry.ts
+==================================================
+export type CropBounds = { x: number; y: number; width: number; height: number };
+export type CropHandle = "move" | "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+
+export function pointOnCanvas(
+  clientX: number,
+  clientY: number,
+  rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
+): { x: number; y: number } | null {
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  return {
+    x: Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)),
+    y: Math.max(0, Math.min(1, (clientY - rect.top) / rect.height)),
+  };
+}
+
+export function editCrop(
+  start: CropBounds,
+  handle: CropHandle,
+  deltaX: number,
+  deltaY: number,
+  minimum = 0.04,
+): CropBounds {
+  if (handle === "move") {
+    const x = Math.max(0, Math.min(1 - start.width, start.x + deltaX));
+    const y = Math.max(0, Math.min(1 - start.height, start.y + deltaY));
+    return { ...start, x, y };
+  }
+  let left = start.x;
+  let top = start.y;
+  let right = start.x + start.width;
+  let bottom = start.y + start.height;
+  if (handle.includes("w")) left = Math.max(0, Math.min(right - minimum, left + deltaX));
+  if (handle.includes("e")) right = Math.min(1, Math.max(left + minimum, right + deltaX));
+  if (handle.includes("n")) top = Math.max(0, Math.min(bottom - minimum, top + deltaY));
+  if (handle.includes("s")) bottom = Math.min(1, Math.max(top + minimum, bottom + deltaY));
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+export function cropToPixels(bounds: CropBounds, sourceWidth: number, sourceHeight: number) {
+  const x = Math.max(0, Math.min(sourceWidth - 1, Math.floor(bounds.x * sourceWidth)));
+  const y = Math.max(0, Math.min(sourceHeight - 1, Math.floor(bounds.y * sourceHeight)));
+  const right = Math.max(x + 1, Math.min(sourceWidth, Math.ceil((bounds.x + bounds.width) * sourceWidth - 1e-7)));
+  const bottom = Math.max(y + 1, Math.min(sourceHeight, Math.ceil((bounds.y + bounds.height) * sourceHeight - 1e-7)));
+  return { x, y, width: right - x, height: bottom - y };
+}
+
+
+
+==================================================
+FILE: .\src\main.tsx
+==================================================
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import "./styles.css";
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);
+
+
+
+==================================================
+FILE: .\src\ManualBoardEditor.test.tsx
+==================================================
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { START_PLACEMENT } from "./position-editor";
+
+describe("ManualBoardEditor Component", () => {
+  it("renders with initial position and labels", () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+
+    render(
+      <ManualBoardEditor
+        initialFen={`${START_PLACEMENT} w KQkq - 0 1`}
+        title="Review recognized position"
+        confirmLabel="Use on Board"
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: /review recognized position/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use on Board" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/valid chess position/i);
+  });
+
+  it("places a piece on an empty square", () => {
+    const onConfirm = vi.fn();
+    render(
+      <ManualBoardEditor
+        initialFen="8/8/8/8/8/8/8/8 w - - 0 1"
+        title="Set Up Position"
+        confirmLabel="Analyze Position"
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+
+    // Select White Queen 'Q' from palette
+    const queenBtn = screen.getByRole("button", { name: "White queen" });
+    fireEvent.click(queenBtn);
+
+    // Click square e4
+    const e4Square = screen.getByRole("button", { name: /e4/i });
+    fireEvent.click(e4Square);
+
+    // FEN input should now include Q at e4
+    const fenInput = screen.getByPlaceholderText(/paste a complete six-field fen/i) as HTMLInputElement;
+    expect(fenInput.value).toContain("4Q3");
+  });
+
+  it("replaces a white piece with a black piece", () => {
+    render(
+      <ManualBoardEditor
+        initialFen="8/8/8/8/4Q3/8/8/8 w - - 0 1"
+        title="Set Up Position"
+        confirmLabel="Analyze Position"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    // Select Black Knight 'n' from palette
+    const blackKnightBtn = screen.getByRole("button", { name: "Black knight" });
+    fireEvent.click(blackKnightBtn);
+
+    // Click square e4 (which currently has White Queen)
+    const e4Square = screen.getByRole("button", { name: /e4/i });
+    fireEvent.click(e4Square);
+
+    const fenInput = screen.getByPlaceholderText(/paste a complete six-field fen/i) as HTMLInputElement;
+    expect(fenInput.value).toContain("4n3");
+    expect(fenInput.value).not.toContain("4Q3");
+  });
+
+  it("removes a piece using the erase tool", () => {
+    render(
+      <ManualBoardEditor
+        initialFen="8/8/8/8/4Q3/8/8/8 w - - 0 1"
+        title="Set Up Position"
+        confirmLabel="Analyze Position"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    // Click Erase Piece tool
+    const eraseBtn = screen.getByRole("button", { name: /erase piece/i });
+    fireEvent.click(eraseBtn);
+
+    // Click square e4
+    const e4Square = screen.getByRole("button", { name: /e4/i });
+    fireEvent.click(e4Square);
+
+    const fenInput = screen.getByPlaceholderText(/paste a complete six-field fen/i) as HTMLInputElement;
+    expect(fenInput.value.startsWith("8/8/8/8/8/8/8/8")).toBe(true);
+  });
+
+  it("supports undo and redo for manual edits", () => {
+    render(
+      <ManualBoardEditor
+        initialFen="8/8/8/8/8/8/8/8 w - - 0 1"
+        title="Set Up Position"
+        confirmLabel="Analyze Position"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    const fenInput = screen.getByPlaceholderText(/paste a complete six-field fen/i) as HTMLInputElement;
+    const initialFen = fenInput.value;
+
+    // Place White King on e1
+    const whiteKingBtn = screen.getByRole("button", { name: "White king" });
+    fireEvent.click(whiteKingBtn);
+    const e1Square = screen.getByRole("button", { name: /e1/i });
+    fireEvent.click(e1Square);
+    expect(fenInput.value).not.toBe(initialFen);
+
+    // Undo
+    const undoBtn = screen.getByRole("button", { name: /undo/i });
+    fireEvent.click(undoBtn);
+    expect(fenInput.value).toBe(initialFen);
+
+    // Redo
+    const redoBtn = screen.getByRole("button", { name: /redo/i });
+    fireEvent.click(redoBtn);
+    expect(fenInput.value).toContain("4K3");
+  });
+
+  it("updates the board when valid FEN text is entered", () => {
+    render(
+      <ManualBoardEditor
+        initialFen="8/8/8/8/8/8/8/8 w - - 0 1"
+        title="Set Up Position"
+        confirmLabel="Analyze Position"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    const fenInput = screen.getByPlaceholderText(/paste a complete six-field fen/i) as HTMLInputElement;
+    fireEvent.change(fenInput, { target: { value: "4k3/8/8/8/8/8/8/4K3 w - - 0 1" } });
+
+    // Both kings should be recognized
+    expect(screen.getByText(/kings: white ✓ 1, black ✓ 1/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Analyze Position" })).not.toBeDisabled();
+  });
+
+  it("displays an error on invalid FEN without crashing or losing editable state", () => {
+    render(
+      <ManualBoardEditor
+        initialFen="4k3/8/8/8/8/8/8/4K3 w - - 0 1"
+        title="Set Up Position"
+        confirmLabel="Analyze Position"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    const fenInput = screen.getByPlaceholderText(/paste a complete six-field fen/i) as HTMLInputElement;
+    fireEvent.change(fenInput, { target: { value: "invalid-fen-string" } });
+
+    // Shows warning badge
+    expect(screen.getByRole("status")).toHaveTextContent(/must contain exactly 6 space-separated fields|invalid/i);
+    // Button is disabled when invalid
+    expect(screen.getByRole("button", { name: "Analyze Position" })).toBeDisabled();
+  });
+
+  it("prevents confirmation when kings are missing and displays clear error", () => {
+    const onConfirm = vi.fn();
+    render(
+      <ManualBoardEditor
+        initialFen="8/8/8/8/8/8/8/8 w - - 0 1"
+        title="Set Up Position"
+        confirmLabel="Analyze Position"
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+
+    // Status shows missing king
+    expect(screen.getByRole("status")).toHaveTextContent(/missing a white king/i);
+
+    // Confirm button is disabled
+    const confirmBtn = screen.getByRole("button", { name: "Analyze Position" });
+    expect(confirmBtn).toBeDisabled();
+    fireEvent.click(confirmBtn);
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("reflects side to move toggle in FEN", () => {
+    render(
+      <ManualBoardEditor
+        initialFen="4k3/8/8/8/8/8/8/4K3 w - - 0 1"
+        title="Set Up Position"
+        confirmLabel="Analyze Position"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    const fenInput = screen.getByPlaceholderText(/paste a complete six-field fen/i) as HTMLInputElement;
+    expect(fenInput.value).toContain(" w ");
+
+    // Click Black to move
+    const blackTurnBtn = screen.getByRole("button", { name: /black to move/i });
+    fireEvent.click(blackTurnBtn);
+
+    expect(fenInput.value).toContain(" b ");
+
+    // Click White to move
+    const whiteTurnBtn = screen.getByRole("button", { name: /white to move/i });
+    fireEvent.click(whiteTurnBtn);
+
+    expect(fenInput.value).toContain(" w ");
+  });
+
+  it("submits valid FEN on confirmation", () => {
+    const onConfirm = vi.fn();
+    const validFen = "4k3/8/8/8/8/8/8/4K3 w - - 0 1";
+
+    render(
+      <ManualBoardEditor
+        initialFen={validFen}
+        title="Set Up Position"
+        confirmLabel="Analyze Position"
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+
+    const confirmBtn = screen.getByRole("button", { name: "Analyze Position" });
+    expect(confirmBtn).not.toBeDisabled();
+    fireEvent.click(confirmBtn);
+
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onConfirm).toHaveBeenCalledWith(validFen);
+  });
+
+  it("cancels without confirming", () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+
+    render(
+      <ManualBoardEditor
+        initialFen="4k3/8/8/8/8/8/8/4K3 w - - 0 1"
+        title="Set Up Position"
+        confirmLabel="Analyze Position"
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />
+    );
+
+    const cancelBtn = screen.getByRole("button", { name: "Cancel" });
+    fireEvent.click(cancelBtn);
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+});
+
+
+
+==================================================
+FILE: .\src\ManualBoardEditor.tsx
+==================================================
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  buildFullFen,
+  countKings,
+  EMPTY_PLACEMENT,
+  flipFenPlacement,
+  moveFenPiece,
+  parseFenPlacement,
+  PIECE_LABELS,
+  sanitizeCastlingRights,
+  setFenPiece,
+  START_PLACEMENT,
+  validatePositionFen,
+} from "./position-editor";
+
+const WHITE_PIECES = ["K", "Q", "R", "B", "N", "P"] as const;
+const BLACK_PIECES = ["k", "q", "r", "b", "n", "p"] as const;
+
+export interface ManualBoardEditorProps {
+  initialFen: string;
+  onConfirm: (fen: string) => void;
+  onCancel: () => void;
+  confirmLabel: string;
+  title: string;
+  subtitle?: string;
+  // Specific to recognition review (Feature A)
+  cropPreviewUrl?: string;
+  recognitionStatus?: "idle" | "loading" | "complete" | "failed";
+  recognitionResult?: {
+    board_confidence: number;
+    mean_piece_confidence: number | null;
+    piece_count: number;
+    orientation: "normal" | "flipped" | "unknown";
+    warnings: string[];
+  } | null;
+  recognitionError?: string;
+  onRetryRecognition?: () => void;
+  // Specific to setup mode (Feature B)
+  showPresets?: boolean;
+  currentAnalysisFen?: string;
+}
+
+export function ManualBoardEditor({
+  initialFen,
+  onConfirm,
+  onCancel,
+  confirmLabel,
+  title,
+  subtitle,
+  cropPreviewUrl,
+  recognitionStatus,
+  recognitionResult,
+  recognitionError,
+  onRetryRecognition,
+  showPresets = false,
+  currentAnalysisFen,
+}: ManualBoardEditorProps) {
+  // Parse initial fields
+  const parsedInitial = useMemo(() => {
+    const trimmed = initialFen.trim();
+    const fields = trimmed ? trimmed.split(/\s+/) : [];
+    const placement = fields[0] && parseFenPlacement(fields[0]) ? fields[0] : START_PLACEMENT;
+    const turn = fields[1] === "b" ? ("b" as const) : ("w" as const);
+    const castling = fields[2] ?? "-";
+    const ep = fields[3] ?? "-";
+    const halfmove = Number(fields[4]) || 0;
+    const fullmove = Number(fields[5]) || 1;
+    const fen = buildFullFen(placement, turn, castling, ep, halfmove, fullmove);
+    return { placement, turn, castling, ep, halfmove, fullmove, fen };
+  }, [initialFen]);
+
+  const [placement, setPlacement] = useState(parsedInitial.placement);
+  const [turn, setTurn] = useState<"w" | "b">(parsedInitial.turn);
+  const [castling, setCastling] = useState(parsedInitial.castling);
+  const [activeTool, setActiveTool] = useState<string>("P"); // Piece symbol or "" for erase
+  const [selectedSquare, setSelectedSquare] = useState<{ row: number; col: number } | null>(null);
+  const [flipped, setFlipped] = useState(false);
+  const [history, setHistory] = useState<string[]>([parsedInitial.fen]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const [fenInputText, setFenInputText] = useState(parsedInitial.fen);
+  const [validationError, setValidationError] = useState<string>("");
+
+  // When initialFen changes externally (e.g. recognition completes or retries), reset editor
+  useEffect(() => {
+    setPlacement(parsedInitial.placement);
+    setTurn(parsedInitial.turn);
+    setCastling(parsedInitial.castling);
+    setHistory([parsedInitial.fen]);
+    setHistoryIndex(0);
+    setFenInputText(parsedInitial.fen);
+    setValidationError("");
+    setSelectedSquare(null);
+  }, [parsedInitial]);
+
+  const currentBoard = useMemo(() => parseFenPlacement(placement) ?? parseFenPlacement(EMPTY_PLACEMENT)!, [placement]);
+  const currentFen = useMemo(() => buildFullFen(placement, turn, castling), [placement, turn, castling]);
+  const validation = useMemo(() => validatePositionFen(currentFen), [currentFen]);
+  const kingCounts = useMemo(() => countKings(placement), [placement]);
+
+  // Push new state to history
+  function pushState(newPlacement: string, newTurn: "w" | "b" = turn, newCastling: string = castling) {
+    const board = parseFenPlacement(newPlacement);
+    const sanitizedCastling = board ? sanitizeCastlingRights(board, newCastling) : "-";
+    const newFen = buildFullFen(newPlacement, newTurn, sanitizedCastling);
+
+    setPlacement(newPlacement);
+    setTurn(newTurn);
+    setCastling(sanitizedCastling);
+    setFenInputText(newFen);
+    setValidationError("");
+
+    if (newFen !== history[historyIndex]) {
+      const nextHistory = history.slice(0, historyIndex + 1);
+      nextHistory.push(newFen);
+      setHistory(nextHistory);
+      setHistoryIndex(nextHistory.length - 1);
+    }
+  }
+
+  function handleUndo() {
+    if (historyIndex > 0) {
+      const prevIndex = historyIndex - 1;
+      const prevFen = history[prevIndex];
+      const fields = prevFen.split(/\s+/);
+      setPlacement(fields[0]);
+      setTurn(fields[1] === "b" ? "b" : "w");
+      setCastling(fields[2] ?? "-");
+      setFenInputText(prevFen);
+      setHistoryIndex(prevIndex);
+      setValidationError("");
+    }
+  }
+
+  function handleRedo() {
+    if (historyIndex < history.length - 1) {
+      const nextIndex = historyIndex + 1;
+      const nextFen = history[nextIndex];
+      const fields = nextFen.split(/\s+/);
+      setPlacement(fields[0]);
+      setTurn(fields[1] === "b" ? "b" : "w");
+      setCastling(fields[2] ?? "-");
+      setFenInputText(nextFen);
+      setHistoryIndex(nextIndex);
+      setValidationError("");
+    }
+  }
+
+  function handleSquareClick(row: number, col: number) {
+    setSelectedSquare({ row, col });
+    if (activeTool === "") {
+      // Erase tool active
+      const nextPlacement = setFenPiece(placement, row, col, "");
+      pushState(nextPlacement);
+    } else {
+      // Place / Replace with active piece
+      const nextPlacement = setFenPiece(placement, row, col, activeTool);
+      pushState(nextPlacement);
+    }
+  }
+
+  function handleToolSelect(tool: string) {
+    setActiveTool(tool);
+    // If a square is already selected and user picks a piece or erase, apply to that square
+    if (selectedSquare) {
+      const nextPlacement = setFenPiece(placement, selectedSquare.row, selectedSquare.col, tool);
+      pushState(nextPlacement);
+    }
+  }
+
+  function handleClearBoard() {
+    pushState(EMPTY_PLACEMENT, turn, "-");
+    setSelectedSquare(null);
+  }
+
+  function handleStartingPosition() {
+    pushState(START_PLACEMENT, "w", "KQkq");
+    setSelectedSquare(null);
+  }
+
+  function handleFlipBoard() {
+    setFlipped((f) => !f);
+  }
+
+  function handleInvertPieces() {
+    const nextPlacement = flipFenPlacement(placement);
+    pushState(nextPlacement);
+  }
+
+  function handleTurnChange(newTurn: "w" | "b") {
+    pushState(placement, newTurn, castling);
+  }
+
+  function handleFenInputChange(value: string) {
+    setFenInputText(value);
+    const trimmed = value.trim();
+    const fields = trimmed.split(/\s+/);
+    if (fields.length === 6) {
+      const parsed = parseFenPlacement(fields[0]);
+      if (parsed) {
+        setPlacement(fields[0]);
+        setTurn(fields[1] === "b" ? "b" : "w");
+        setCastling(fields[2] ?? "-");
+        setValidationError("");
+        if (trimmed !== history[historyIndex]) {
+          const nextHistory = history.slice(0, historyIndex + 1);
+          nextHistory.push(trimmed);
+          setHistory(nextHistory);
+          setHistoryIndex(nextHistory.length - 1);
+        }
+        return;
+      }
+    }
+    const val = validatePositionFen(trimmed);
+    if (!val.isValid) {
+      setValidationError(val.error || "Invalid FEN syntax.");
+    }
+  }
+
+  // Keyboard navigation for selected square
+  function handleKeyDown(event: React.KeyboardEvent) {
+    if (!selectedSquare) return;
+    const { row, col } = selectedSquare;
+    if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault();
+      const nextPlacement = setFenPiece(placement, row, col, "");
+      pushState(nextPlacement);
+      return;
+    }
+    const key = event.key;
+    if (/^[prnbqkPRNBQK]$/.test(key)) {
+      event.preventDefault();
+      const nextPlacement = setFenPiece(placement, row, col, key);
+      pushState(nextPlacement);
+      setActiveTool(key);
+      return;
+    }
+    if (event.key === "Escape") {
+      setSelectedSquare(null);
+    }
+  }
+
+  function handleConfirmClick() {
+    if (validationError) {
+      return;
+    }
+    if (!validation.isValid) {
+      setValidationError(validation.error || "Cannot confirm: position is not valid.");
+      return;
+    }
+    onConfirm(currentFen);
+  }
+
+  const pieceAssetUrl = (piece: string) => {
+    const color = piece === piece.toUpperCase() ? "w" : "b";
+    const type = piece.toLowerCase();
+    return `${import.meta.env.BASE_URL}assets/pieces/standalone/${color}${type}.svg`;
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation" onKeyDown={handleKeyDown}>
+      <section
+        className="transfer-dialog manual-editor-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <header>
+          <div>
+            <h2>{title}</h2>
+            {subtitle && <p>{subtitle}</p>}
+          </div>
+          <button
+            type="button"
+            aria-label="Close dialog"
+            title="Cancel and close"
+            onClick={onCancel}
+          >
+            ×
+          </button>
+        </header>
+
+        {showPresets && (
+          <div className="editor-presets-bar">
+            <span>START FROM:</span>
+            {currentAnalysisFen && (
+              <button
+                type="button"
+                className="preset-btn"
+                onClick={() => {
+                  const fields = currentAnalysisFen.trim().split(/\s+/);
+                  if (fields.length === 6 && parseFenPlacement(fields[0])) {
+                    pushState(fields[0], fields[1] === "b" ? "b" : "w", fields[2]);
+                  }
+                }}
+              >
+                Edit Current Board
+              </button>
+            )}
+            <button type="button" className="preset-btn" onClick={handleClearBoard}>
+              Empty Board
+            </button>
+            <button type="button" className="preset-btn" onClick={handleStartingPosition}>
+              Standard Starting Board
+            </button>
+          </div>
+        )}
+
+        {cropPreviewUrl && (
+          <div className="recognition-layout">
+            <img className="crop-preview" src={cropPreviewUrl} alt="Selected chess diagram crop" />
+            <div className="recognition-summary" role="status">
+              {recognitionStatus === "loading" && (
+                <>
+                  <span className="spinner" /> Recognizing pieces…
+                </>
+              )}
+              {recognitionStatus === "complete" && (
+                <>
+                  <strong>Model-recognized position · Editable below</strong>
+                  <span>
+                    {recognitionResult?.piece_count ?? 0} pieces recognized · confidence{" "}
+                    {recognitionResult?.board_confidence?.toFixed(2) ?? "—"}
+                  </span>
+                  <span>
+                    Orientation: {recognitionResult?.orientation ?? "normal"}. Use "Flip position 180°" if needed.
+                  </span>
+                  {onRetryRecognition && (
+                    <button
+                      type="button"
+                      className="mini-button retry-btn"
+                      onClick={onRetryRecognition}
+                    >
+                      ↻ Retry recognition
+                    </button>
+                  )}
+                </>
+              )}
+              {recognitionStatus === "failed" && (
+                <>
+                  <strong>Automatic recognition did not complete.</strong>
+                  <span>{recognitionError || "Check the diagram crop and set up the pieces manually."}</span>
+                  {onRetryRecognition && (
+                    <button
+                      type="button"
+                      className="mini-button retry-btn"
+                      onClick={onRetryRecognition}
+                    >
+                      ↻ Retry recognition
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="manual-editor-workspace">
+          {/* Left: The Board */}
+          <div className="manual-board-container">
+            <div
+              className={`manual-chessboard ${flipped ? "flipped" : ""}`}
+              role="grid"
+              aria-label="Interactive chess position editor"
+            >
+              {Array.from({ length: 64 }, (_, index) => {
+                const visibleRow = Math.floor(index / 8);
+                const visibleCol = index % 8;
+                const boardRow = flipped ? 7 - visibleRow : visibleRow;
+                const boardCol = flipped ? 7 - visibleCol : visibleCol;
+                const piece = currentBoard[boardRow]?.[boardCol] ?? "";
+                const isLight = (boardRow + boardCol) % 2 === 1;
+                const isSelected = selectedSquare?.row === boardRow && selectedSquare?.col === boardCol;
+                const fileLetter = "abcdefgh"[boardCol];
+                const rankNumber = 8 - boardRow;
+                const squareCode = `${fileLetter}${rankNumber}`;
+
+                return (
+                  <button
+                    key={`${boardRow}-${boardCol}`}
+                    type="button"
+                    className={`recognized-square ${isLight ? "light-square" : "dark-square"} ${
+                      isSelected ? "selected-square" : ""
+                    }`}
+                    aria-label={`${squareCode}: ${PIECE_LABELS[piece] || "Empty"}`}
+                    title={`${squareCode}: ${PIECE_LABELS[piece] || "Empty square"}`}
+                    onClick={() => handleSquareClick(boardRow, boardCol)}
+                    draggable={Boolean(piece)}
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData(
+                        "application/json",
+                        JSON.stringify({ type: "board-square", fromRow: boardRow, fromCol: boardCol, piece })
+                      );
+                      setSelectedSquare({ row: boardRow, col: boardCol });
+                    }}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      try {
+                        const raw = event.dataTransfer.getData("application/json");
+                        if (!raw) return;
+                        const data = JSON.parse(raw) as {
+                          type: string;
+                          fromRow?: number;
+                          fromCol?: number;
+                          piece: string;
+                        };
+                        if (data.type === "board-square" && data.fromRow !== undefined && data.fromCol !== undefined) {
+                          if (data.fromRow === boardRow && data.fromCol === boardCol) return;
+                          const nextPlacement = moveFenPiece(placement, data.fromRow, data.fromCol, boardRow, boardCol);
+                          pushState(nextPlacement);
+                          setSelectedSquare({ row: boardRow, col: boardCol });
+                        } else if (data.type === "palette-piece" && data.piece) {
+                          const nextPlacement = setFenPiece(placement, boardRow, boardCol, data.piece);
+                          pushState(nextPlacement);
+                          setSelectedSquare({ row: boardRow, col: boardCol });
+                        }
+                      } catch {
+                        // ignore malformed drag payload
+                      }
+                    }}
+                  >
+                    {piece && (
+                      <img
+                        draggable={false}
+                        alt={PIECE_LABELS[piece]}
+                        src={pieceAssetUrl(piece)}
+                      />
+                    )}
+                    {visibleCol === 0 && (
+                      <span className={`rank-coordinate ${isLight ? "coord-dark" : "coord-light"}`}>
+                        {rankNumber}
+                      </span>
+                    )}
+                    {visibleRow === 7 && (
+                      <span className={`file-coordinate ${isLight ? "coord-dark" : "coord-light"}`}>
+                        {fileLetter}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="manual-board-subcontrols">
+              <button
+                type="button"
+                className="mini-button"
+                onClick={handleFlipBoard}
+                title="Flip board perspective"
+              >
+                ↻ Flip View
+              </button>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={handleInvertPieces}
+                title="Rotate pieces 180 degrees"
+              >
+                ⇄ Invert Pieces
+              </button>
+              <button
+                type="button"
+                className="mini-button"
+                disabled={historyIndex <= 0}
+                onClick={handleUndo}
+                title="Undo last manual edit"
+              >
+                ↶ Undo
+              </button>
+              <button
+                type="button"
+                className="mini-button"
+                disabled={historyIndex >= history.length - 1}
+                onClick={handleRedo}
+                title="Redo undone edit"
+              >
+                ↷ Redo
+              </button>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={handleClearBoard}
+                title="Clear all pieces from board"
+              >
+                Clear Board
+              </button>
+            </div>
+          </div>
+
+          {/* Right: Piece Palette & Settings */}
+          <div className="manual-palette-container">
+            <div className="palette-section-title">
+              <strong>PIECE PALETTE</strong>
+              <span className="palette-hint">
+                {activeTool === ""
+                  ? "Erase tool active · click a square to clear it"
+                  : `Placing: ${PIECE_LABELS[activeTool] ?? "None"}`}
+              </span>
+            </div>
+
+            <div className="piece-palette-grid">
+              <div className="palette-color-group">
+                <span className="color-label">WHITE</span>
+                <div className="palette-row">
+                  {WHITE_PIECES.map((code) => (
+                    <button
+                      key={code}
+                      type="button"
+                      className={`palette-piece-btn ${activeTool === code ? "palette-piece-active" : ""}`}
+                      aria-label={PIECE_LABELS[code]}
+                      title={PIECE_LABELS[code]}
+                      onClick={() => handleToolSelect(code)}
+                      draggable={true}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData(
+                          "application/json",
+                          JSON.stringify({ type: "palette-piece", piece: code })
+                        );
+                        setActiveTool(code);
+                      }}
+                    >
+                      <img draggable={false} alt={code} src={pieceAssetUrl(code)} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="palette-color-group">
+                <span className="color-label">BLACK</span>
+                <div className="palette-row">
+                  {BLACK_PIECES.map((code) => (
+                    <button
+                      key={code}
+                      type="button"
+                      className={`palette-piece-btn ${activeTool === code ? "palette-piece-active" : ""}`}
+                      aria-label={PIECE_LABELS[code]}
+                      title={PIECE_LABELS[code]}
+                      onClick={() => handleToolSelect(code)}
+                      draggable={true}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData(
+                          "application/json",
+                          JSON.stringify({ type: "palette-piece", piece: code })
+                        );
+                        setActiveTool(code);
+                      }}
+                    >
+                      <img draggable={false} alt={code} src={pieceAssetUrl(code)} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="palette-actions-row">
+                <button
+                  type="button"
+                  className={`erase-tool-btn ${activeTool === "" ? "erase-tool-active" : ""}`}
+                  onClick={() => handleToolSelect("")}
+                  title="Erase piece from square"
+                >
+                  ✕ Erase Piece
+                </button>
+                {selectedSquare && (
+                  <button
+                    type="button"
+                    className="delete-selected-btn"
+                    onClick={() => {
+                      const nextPlacement = setFenPiece(placement, selectedSquare.row, selectedSquare.col, "");
+                      pushState(nextPlacement);
+                    }}
+                    title="Remove piece from selected square"
+                  >
+                    Clear {"abcdefgh"[selectedSquare.col]}{8 - selectedSquare.row}
+                  </button>
+                )}
+              </div>
+
+              {/* Accessible Piece to Place select dropdown */}
+              <label className="accessible-piece-select">
+                Piece to place
+                <select
+                  value={activeTool}
+                  onChange={(event) => handleToolSelect(event.target.value)}
+                >
+                  {Object.entries(PIECE_LABELS).map(([code, label]) => (
+                    <option key={code || "empty"} value={code}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="turn-selection-section">
+              <span className="section-title">SIDE TO MOVE</span>
+              <div className="turn-toggle-group">
+                <button
+                  type="button"
+                  className={`turn-btn ${turn === "w" ? "turn-btn-active" : ""}`}
+                  onClick={() => handleTurnChange("w")}
+                >
+                  ○ White to move
+                </button>
+                <button
+                  type="button"
+                  className={`turn-btn ${turn === "b" ? "turn-btn-active" : ""}`}
+                  onClick={() => handleTurnChange("b")}
+                >
+                  ♟ Black to move
+                </button>
+              </div>
+            </div>
+
+            <div className="king-count-status">
+              <span>
+                Kings: White {kingCounts.whiteKings === 1 ? "✓ 1" : `⚠️ ${kingCounts.whiteKings}`}, Black{" "}
+                {kingCounts.blackKings === 1 ? "✓ 1" : `⚠️ ${kingCounts.blackKings}`}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* FEN and Validation */}
+        <div className="editor-fen-section">
+          <label className="transfer-fen">
+            FEN · edit manually or copy/paste
+            <input
+              value={fenInputText}
+              onChange={(event) => handleFenInputChange(event.target.value)}
+              placeholder="Paste a complete six-field FEN position"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
+
+          <div
+            className={`editor-validation-badge ${
+              validation.isValid && !validationError ? "badge-valid" : "badge-invalid"
+            }`}
+            role="status"
+          >
+            {validation.isValid && !validationError ? (
+              <span>✓ Valid chess position ({turn === "w" ? "White" : "Black"} to move) · Ready to load</span>
+            ) : (
+              <span>⚠️ {validationError || validation.error}</span>
+            )}
+          </div>
+        </div>
+
+        <footer>
+          <button type="button" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="green-button"
+            disabled={!validation.isValid || Boolean(validationError)}
+            onClick={handleConfirmClick}
+          >
+            {confirmLabel}
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+
+
+==================================================
+FILE: .\src\model.ts
+==================================================
+export const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+export type Candidate = {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  relativeScore?: number;
+  confidence?: number;
+  source: "automatic" | "manual";
+};
+
+export type BookRecord = {
+  id: string;
+  title: string;
+  file: Blob;
+  byteLength: number;
+  lastOpenedAt: number;
+  addedAt: number;
+};
+
+export type SavedPosition = {
+  id: string;
+  title: string;
+  fen: string;
+  page: number;
+  savedAt: number;
+};
+
+export type BookSession = {
+  bookId: string;
+  page: number;
+  pageCount: number;
+  zoom: number;
+  selectedDiagramId: string | null;
+  candidatesByPage: Record<string, Candidate[]>;
+  originalFen: string;
+  lineBaseFen: string;
+  currentFen: string;
+  moves: string[];
+  moveIndex: number;
+  flipped: boolean;
+  coordinates: boolean;
+  bookmarks: number[];
+  positions: SavedPosition[];
+};
+
+export function newSession(bookId: string): BookSession {
+  return {
+    bookId,
+    page: 1,
+    pageCount: 0,
+    zoom: 1,
+    selectedDiagramId: null,
+    candidatesByPage: {},
+    originalFen: START_FEN,
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+    bookmarks: [],
+    positions: [],
+  };
+}
+
+
+
+==================================================
+FILE: .\src\notation-detection.ts
+==================================================
+import type { Candidate } from "./model";
+
+export type NotationHighlightKind = "continuous" | "variation" | "prose";
+
+export type NotationHighlight = {
+  id: string;
+  candidateId: string;
+  kind: NotationHighlightKind;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type PDFTextItemInput = {
+  str: string;
+  transform: number[];
+  width: number;
+  height: number;
+};
+
+const MOVE_NUMBER_REGEX = /\b\d{1,3}\s*(\.{1,3}|…)/;
+const FIGURINE_REGEX = /[♔♕♖♗♘♙♚♛♜♝♞♟]/;
+const SAN_MOVE_REGEX = /\b([KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?[\+#]?|O-O(?:-O)?[\+#]?)\b/;
+const FIGURINE_MOVE_REGEX = /[♔♕♖♗♘♙♚♛♜♝♞♟]x?[a-h][1-8](?:=[QRBN])?[\+#]?/;
+const CHESS_SYMBOL_REGEX = /([!?]{1,2}|(\+\/?-|-\/?\+|\+\/=|=\/\+|±|∓|⩲|⩱|=|∞|⨁))/;
+const CHESS_PROSE_REGEX = /\b(diagram|position|white to|black to|wins|draw|mate in|play|move|variation|defense|attack|advantage)\b/i;
+
+export function isChessNotationText(text: string): { isNotation: boolean; kind: NotationHighlightKind } {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.length < 2) return { isNotation: false, kind: "continuous" };
+
+  const hasMoveNum = MOVE_NUMBER_REGEX.test(trimmed);
+  const hasSan = SAN_MOVE_REGEX.test(trimmed);
+  const hasFigurine = FIGURINE_REGEX.test(trimmed) || FIGURINE_MOVE_REGEX.test(trimmed);
+  const hasSymbol = CHESS_SYMBOL_REGEX.test(trimmed);
+  const hasProse = CHESS_PROSE_REGEX.test(trimmed);
+
+  if (trimmed.startsWith("(") || (trimmed.includes("(") && (hasSan || hasFigurine))) {
+    return { isNotation: true, kind: "variation" };
+  }
+
+  if (hasMoveNum && (hasSan || hasFigurine)) {
+    return { isNotation: true, kind: "continuous" };
+  }
+
+  if (hasSan && (hasFigurine || hasSymbol || trimmed.split(/\s+/).length >= 2)) {
+    return { isNotation: true, kind: "continuous" };
+  }
+
+  if (hasFigurine && (hasSan || hasSymbol || hasMoveNum)) {
+    return { isNotation: true, kind: "continuous" };
+  }
+
+  if (hasProse && (hasMoveNum || hasSan || hasFigurine || trimmed.toLowerCase().includes("diagram"))) {
+    return { isNotation: true, kind: "prose" };
+  }
+
+  return { isNotation: false, kind: "continuous" };
+}
+
+type NormalizedTextLine = {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  kind: NotationHighlightKind;
+};
+
+export function extractNotationHighlights(
+  items: PDFTextItemInput[],
+  viewport: { width: number; height: number; convertToViewportPoint?: (x: number, y: number) => [number, number] },
+  candidates: Candidate[],
+): NotationHighlight[] {
+  if (!items.length || !candidates.length || viewport.width <= 0 || viewport.height <= 0) {
+    return [];
+  }
+
+  const textItems: { text: string; x: number; y: number; width: number; height: number }[] = [];
+
+  for (const item of items) {
+    if (!item.str || !item.str.trim()) continue;
+    const tx = item.transform[4];
+    const ty = item.transform[5];
+    const w = item.width || Math.abs(item.transform[0]) || 8;
+    const h = item.height || Math.abs(item.transform[3]) || 10;
+
+    let x1: number, y1: number, x2: number, y2: number;
+    if (typeof viewport.convertToViewportPoint === "function") {
+      [x1, y1] = viewport.convertToViewportPoint(tx, ty + h);
+      [x2, y2] = viewport.convertToViewportPoint(tx + w, ty);
+    } else {
+      x1 = tx;
+      y1 = viewport.height - (ty + h);
+      x2 = tx + w;
+      y2 = viewport.height - ty;
+    }
+
+    const normX = Math.max(0, Math.min(1, Math.min(x1, x2) / viewport.width));
+    const normY = Math.max(0, Math.min(1, Math.min(y1, y2) / viewport.height));
+    const normW = Math.max(0.005, Math.min(1 - normX, Math.abs(x2 - x1) / viewport.width));
+    const normH = Math.max(0.005, Math.min(1 - normY, Math.abs(y2 - y1) / viewport.height));
+
+    textItems.push({
+      text: item.str,
+      x: normX,
+      y: normY,
+      width: normW,
+      height: normH,
+    });
+  }
+
+  if (!textItems.length) return [];
+
+  textItems.sort((a, b) => (Math.abs(a.y - b.y) < 0.008 ? a.x - b.x : a.y - b.y));
+
+  const lines: NormalizedTextLine[] = [];
+  let currentGroup: typeof textItems = [];
+
+  function flushGroup() {
+    if (!currentGroup.length) return;
+    const text = currentGroup.map((i) => i.text).join(" ").trim();
+    const { isNotation, kind } = isChessNotationText(text);
+
+    if (isNotation) {
+      const minX = Math.min(...currentGroup.map((i) => i.x));
+      const minY = Math.min(...currentGroup.map((i) => i.y));
+      const maxX = Math.max(...currentGroup.map((i) => i.x + i.width));
+      const maxY = Math.max(...currentGroup.map((i) => i.y + i.height));
+      lines.push({
+        text,
+        x: Math.max(0, minX - 0.003),
+        y: Math.max(0, minY - 0.002),
+        width: Math.min(1 - minX, (maxX - minX) + 0.006),
+        height: Math.min(1 - minY, (maxY - minY) + 0.004),
+        kind,
+      });
+    }
+    currentGroup = [];
+  }
+
+  for (const item of textItems) {
+    if (!currentGroup.length) {
+      currentGroup.push(item);
+    } else {
+      const last = currentGroup[currentGroup.length - 1];
+      const sameLine = Math.abs(item.y - last.y) < 0.01;
+      const nearbyX = item.x - (last.x + last.width) < 0.08;
+      if (sameLine && nearbyX) {
+        currentGroup.push(item);
+      } else {
+        flushGroup();
+        currentGroup.push(item);
+      }
+    }
+  }
+  flushGroup();
+
+  if (!lines.length) return [];
+
+  const result: NotationHighlight[] = [];
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    let bestCandidate = candidates[0];
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    for (const candidate of candidates) {
+      const candBottom = candidate.y + candidate.height;
+      const candTop = candidate.y;
+      const candCenterX = candidate.x + candidate.width / 2;
+      const lineCenterX = line.x + line.width / 2;
+
+      const isBelow = line.y >= candTop - 0.02 && line.y <= candBottom + 0.35;
+      const xDist = Math.abs(lineCenterX - candCenterX);
+      const yDist = line.y >= candBottom ? (line.y - candBottom) : Math.abs(line.y - candTop);
+
+      const score = (isBelow ? 0 : 10) + yDist * 2 + xDist * 1.5;
+
+      if (score < bestDistance) {
+        bestDistance = score;
+        bestCandidate = candidate;
+      }
+    }
+
+    result.push({
+      id: "highlight-" + bestCandidate.id + "-" + (index + 1),
+      candidateId: bestCandidate.id,
+      kind: line.kind,
+      text: line.text,
+      x: line.x,
+      y: line.y,
+      width: line.width,
+      height: line.height,
+    });
+  }
+
+  return result;
+}
+
+
+
+==================================================
+FILE: .\src\notation-learner.css
+==================================================
+/* ==========================================================
+   CHESSBOOK READER - NOTATION LEARNER
+   UI redesign: scoped styles, existing component behaviour
+   ========================================================== */
+
+.notation-workspace {
+  --nl-bg: #171a18;
+  --nl-surface: #202522;
+  --nl-surface-raised: #272e29;
+  --nl-border: #343d36;
+  --nl-text: #edf2ec;
+  --nl-muted: #9aa69c;
+  --nl-accent: #a3d66b;
+  --nl-accent-strong: #8fc653;
+  --nl-board-light: #e8dfc9;
+  --nl-board-dark: #77966f;
+
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1560px;
+  min-width: 0;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: clamp(18px, 2.2vw, 32px);
+  color: var(--nl-text);
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(131, 166, 103, .09), transparent 38%),
+    var(--nl-bg);
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-family: Inter, "Segoe UI", sans-serif;
+}
+
+.notation-workspace *,
+.notation-workspace *::before,
+.notation-workspace *::after {
+  box-sizing: border-box;
+}
+
+.notation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.notation-eyebrow {
+  display: inline-block;
+  color: var(--nl-accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
+
+.notation-header h1 {
+  margin: 7px 0 5px;
+  color: #f4f7f2;
+  font-size: clamp(25px, 2.5vw, 34px);
+  line-height: 1.15;
+  font-weight: 750;
+  letter-spacing: -1.1px;
+}
+
+.notation-header p {
+  margin: 0;
+  color: var(--nl-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.notation-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.notation-header-actions button,
+.nl-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 39px;
+  padding: 9px 13px;
+  border: 1px solid var(--nl-border);
+  border-radius: 9px;
+  background: var(--nl-surface-raised);
+  color: #dce5dc;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease;
+}
+
+.notation-header-actions button:hover,
+.nl-controls button:not(:disabled):hover {
+  border-color: #64765e;
+  background: #303a32;
+  color: #fff;
+}
+
+.notation-header-actions button:active,
+.nl-controls button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.notation-header-actions button.nl-active {
+  border-color: var(--nl-accent-strong);
+  background: rgba(143, 198, 83, .12);
+  color: var(--nl-accent);
+}
+
+.notation-workspace button:focus-visible,
+.notation-workspace textarea:focus-visible {
+  outline: 2px solid var(--nl-accent);
+  outline-offset: 3px;
+}
+
+/* PGN / SAN input */
+
+.notation-input-panel {
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--nl-border);
+  border-radius: 13px;
+  background: linear-gradient(145deg, #242b26, #1e2420);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+}
+
+.notation-input-panel label {
+  display: block;
+  margin-bottom: 9px;
+  color: #e7eee5;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: .2px;
+}
+
+.notation-input-panel textarea {
+  display: block;
+  width: 100%;
+  min-height: 66px;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1px solid #3c4840;
+  border-radius: 9px;
+  background: #151a17;
+  color: #e6eee5;
+  font: 12px/1.7 "DM Mono", Consolas, monospace;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+
+.notation-input-panel textarea:focus {
+  border-color: #7da75b;
+  box-shadow: 0 0 0 3px rgba(163, 214, 107, .08);
+  outline: none;
+}
+
+.notation-input-panel textarea::placeholder {
+  color: #68756b;
+}
+
+.nl-input-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--nl-muted);
+  font-size: 11px;
+}
+
+.nl-primary {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 37px;
+  padding: 9px 15px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--nl-accent-strong);
+  color: #172014;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+
+.nl-primary:hover {
+  background: #a5d975;
+  box-shadow: 0 4px 14px rgba(143, 198, 83, .16);
+}
+
+.nl-primary:active {
+  transform: translateY(1px);
+}
+
+.nl-error {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(239, 117, 105, .25);
+  border-radius: 8px;
+  background: rgba(239, 117, 105, .08);
+  color: #ff9b91;
+  font-size: 12px;
+}
+
+/* Main board + notation layout */
+
+.notation-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr);
+  align-items: stretch;
+  gap: 18px;
+}
+
+.nl-board-card,
+.nl-notation-card {
+  min-width: 0;
+  padding: 17px;
+  border: 1px solid var(--nl-border);
+  border-radius: 14px;
+  background: linear-gradient(155deg, #252c27, #1e2420);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .14);
+}
+
+.nl-board-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.nl-board-meta,
+.nl-card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 29px;
+  margin-bottom: 14px;
+  color: var(--nl-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .5px;
+}
+
+.nl-board-meta strong {
+  color: #dce8d9;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.nl-board {
+  width: min(100%, 650px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  overflow: hidden;
+  border: 5px solid #343d35;
+  border-radius: 5px;
+  background: #343d35;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .25);
+}
+
+.nl-square {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  user-select: none;
+}
+
+.nl-square.light {
+  background: var(--nl-board-light);
+}
+
+.nl-square.dark {
+  background: var(--nl-board-dark);
+}
+
+.nl-square.last {
+  box-shadow: inset 0 0 0 999px rgba(190, 218, 91, .37);
+}
+
+.nl-piece {
+  position: relative;
+  z-index: 1;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", serif;
+  font-size: clamp(27px, 5.2vw, 62px);
+  line-height: 1;
+  user-select: none;
+}
+
+.white-piece {
+  color: #fff;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, .65), 0 0 2px #333;
+}
+
+.black-piece {
+  color: #242821;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, .5);
+}
+
+.nl-rank,
+.nl-file {
+  position: absolute;
+  z-index: 2;
+  font-family: "DM Mono", Consolas, monospace;
+  font-size: clamp(8px, .85vw, 11px);
+  font-weight: 800;
+  line-height: 1;
+  opacity: .9;
+  pointer-events: none;
+}
+
+.nl-rank {
+  top: 4px;
+  left: 5px;
+}
+
+.nl-file {
+  right: 5px;
+  bottom: 4px;
+}
+
+.nl-square.light .nl-rank,
+.nl-square.light .nl-file {
+  color: #617a59;
+}
+
+.nl-square.dark .nl-rank,
+.nl-square.dark .nl-file {
+  color: #f1ead9;
+}
+
+/* Board navigation */
+
+.nl-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.nl-controls button {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 8px;
+  border-radius: 9px;
+}
+
+.nl-controls button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.nl-controls button:disabled {
+  opacity: .32;
+  cursor: not-allowed;
+}
+
+.nl-controls span {
+  min-width: 126px;
+  padding: 0 8px;
+  color: #c4d0c3;
+  text-align: center;
+  font-family: "DM Mono", Consolas, monospace;
+  font-size: 11px;
+}
+
+/* Notation panel */
+
+.nl-notation-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.nl-card-title {
+  min-height: 29px;
+  margin-bottom: 10px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--nl-border);
+}
+
+.nl-card-title strong {
+  color: #e8eee6;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.nl-card-title span {
+  color: var(--nl-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.nl-move-list {
+  min-height: 130px;
+  max-height: min(42vh, 390px);
+  overflow: auto;
+  padding: 3px 4px 8px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #52614f transparent;
+}
+
+.nl-move-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-height: 39px;
+  padding: 3px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, .035);
+}
+
+.nl-move-row > span {
+  color: #849184;
+  font-family: "DM Mono", Consolas, monospace;
+  font-size: 11px;
+  text-align: center;
+}
+
+.nl-move-row button {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #d4ded3;
+  text-align: left;
+  font-family: "DM Mono", Consolas, monospace;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease, color .14s ease;
+}
+
+.nl-move-row button:hover:not(:disabled) {
+  border-color: #465445;
+  background: #303a31;
+  color: #fff;
+}
+
+.nl-move-row button.selected {
+  border-color: rgba(163, 214, 107, .35);
+  background: rgba(143, 198, 83, .18);
+  color: #b8e78c;
+}
+
+.nl-move-row button:disabled {
+  color: #788378;
+  opacity: .65;
+  cursor: not-allowed;
+}
+
+/* Move explanation / training */
+
+.nl-learning {
+  margin-top: auto;
+  padding: 17px 15px 14px;
+  border: 1px solid #3a493a;
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(143, 198, 83, .09), rgba(143, 198, 83, .025));
+  color: #b9c5b8;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.nl-learning strong {
+  display: block;
+  margin-top: 9px;
+  color: #f0f5ed;
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -.3px;
+}
+
+.nl-learning p {
+  margin: 7px 0;
+}
+
+.nl-learning p b {
+  color: #e4eddf;
+  font-family: "DM Mono", Consolas, monospace;
+}
+
+.nl-learning .nl-san {
+  display: inline-flex;
+  align-items: center;
+  min-width: 54px;
+  margin-top: 9px;
+  padding: 5px 11px;
+  border: 1px solid rgba(163, 214, 107, .2);
+  border-radius: 7px;
+  background: rgba(143, 198, 83, .12);
+  color: var(--nl-accent);
+  font-family: "DM Mono", Consolas, monospace;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.nl-learning button {
+  margin-top: 10px;
+}
+
+.nl-fen {
+  display: block;
+  margin: 14px 2px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .14);
+  color: #8d9a8e;
+  font: 10px/1.6 "DM Mono", Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.nl-fen strong {
+  margin-right: 8px;
+  color: #b4c2b1;
+  letter-spacing: .8px;
+}
+
+.nl-muted {
+  color: var(--nl-muted);
+  font-size: 12px;
+}
+
+/* Responsive layout */
+
+@media (min-width: 1200px) {
+  .notation-layout {
+    grid-template-columns: minmax(0, 1.25fr) minmax(330px, .75fr);
+    gap: 20px;
+  }
+
+  .nl-board-card,
+  .nl-notation-card {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 900px) {
+  .notation-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nl-board {
+    width: min(100%, 620px);
+  }
+
+  .nl-move-list {
+    max-height: 300px;
+  }
+
+  .nl-learning {
+    margin-top: 14px;
+  }
+}
+
+@media (max-width: 600px) {
+  .notation-workspace {
+    padding: 14px;
+  }
+
+  .notation-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .notation-header-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .notation-header-actions button {
+    flex: 1 1 auto;
+  }
+
+  .notation-input-panel,
+  .nl-board-card,
+  .nl-notation-card {
+    padding: 12px;
+    border-radius: 11px;
+  }
+
+  .notation-input-panel {
+    margin-bottom: 13px;
+  }
+
+  .nl-board {
+    border-width: 3px;
+  }
+
+  .nl-piece {
+    font-size: clamp(24px, 9vw, 48px);
+  }
+
+  .nl-rank {
+    top: 2px;
+    left: 3px;
+  }
+
+  .nl-file {
+    right: 3px;
+    bottom: 2px;
+  }
+
+  .nl-controls {
+    gap: 5px;
+  }
+
+  .nl-controls button {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .nl-controls span {
+    min-width: 105px;
+    font-size: 10px;
+  }
+
+  .nl-input-footer {
+    align-items: stretch;
+  }
+
+  .nl-input-footer .nl-primary {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notation-workspace *,
+  .notation-workspace *::before,
+  .notation-workspace *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}
+
+
+/* Interactive position exploration */
+.notation-workspace .nl-square {
+  cursor: pointer;
+  outline: none;
+  transition: box-shadow .12s ease, filter .12s ease;
+}
+
+.notation-workspace .nl-square:focus-visible {
+  box-shadow: inset 0 0 0 3px #f5e7a1;
+  z-index: 3;
+}
+
+.notation-workspace .nl-square.nl-selected {
+  box-shadow: inset 0 0 0 4px #f0d34f, inset 0 0 0 999px rgba(240, 211, 79, .20);
+  z-index: 2;
+}
+
+.notation-workspace .nl-square.nl-legal-target::after {
+  content: "";
+  position: absolute;
+  width: 24%;
+  height: 24%;
+  border-radius: 50%;
+  background: rgba(25, 35, 25, .38);
+  pointer-events: none;
+}
+
+.notation-workspace .nl-square.nl-legal-target:has(.nl-piece)::after {
+  width: 88%;
+  height: 88%;
+  border: 5px solid rgba(25, 35, 25, .38);
+  background: transparent;
+}
+
+.notation-workspace .nl-square-inspector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 9px 16px;
+  margin: 12px auto 0;
+  padding: 9px 13px;
+  border: 1px solid var(--nl-border);
+  border-radius: 9px;
+  background: #171d19;
+  color: var(--nl-muted);
+  font-size: 11px;
+}
+
+.notation-workspace .nl-square-inspector strong {
+  color: var(--nl-accent);
+  font: 700 13px "DM Mono", Consolas, monospace;
+}
+
+.notation-workspace .nl-square-inspector span:first-of-type {
+  color: var(--nl-text);
+  font-weight: 700;
+}
+
+
+/* ==========================================================
+   DESKTOP VIEWPORT FIT - NOTATION LEARNER
+   The board scales to the available height; notation scrolls
+   internally when a game contains many moves.
+   ========================================================== */
+
+@media (min-width: 901px) and (min-height: 700px) {
+  .notation-workspace {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    padding: clamp(12px, 1.35vw, 20px);
+    overflow: hidden;
+  }
+
+  .notation-header {
+    flex: 0 0 auto;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+
+  .notation-header h1 {
+    font-size: clamp(24px, 2vw, 30px);
+  }
+
+  .notation-input-panel {
+    flex: 0 0 auto;
+    margin-bottom: 12px;
+    padding: 11px 14px;
+  }
+
+  .notation-input-panel label {
+    margin-bottom: 6px;
+  }
+
+  .notation-input-panel textarea {
+    min-height: 42px;
+    max-height: 64px;
+    padding: 8px 11px;
+    resize: vertical;
+  }
+
+  .nl-input-footer {
+    margin-top: 7px;
+  }
+
+  .notation-layout {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1.12fr) minmax(280px, .88fr);
+    gap: 14px;
+    overflow: hidden;
+  }
+
+  .nl-board-card,
+  .nl-notation-card {
+    min-height: 0;
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  .nl-board-card {
+    justify-content: flex-start;
+  }
+
+  .nl-board-meta {
+    flex: 0 0 auto;
+    margin-bottom: 8px;
+  }
+
+  .nl-board {
+    flex: 0 1 auto;
+    width: min(100%, 390px, max(250px, calc(100dvh - 570px)));
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .nl-piece {
+    font-size: clamp(25px, 3.6vw, 48px);
+  }
+
+  .nl-controls {
+    flex: 0 0 auto;
+    gap: 6px;
+    margin-top: 9px;
+  }
+
+  .nl-controls button {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .nl-controls span {
+    min-width: 110px;
+  }
+
+  .nl-square-inspector {
+    flex: 0 0 auto;
+    margin-top: 7px !important;
+    padding: 6px 10px !important;
+  }
+
+  .nl-card-title {
+    flex: 0 0 auto;
+    margin-bottom: 7px;
+    padding-bottom: 8px;
+  }
+
+  .nl-move-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+  }
+
+  .nl-learning {
+    flex: 0 0 auto;
+    margin-top: 8px;
+    padding: 10px 12px;
+    line-height: 1.45;
+  }
+
+  .nl-learning strong {
+    margin-top: 5px;
+    font-size: 17px;
+  }
+
+  .nl-learning p {
+    margin: 4px 0;
+  }
+
+  .nl-learning .nl-san {
+    margin-top: 5px;
+    font-size: 16px;
+  }
+
+  .nl-fen {
+    flex: 0 0 auto;
+    margin-top: 8px;
+    padding: 6px 9px;
+    font-size: 9px;
+  }
+}
+
+
+
+==================================================
+FILE: .\src\NotationLearner.tsx
+==================================================
+import { useMemo, useState } from "react";
+import { Chess, type Square } from "chess.js";
+import { ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, RotateCw, BookOpen, GraduationCap } from "lucide-react";
+import "./notation-learner.css";
+
+const FILES = "abcdefgh";
+const PIECES: Record<string, string> = {
+  wk:"?", wq:"?", wr:"?", wb:"?", wn:"?", wp:"?",
+  bk:"?", bq:"?", br:"?", bb:"?", bn:"?", bp:"?"
+};
+
+function parseLine(input: string) {
+  const chess = new Chess();
+  const cleaned = input
+    .replace(/\{[^}]*\}/g, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/^\s*\[.*\]\s*$/gm, " ")
+    .replace(/\d+\.(\.\.)?/g, " ")
+    .replace(/\$\d+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const tokens = cleaned.split(" ").filter(Boolean)
+    .filter((x) => !["1-0", "0-1", "1/2-1/2", "*"].includes(x));
+
+  const moves: string[] = [];
+  for (const token of tokens) {
+    try {
+      const move = chess.move(token);
+      moves.push(move.san);
+    } catch {
+      throw new Error(`Invalid or illegal move: ${token}`);
+    }
+  }
+  return moves;
+}
+
+export default function NotationLearner() {
+  const [input, setInput] = useState("1. e4 e5 2. Nf3 Nc6 3. Bb5 a6");
+  const [moves, setMoves] = useState<string[]>(() => parseLine("1. e4 e5 2. Nf3 Nc6 3. Bb5 a6"));
+  const [index, setIndex] = useState(0);
+  const [error, setError] = useState("");
+  const [flipped, setFlipped] = useState(false);
+  const [training, setTraining] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+
+
+  const positions = useMemo(() => {
+    const game = new Chess();
+    const result = [game.fen()];
+    for (const san of moves) {
+      game.move(san);
+      result.push(game.fen());
+    }
+    return result;
+  }, [moves]);
+
+  const game = useMemo(() => new Chess(positions[index]), [positions, index]);
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return [];
+    return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  }, [game, selectedSquare]);
+  const history = useMemo(() => {
+    const replay = new Chess();
+    const result = [];
+    for (const san of moves.slice(0, index)) result.push(replay.move(san));
+    return result;
+  }, [moves, index]);
+
+  const lastMove = history.at(-1);
+  const board = game.board();
+  const squares = flipped
+    ? [...Array(8)].flatMap((_, r) => [...Array(8)].map((__, f) => `${FILES[7-f]}${r+1}`))
+    : [...Array(8)].flatMap((_, r) => [...Array(8)].map((__, f) => `${FILES[f]}${8-r}`));
+
+  function loadLine() {
+    try {
+      const parsed = parseLine(input);
+      setMoves(parsed);
+      setIndex(0);
+      setError("");
+      setRevealed(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }
+
+  const piece = lastMove?.piece
+    ? ({ p: "Pawn", n: "Knight", b: "Bishop", r: "Rook", q: "Queen", k: "King" } as Record<string,string>)[lastMove.piece]
+    : "Starting position";
+
+  return (
+    <main className="notation-workspace">
+      <header className="notation-header">
+        <div>
+          <span className="notation-eyebrow">CHESSBOOK TRAINING</span>
+          <h1>Notation Learner</h1>
+          <p>Connect every chess symbol to the position it creates.</p>
+        </div>
+        <div className="notation-header-actions">
+          <button onClick={() => setTraining(v => !v)} className={training ? "nl-active" : ""}>
+            <GraduationCap size={16}/> {training ? "Training ON" : "Training mode"}
+          </button>
+          <button onClick={() => setFlipped(v => !v)}><RotateCw size={16}/> Flip board</button>
+        </div>
+      </header>
+
+      <section className="notation-input-panel">
+        <label htmlFor="notation-input">Paste PGN moves or a SAN line</label>
+        <textarea id="notation-input" value={input} onChange={e => setInput(e.target.value)} rows={3} spellCheck={false}/>
+        <div className="nl-input-footer">
+          <span>Example: 1. e4 e5 2. Nf3 Nc6</span>
+          <button className="nl-primary" onClick={loadLine}><BookOpen size={15}/> Load notation</button>
+        </div>
+        {error && <p className="nl-error" role="alert">{error}</p>}
+      </section>
+
+      <div className="notation-layout">
+        <section className="nl-board-card">
+          <div className="nl-board-meta">
+            <span>POSITION {index} / {moves.length}</span>
+            <strong>{game.turn() === "w" ? "White to move" : "Black to move"}</strong>
+          </div>
+          <div className="nl-board" role="grid" aria-label="Interactive chess position">
+            {squares.map(name => {
+              const square = name as Square;
+              const file = FILES.indexOf(name[0]);
+              const rank = Number(name[1]);
+              const item = board[8-rank][file];
+              const isLast = lastMove && (lastMove.from === square || lastMove.to === square);
+              const dark = (file + rank) % 2 === 0;
+              return (
+                <div key={name} role="gridcell" aria-label={`${name}${item ? ` ${item.color === "w" ? "white" : "black"} ${item.type}` : ""}`}
+                  className={`nl-square ${dark ? "dark" : "light"} ${isLast ? "last" : ""} ${selectedSquare === square ? "nl-selected" : ""} ${legalTargets.includes(square) ? "nl-legal-target" : ""}`}
+                  onClick={() => setSelectedSquare(current => current === square ? null : square)}
+                  onKeyDown={event => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedSquare(current => current === square ? null : square);
+                    }
+                  }}
+                  tabIndex={0}
+                  aria-selected={selectedSquare === square}
+                  title={`${square}${item ? ` � ${item.color === "w" ? "White" : "Black"} ${item.type}` : ""}`}>
+                  {item && <span className={`nl-piece ${item.color === "w" ? "white-piece" : "black-piece"}`}>{PIECES[item.color + item.type]}</span>}
+                  {file === (flipped ? 7 : 0) && <small className="nl-rank">{rank}</small>}
+                  {rank === (flipped ? 1 : 1) && <small className="nl-file">{name[0]}</small>}
+                </div>
+              );
+            })}
+          </div>
+          {selectedSquare && (
+            <div className="nl-square-inspector" aria-live="polite">
+              <strong>{selectedSquare}</strong>
+              <span>
+                {game.get(selectedSquare)
+                  ? `${game.get(selectedSquare)?.color === "w" ? "White" : "Black"} ${({
+                      p: "Pawn", n: "Knight", b: "Bishop",
+                      r: "Rook", q: "Queen", k: "King"
+                    } as Record<string, string>)[game.get(selectedSquare)!.type]}`
+                  : "Empty square"}
+              </span>
+              <span>
+                {legalTargets.length
+                  ? `${legalTargets.length} legal destination${legalTargets.length === 1 ? "" : "s"} highlighted`
+                  : "No legal moves from this square"}
+              </span>
+            </div>
+          )}
+          <div className="nl-controls">
+            <button aria-label="First move" onClick={() => {setIndex(0);setRevealed(false)}}><ChevronFirst/></button>
+            <button aria-label="Previous move" onClick={() => {setIndex(v => Math.max(0,v-1));setRevealed(false)}}><ChevronLeft/></button>
+            <span>{index === 0 ? "Starting position" : `${Math.ceil(index/2)}${index%2 ? "." : "..."}`}</span>
+            <button aria-label="Next move" disabled={index >= moves.length || (training && !revealed)} onClick={() => {setIndex(v => Math.min(moves.length,v+1));setRevealed(false)}}><ChevronRight/></button>
+            <button aria-label="Last move" disabled={training} onClick={() => setIndex(moves.length)}><ChevronLast/></button>
+          </div>
+        </section>
+
+        <aside className="nl-notation-card">
+          <div className="nl-card-title"><strong>GAME NOTATION</strong><span>{moves.length} plies</span></div>
+          <div className="nl-move-list">
+            {moves.length === 0 && <p className="nl-muted">Load a move sequence to begin.</p>}
+            {Array.from({length: Math.ceil(moves.length/2)}, (_, row) => (
+              <div className="nl-move-row" key={row}>
+                <span>{row+1}.</span>
+                {[0,1].map(side => {
+                  const ply = row*2+side;
+                  if (!moves[ply]) return <i key={side}/>;
+                  const hidden = training && ply === index && !revealed;
+                  return <button key={side} className={index === ply+1 ? "selected" : ""}
+                    onClick={() => {setIndex(ply+1);setRevealed(false)}}
+                    disabled={hidden}>
+                    {hidden ? "?" : moves[ply]}
+                  </button>;
+                })}
+              </div>
+            ))}
+          </div>
+          <div className="nl-learning">
+            <span className="notation-eyebrow">MOVE EXPLANATION</span>
+            {index === 0
+              ? <p>Start from the initial position. Select a move to see how the notation changes the board.</p>
+              : <><strong>{piece}</strong><p>{lastMove?.color === "w" ? "White" : "Black"} moved from <b>{lastMove?.from}</b> to <b>{lastMove?.to}</b>.</p><p className="nl-san">{lastMove?.san}</p></>}
+            {training && index < moves.length && !revealed && <button className="nl-primary" onClick={() => setRevealed(true)}>Reveal next move: {moves[index]}</button>}
+          </div>
+        </aside>
+      </div>
+      <p className="nl-fen"><strong>FEN</strong> {game.fen()}</p>
+    </main>
+  );
+}
+
+
+
+
+
+
+==================================================
+FILE: .\src\opening-explorer.test.ts
+==================================================
+import { describe, expect, it } from "vitest";
+import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+import { START_FEN } from "./model";
+
+describe("opening explorer line parser", () => {
+  it("starts from the normal initial position for an empty line", () => {
+    expect(parseOpeningLine("").fen).toBe(START_FEN);
+  });
+
+  it("parses SAN and returns the resulting position", () => {
+    const result = parseOpeningLine("1. e4 e5 2. Nf3 Nc6");
+    expect(result.error).toBeNull();
+    expect(result.sanMoves).toEqual(["e4", "e5", "Nf3", "Nc6"]);
+    expect(result.uciMoves).toEqual(["e2e4", "e7e5", "g1f3", "b8c6"]);
+  });
+
+  it("parses UCI moves", () => {
+    const result = parseOpeningLine("e2e4 e7e5 g1f3");
+    expect(result.error).toBeNull();
+    expect(result.sanMoves).toEqual(["e4", "e5", "Nf3"]);
+  });
+
+  it("reports illegal moves without losing the valid prefix", () => {
+    const result = parseOpeningLine("e4 e5 Qh9");
+    expect(result.error).toContain("Invalid or illegal move");
+    expect(result.sanMoves).toEqual(["e4", "e5"]);
+  });
+
+  it("returns the position at a requested ply", () => {
+    const result = openingPositionAt("e4 e5 Nf3 Nc6", 2);
+    expect(result.sanMoves).toEqual(["e4", "e5"]);
+    expect(result.fen).toContain(" w KQkq ");
+  });
+});
+
+
+
+
+==================================================
+FILE: .\src\opening-explorer.ts
+==================================================
+import { Chess, type Square } from "chess.js";
+
+export type OpeningLineResult = {
+  fen: string;
+  sanMoves: string[];
+  uciMoves: string[];
+  error: string | null;
+};
+
+export function parseOpeningLine(input: string): OpeningLineResult {
+  const chess = new Chess();
+  const sanMoves: string[] = [];
+  const uciMoves: string[] = [];
+
+  const tokens = input
+    .replace(/\{[^}]*\}/g, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\d+\.(\.\.)?/g, " ")
+    .replace(/\$\d+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((token) => !["1-0", "0-1", "1/2-1/2", "*"].includes(token));
+
+  for (const token of tokens) {
+    try {
+      const uci = token.match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
+      const move = uci
+        ? chess.move({
+            from: uci[1].toLowerCase() as Square,
+            to: uci[2].toLowerCase() as Square,
+            promotion: uci[3]?.toLowerCase(),
+          })
+        : chess.move(token);
+
+      sanMoves.push(move.san);
+      uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+    } catch {
+      return {
+        fen: chess.fen(),
+        sanMoves,
+        uciMoves,
+        error: `Invalid or illegal move: ${token}`,
+      };
+    }
+  }
+
+  return { fen: chess.fen(), sanMoves, uciMoves, error: null };
+}
+
+export function openingPositionAt(input: string, ply: number): OpeningLineResult {
+  const parsed = parseOpeningLine(input);
+  if (parsed.error) return parsed;
+
+  const limit = Math.max(0, Math.min(parsed.sanMoves.length, Math.floor(ply)));
+  const chess = new Chess();
+  const sanMoves: string[] = [];
+  const uciMoves: string[] = [];
+
+  for (let i = 0; i < limit; i++) {
+    const move = chess.move(parsed.sanMoves[i]);
+    sanMoves.push(move.san);
+    uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+  }
+
+  return { fen: chess.fen(), sanMoves, uciMoves, error: null };
+}
+
+
+==================================================
+FILE: .\src\opening-explorer-api.ts
+==================================================
+export type OpeningExplorerMove = {
+  uci: string;
+  san: string;
+  white: number;
+  draws: number;
+  black: number;
+  opening?: { eco?: string; name: string } | null;
+};
+
+export type OpeningExplorerStats = {
+  white: number;
+  draws: number;
+  black: number;
+  total: number;
+  moves: OpeningExplorerMove[];
+  opening?: { eco?: string; name: string } | null;
+};
+
+function count(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : 0;
+}
+
+function opening(value: unknown): OpeningExplorerStats["opening"] {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  if (typeof item.name !== "string") return null;
+  return {
+    name: item.name,
+    ...(typeof item.eco === "string" ? { eco: item.eco } : {}),
+  };
+}
+
+export async function fetchOpeningExplorerStats(
+  uciMoves: string[],
+  signal?: AbortSignal,
+): Promise<OpeningExplorerStats> {
+  const query = new URLSearchParams();
+  query.set("variant", "standard");
+  query.set("moves", "8");
+  if (uciMoves.length) query.set("play", uciMoves.join(","));
+
+  const response = await fetch(
+    `/api/lichess/opening-explorer?${query.toString()}`,
+    {
+      method: "GET",
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+      signal,
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Opening Explorer request failed (${response.status}).`);
+  }
+
+  const raw: unknown = await response.json();
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Opening Explorer returned an invalid response.");
+  }
+
+  const data = raw as Record<string, unknown>;
+  const white = count(data.white);
+  const draws = count(data.draws);
+  const black = count(data.black);
+
+  const moves: OpeningExplorerMove[] = Array.isArray(data.moves)
+    ? data.moves.flatMap((entry): OpeningExplorerMove[] => {
+        if (!entry || typeof entry !== "object") return [];
+        const item = entry as Record<string, unknown>;
+        if (typeof item.uci !== "string" || typeof item.san !== "string") return [];
+        return [{
+          uci: item.uci,
+          san: item.san,
+          white: count(item.white),
+          draws: count(item.draws),
+          black: count(item.black),
+          opening: opening(item.opening),
+        }];
+      })
+    : [];
+
+  return {
+    white,
+    draws,
+    black,
+    total: white + draws + black,
+    moves,
+    opening: opening(data.opening),
+  };
+}
+
+export type LichessConnectionStatus = {
+  connected: boolean;
+  configured: boolean;
+};
+
+export async function getLichessConnectionStatus(
+  signal?: AbortSignal,
+): Promise<LichessConnectionStatus> {
+  const response = await fetch("/api/lichess/status", {
+    method: "GET",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`Connection status request failed (${response.status}).`);
+  }
+  const value: unknown = await response.json();
+  if (!value || typeof value !== "object") {
+    throw new Error("Invalid connection status response.");
+  }
+  const status = value as Record<string, unknown>;
+  return {
+    connected: status.connected === true,
+    configured: status.configured === true,
+  };
+}
+
+export async function disconnectLichess(): Promise<void> {
+  const response = await fetch("/api/lichess/disconnect", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error(`Disconnect request failed (${response.status}).`);
+  }
+}
+
+
+
+==================================================
+FILE: .\src\position-editor.test.ts
+==================================================
+import { describe, expect, it } from "vitest";
+import {
+  buildFullFen,
+  countKings,
+  EMPTY_PLACEMENT,
+  flipFenPlacement,
+  moveFenPiece,
+  parseFenPlacement,
+  sanitizeCastlingRights,
+  setFenPiece,
+  START_PLACEMENT,
+  validatePositionFen,
+  withFenPlacement,
+} from "./position-editor";
+
+describe("position editor", () => {
+  it("parses compressed ranks into all 64 cells", () => {
+    const board = parseFenPlacement(START_PLACEMENT);
+    expect(board).toHaveLength(8);
+    expect(board?.[0]).toEqual(["r", "n", "b", "q", "k", "b", "n", "r"]);
+    expect(board?.[3]).toEqual(Array(8).fill(""));
+  });
+
+  it("adds and removes pieces without changing other squares", () => {
+    expect(setFenPiece(EMPTY_PLACEMENT, 4, 3, "Q")).toBe("8/8/8/8/3Q4/8/8/8");
+    expect(setFenPiece("8/8/8/8/3Q4/8/8/8", 4, 3, "")).toBe(EMPTY_PLACEMENT);
+  });
+
+  it("replaces a white piece with a black piece", () => {
+    const withWhiteQueen = setFenPiece(EMPTY_PLACEMENT, 4, 3, "Q");
+    const withBlackQueen = setFenPiece(withWhiteQueen, 4, 3, "q");
+    expect(withBlackQueen).toBe("8/8/8/8/3q4/8/8/8");
+  });
+
+  it("moves pieces from one square to another", () => {
+    const initial = setFenPiece(EMPTY_PLACEMENT, 4, 3, "N");
+    const moved = moveFenPiece(initial, 4, 3, 2, 4);
+    expect(moved).toBe("8/8/4N3/8/8/8/8/8");
+  });
+
+  it("rotates all squares by 180 degrees and retains the rest of a FEN", () => {
+    expect(flipFenPlacement(START_PLACEMENT)).toBe("RNBKQBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbkqbnr");
+    expect(withFenPlacement(`${START_PLACEMENT} b - - 0 1`, EMPTY_PLACEMENT))
+      .toBe(`${EMPTY_PLACEMENT} b - - 0 1`);
+  });
+
+  it("counts white and black kings accurately", () => {
+    expect(countKings(EMPTY_PLACEMENT)).toEqual({ whiteKings: 0, blackKings: 0 });
+    expect(countKings(START_PLACEMENT)).toEqual({ whiteKings: 1, blackKings: 1 });
+    expect(countKings("8/8/8/8/4K3/8/8/4K3")).toEqual({ whiteKings: 2, blackKings: 0 });
+  });
+
+  it("sanitizes castling rights based on king and rook presence", () => {
+    const boardStart = parseFenPlacement(START_PLACEMENT)!;
+    expect(sanitizeCastlingRights(boardStart, "KQkq")).toBe("KQkq");
+
+    // Remove white king from e1
+    boardStart[7][4] = "";
+    expect(sanitizeCastlingRights(boardStart, "KQkq")).toBe("kq");
+
+    // Remove black kingside rook from h8
+    boardStart[0][7] = "";
+    expect(sanitizeCastlingRights(boardStart, "kq")).toBe("q");
+
+    // Empty board
+    const emptyBoard = parseFenPlacement(EMPTY_PLACEMENT)!;
+    expect(sanitizeCastlingRights(emptyBoard, "KQkq")).toBe("-");
+  });
+
+  it("builds a full six-field FEN with appropriate defaults", () => {
+    expect(buildFullFen(START_PLACEMENT, "w")).toBe(`${START_PLACEMENT} w KQkq - 0 1`);
+    expect(buildFullFen("4k3/8/8/8/8/8/8/4K3", "b")).toBe("4k3/8/8/8/8/8/8/4K3 b - - 0 1");
+  });
+
+  it("validates chess positions thoroughly", () => {
+    // Valid standard start
+    expect(validatePositionFen(`${START_PLACEMENT} w KQkq - 0 1`)).toEqual({ isValid: true });
+
+    // Valid custom endgame
+    expect(validatePositionFen("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1")).toEqual({ isValid: true });
+
+    // Missing white king
+    const noWhiteKing = validatePositionFen("4k3/8/8/8/8/8/8/8 w - - 0 1");
+    expect(noWhiteKing.isValid).toBe(false);
+    expect(noWhiteKing.error).toContain("White king");
+
+    // Missing black king
+    const noBlackKing = validatePositionFen("8/8/8/8/8/8/8/4K3 w - - 0 1");
+    expect(noBlackKing.isValid).toBe(false);
+    expect(noBlackKing.error).toContain("Black king");
+
+    // Multiple kings
+    const twoKings = validatePositionFen("4k3/8/8/8/8/8/4K3/4K3 w - - 0 1");
+    expect(twoKings.isValid).toBe(false);
+    expect(twoKings.error).toContain("White kings");
+
+    // Pawns on edge rank
+    const edgePawn = validatePositionFen("4k3/8/8/8/8/8/8/4KP2 w - - 0 1");
+    expect(edgePawn.isValid).toBe(false);
+    expect(edgePawn.error).toContain("first or eighth rank");
+
+    // Malformed FEN
+    expect(validatePositionFen("not-a-fen").isValid).toBe(false);
+    expect(validatePositionFen("").isValid).toBe(false);
+  });
+
+  it("rejects malformed placements", () => {
+    expect(parseFenPlacement("9/8/8/8/8/8/8/8")).toBeNull();
+    expect(parseFenPlacement("8/8/8/8/8/8/8")).toBeNull();
+  });
+});
+
+
+
+==================================================
+FILE: .\src\position-editor.ts
+==================================================
+import { Chess, validateFen } from "chess.js";
+
+const PIECE_CODES = /^[prnbqkPRNBQK]$/;
+
+export const START_PLACEMENT = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+export const EMPTY_PLACEMENT = "8/8/8/8/8/8/8/8";
+
+export const PIECE_LABELS: Record<string, string> = {
+  "": "Empty square",
+  P: "White pawn",
+  N: "White knight",
+  B: "White bishop",
+  R: "White rook",
+  Q: "White queen",
+  K: "White king",
+  p: "Black pawn",
+  n: "Black knight",
+  b: "Black bishop",
+  r: "Black rook",
+  q: "Black queen",
+  k: "Black king",
+};
+
+export function parseFenPlacement(placement: string): string[][] | null {
+  const ranks = placement.split("/");
+  if (ranks.length !== 8) return null;
+  const board: string[][] = [];
+  for (const rank of ranks) {
+    const squares: string[] = [];
+    for (const token of rank) {
+      if (/^[1-8]$/.test(token)) squares.push(...Array(Number(token)).fill(""));
+      else if (PIECE_CODES.test(token)) squares.push(token);
+      else return null;
+    }
+    if (squares.length !== 8) return null;
+    board.push(squares);
+  }
+  return board;
+}
+
+export function serializeFenPlacement(board: string[][]): string {
+  if (board.length !== 8 || board.some((rank) => rank.length !== 8)) {
+    throw new Error("A chess position must contain exactly 64 squares.");
+  }
+  return board.map((rank) => {
+    let result = "";
+    let empty = 0;
+    for (const piece of rank) {
+      if (!piece) {
+        empty += 1;
+      } else {
+        if (!PIECE_CODES.test(piece)) throw new Error(`Invalid chess piece code: ${piece}`);
+        if (empty) result += empty;
+        empty = 0;
+        result += piece;
+      }
+    }
+    if (empty) result += empty;
+    return result;
+  }).join("/");
+}
+
+export function setFenPiece(placement: string, row: number, col: number, piece: string): string {
+  const board = parseFenPlacement(placement);
+  if (!board || row < 0 || row > 7 || col < 0 || col > 7) {
+    throw new Error("Cannot edit an invalid chessboard position.");
+  }
+  if (piece && !PIECE_CODES.test(piece)) throw new Error(`Invalid chess piece code: ${piece}`);
+  board[row][col] = piece;
+  return serializeFenPlacement(board);
+}
+
+export function moveFenPiece(placement: string, fromRow: number, fromCol: number, toRow: number, toCol: number): string {
+  const board = parseFenPlacement(placement);
+  if (!board || fromRow < 0 || fromRow > 7 || fromCol < 0 || fromCol > 7 || toRow < 0 || toRow > 7 || toCol < 0 || toCol > 7) {
+    throw new Error("Cannot move a piece on an invalid chessboard position.");
+  }
+  const piece = board[fromRow][fromCol];
+  if (!piece) return placement;
+  board[fromRow][fromCol] = "";
+  board[toRow][toCol] = piece;
+  return serializeFenPlacement(board);
+}
+
+export function flipFenPlacement(placement: string): string {
+  const board = parseFenPlacement(placement);
+  if (!board) throw new Error("Cannot flip an invalid chessboard position.");
+  return serializeFenPlacement(board.reverse().map((rank) => rank.reverse()));
+}
+
+export function withFenPlacement(fen: string, placement: string): string {
+  const fields = fen.trim().split(/\s+/);
+  if (fields.length !== 6 || !parseFenPlacement(placement)) {
+    throw new Error("A complete six-field FEN is required.");
+  }
+  fields[0] = placement;
+  return fields.join(" ");
+}
+
+export function countKings(placementOrFen: string): { whiteKings: number; blackKings: number } {
+  const placement = placementOrFen.trim().split(/\s+/)[0];
+  const board = parseFenPlacement(placement);
+  let whiteKings = 0;
+  let blackKings = 0;
+  if (board) {
+    for (const rank of board) {
+      for (const square of rank) {
+        if (square === "K") whiteKings += 1;
+        if (square === "k") blackKings += 1;
+      }
+    }
+  }
+  return { whiteKings, blackKings };
+}
+
+export function sanitizeCastlingRights(board: string[][], currentCastling: string): string {
+  if (!currentCastling || currentCastling === "-") return "-";
+  let result = "";
+  // White king must be on e1 (row 7, col 4)
+  const whiteKingOnE1 = board[7]?.[4] === "K";
+  if (whiteKingOnE1) {
+    if (currentCastling.includes("K") && board[7]?.[7] === "R") result += "K";
+    if (currentCastling.includes("Q") && board[7]?.[0] === "R") result += "Q";
+  }
+  // Black king must be on e8 (row 0, col 4)
+  const blackKingOnE8 = board[0]?.[4] === "k";
+  if (blackKingOnE8) {
+    if (currentCastling.includes("k") && board[0]?.[7] === "r") result += "k";
+    if (currentCastling.includes("q") && board[0]?.[0] === "r") result += "q";
+  }
+  return result || "-";
+}
+
+export function buildFullFen(
+  placement: string,
+  turn: "w" | "b" = "w",
+  castling?: string,
+  enPassant: string = "-",
+  halfmove: number = 0,
+  fullmove: number = 1
+): string {
+  const board = parseFenPlacement(placement);
+  if (!board) throw new Error("Invalid piece placement for FEN generation.");
+  let effectiveCastling = castling;
+  if (!effectiveCastling) {
+    effectiveCastling = placement === START_PLACEMENT ? "KQkq" : "-";
+  } else {
+    effectiveCastling = sanitizeCastlingRights(board, effectiveCastling);
+  }
+  return `${placement} ${turn} ${effectiveCastling} ${enPassant} ${halfmove} ${fullmove}`;
+}
+
+export function validatePositionFen(fen: string): { isValid: boolean; error?: string } {
+  const trimmed = fen.trim();
+  if (!trimmed) {
+    return { isValid: false, error: "Position FEN cannot be empty." };
+  }
+  const fields = trimmed.split(/\s+/);
+  if (fields.length !== 6) {
+    return { isValid: false, error: "FEN must contain exactly 6 space-separated fields." };
+  }
+  const [placement, turn] = fields;
+  const board = parseFenPlacement(placement);
+  if (!board) {
+    return { isValid: false, error: "Invalid board piece placement." };
+  }
+
+  let whiteKings = 0;
+  let blackKings = 0;
+  let invalidPawns = 0;
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const piece = board[r][c];
+      if (piece === "K") whiteKings += 1;
+      if (piece === "k") blackKings += 1;
+      if ((r === 0 || r === 7) && (piece === "P" || piece === "p")) {
+        invalidPawns += 1;
+      }
+    }
+  }
+
+  if (whiteKings === 0) {
+    return { isValid: false, error: "Position is missing a White king (K)." };
+  }
+  if (whiteKings > 1) {
+    return { isValid: false, error: `Position has ${whiteKings} White kings. Exactly one is required.` };
+  }
+  if (blackKings === 0) {
+    return { isValid: false, error: "Position is missing a Black king (k)." };
+  }
+  if (blackKings > 1) {
+    return { isValid: false, error: `Position has ${blackKings} Black kings. Exactly one is required.` };
+  }
+  if (invalidPawns > 0) {
+    return { isValid: false, error: "Pawns cannot be placed on the first or eighth rank." };
+  }
+  if (turn !== "w" && turn !== "b") {
+    return { isValid: false, error: "Side to move must be 'w' (White) or 'b' (Black)." };
+  }
+
+  const result = validateFen(trimmed);
+  if (!result.ok) {
+    return { isValid: false, error: result.error || "Invalid chess position." };
+  }
+
+  try {
+    new Chess(trimmed);
+  } catch (err: unknown) {
+    return { isValid: false, error: err instanceof Error ? err.message : String(err) };
+  }
+
+  return { isValid: true };
+}
+
+
+
+==================================================
+FILE: .\src\stockfish.test.ts
+==================================================
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatEvaluation, parseUciInfo, StockfishEngine, whiteScoreShare } from "./stockfish";
+
+class FakeWorker {
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  commands: string[] = [];
+  terminated = false;
+  postMessage(command: string) { this.commands.push(command); }
+  terminate() { this.terminated = true; }
+  send(data: string) { this.onmessage?.({ data } as MessageEvent<string>); }
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("Stockfish UCI evaluation", () => {
+  it("converts side-to-move centipawns to the White perspective", () => {
+    expect(parseUciInfo("info depth 12 score cp 74 pv e2e4 e7e5", "w"))
+      .toEqual({ kind: "cp", value: 74, depth: 12, pv: ["e2e4", "e7e5"] });
+    expect(parseUciInfo("info depth 15 score cp 74 pv e7e5", "b"))
+      .toMatchObject({ kind: "cp", value: -74, depth: 15 });
+  });
+
+  it("orients mate scores and represents a checkmated side-to-move", () => {
+    expect(parseUciInfo("info depth 20 score mate 3 pv e2e4", "w")?.value).toBe(3);
+    expect(parseUciInfo("info depth 20 score mate 3 pv e7e5", "b")?.value).toBe(-3);
+    expect(parseUciInfo("info depth 20 score mate 0", "w")?.value).toBe(-1);
+    expect(formatEvaluation({ kind: "mate", value: -3, depth: 20 })).toBe("#-3");
+  });
+
+  it("keeps the evaluation bar bounded and consistent around equality", () => {
+    const whiteAdvantage = { kind: "cp" as const, value: 250, depth: 12 };
+    const blackAdvantage = { kind: "cp" as const, value: -250, depth: 12 };
+    expect(formatEvaluation(whiteAdvantage)).toBe("+2.50");
+    expect(whiteScoreShare(whiteAdvantage)).toBeGreaterThan(0.5);
+    expect(whiteScoreShare(blackAdvantage)).toBeLessThan(0.5);
+    expect(whiteScoreShare({ kind: "cp", value: 0, depth: 1 })).toBe(0.5);
+    expect(whiteScoreShare({ kind: "cp", value: 9999, depth: 1 })).toBeLessThanOrEqual(0.96);
+    expect(whiteScoreShare({ kind: "mate", value: -1, depth: 1 })).toBe(0.04);
+  });
+
+  it("publishes the latest principal-variation move during analysis", () => {
+    const worker = new FakeWorker();
+    vi.stubGlobal("Worker", class {
+      constructor() { return worker; }
+    });
+    const scores: any[] = [];
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+
+    worker.send("uciok");
+    worker.send("readyok");
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 14);
+
+    worker.send("info depth 3 score cp 12 pv e2e4 e7e5");
+    expect(scores.at(-1)).toMatchObject({ depth: 3, bestMove: "e2e4" });
+
+    worker.send("info depth 5 score cp 22 pv d2d4 d7d5");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+
+    worker.send("bestmove d2d4");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+    engine.dispose();
+  });
+
+  it("initializes UCI, replaces stale analysis, and terminates the worker", () => {
+    const worker = new FakeWorker();
+    vi.stubGlobal("Worker", class {
+      constructor() { return worker; }
+    });
+    const scores: (ReturnType<typeof parseUciInfo> | null)[] = [];
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+    worker.send("uciok");
+    worker.send("readyok");
+    expect(worker.commands).toEqual(["uci", "isready"]);
+
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 12);
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 b - - 0 1", 16);
+    expect(worker.commands.slice(-1)).toEqual(["stop"]);
+    worker.send("info depth 11 score cp 80 pv e2e4");
+    expect(scores.at(-1)).toBeNull();
+    worker.send("bestmove e2e4");
+    expect(worker.commands.slice(-2)).toEqual([
+      "position fen 8/8/8/8/8/8/4k3/4K3 b - - 0 1",
+      "go depth 16",
+    ]);
+    worker.send("info depth 16 score cp 35 pv e2e4");
+    worker.send("bestmove e2e4");
+    expect(scores.at(-1)).toMatchObject({ kind: "cp", value: -35, depth: 16, bestMove: "e2e4" });
+    engine.dispose();
+    expect(worker.terminated).toBe(true);
+  });
+});
+
+
+
+==================================================
+FILE: .\src\stockfish.ts
+==================================================
+export type EngineStatus = "off" | "loading" | "ready" | "analyzing" | "error";
+export type EngineScore = { kind: "cp" | "mate"; value: number; depth: number; bestMove?: string; pv?: string[] };
+
+type UciRequest = { fen: string; depth: number };
+
+export function parseUciInfo(line: string, sideToMove: "w" | "b"): Omit<EngineScore, "bestMove"> | null {
+  if (!line.startsWith("info ")) return null;
+  const depth = Number(line.match(/\bdepth (\d+)/)?.[1]);
+  const score = line.match(/\bscore (cp|mate) (-?\d+)/);
+  if (!score || !Number.isFinite(depth)) return null;
+  const value = Number(score[2]);
+  const whiteValue = sideToMove === "w" ? value : -value;
+  const kind = score[1] as "cp" | "mate";
+  const orientedValue = kind === "mate" && value === 0
+    ? (sideToMove === "w" ? -1 : 1)
+    : whiteValue;
+  const pv = line.match(/\bpv (.+)$/)?.[1]?.trim().split(/\s+/);
+  return {
+    kind,
+    value: orientedValue,
+    depth,
+    ...(pv?.length ? { pv } : {}),
+  };
+}
+
+export function formatEvaluation(score: EngineScore): string {
+  if (score.kind === "mate") return `#${score.value > 0 ? "+" : ""}${score.value}`;
+  const pawns = score.value / 100;
+  return `${pawns > 0 ? "+" : ""}${pawns.toFixed(2)}`;
+}
+
+export function whiteScoreShare(score: EngineScore): number {
+  if (score.kind === "mate") return score.value > 0 ? 0.96 : 0.04;
+  const bounded = Math.max(-1000, Math.min(1000, score.value));
+  return Math.max(0.04, Math.min(0.96, 1 / (1 + 10 ** (-bounded / 400))));
+}
+
+export class StockfishEngine {
+  private readonly worker: Worker;
+  private ready = false;
+  private searching = false;
+  private awaitingStop = false;
+  private queued: UciRequest | null = null;
+  private currentSide: "w" | "b" = "w";
+  private latestScore: EngineScore | null = null;
+
+  constructor(
+    workerUrl: string,
+    private readonly onStatus: (status: EngineStatus, message?: string) => void,
+    private readonly onScore: (score: EngineScore | null) => void,
+  ) {
+    this.worker = new Worker(workerUrl);
+    this.worker.onmessage = (event: MessageEvent<string>) => this.handleLine(String(event.data));
+    this.worker.onerror = (event) => {
+      this.onStatus("error", event.message || "The Stockfish worker failed to load.");
+      this.dispose();
+    };
+    this.onStatus("loading");
+    this.worker.postMessage("uci");
+  }
+
+  analyze(fen: string, depth: number): void {
+    this.queued = { fen, depth: Math.max(1, Math.min(24, Math.floor(depth))) };
+    this.latestScore = null;
+    this.onScore(null);
+    if (!this.ready) return;
+    if (this.searching) {
+      if (!this.awaitingStop) {
+        this.awaitingStop = true;
+        this.worker.postMessage("stop");
+      }
+      return;
+    }
+    this.startQueuedAnalysis();
+  }
+
+  dispose(): void {
+    this.worker.terminate();
+    this.ready = false;
+    this.searching = false;
+    this.queued = null;
+  }
+
+  private handleLine(line: string): void {
+    if (/^Error:/i.test(line)) {
+      this.onStatus("error", line);
+      this.dispose();
+      return;
+    }
+    if (line === "uciok") {
+      this.worker.postMessage("isready");
+      return;
+    }
+    if (line === "readyok") {
+      this.ready = true;
+      this.onStatus("ready");
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (line.startsWith("info ")) {
+      if (this.awaitingStop) return;
+      const score = parseUciInfo(line, this.currentSide);
+      if (score) {
+        // Use the current principal variation's first move for a live arrow.
+        // Stockfish's final "bestmove" will replace this provisional move.
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+          ...score,
+          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+        };
+        this.onScore(this.latestScore);
+      }
+      return;
+    }
+    const bestMove = line.match(/^bestmove (\S+)/)?.[1];
+    if (!bestMove) return;
+    this.searching = false;
+    if (this.awaitingStop) {
+      this.awaitingStop = false;
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (this.latestScore) {
+      this.latestScore = { ...this.latestScore, bestMove: bestMove === "(none)" ? undefined : bestMove };
+      this.onScore(this.latestScore);
+    }
+    this.onStatus("ready");
+  }
+
+  private startQueuedAnalysis(): void {
+    if (!this.ready || this.searching || !this.queued) return;
+    const request = this.queued;
+    this.queued = null;
+    this.currentSide = request.fen.split(/\s+/)[1] === "b" ? "b" : "w";
+    this.searching = true;
+    this.latestScore = null;
+    this.onStatus("analyzing");
+    this.worker.postMessage(`position fen ${request.fen}`);
+    this.worker.postMessage(`go depth ${request.depth}`);
+  }
+}
+
+
+
+==================================================
+FILE: .\src\storage.test.ts
+==================================================
+import "fake-indexeddb/auto";
+import { afterEach, describe, expect, it } from "vitest";
+import { newSession, START_FEN } from "./model";
+import { getActiveBookId, getSession, putSession, setActiveBookId } from "./storage";
+
+afterEach(async () => {
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase("chessbook-reader");
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+});
+
+describe("per-book IndexedDB reading sessions", () => {
+  it("restores exact analysis state independently for each book", async () => {
+    const first = newSession("book-a");
+    first.page = 42;
+    first.selectedDiagramId = "diagram-3";
+    first.originalFen = START_FEN;
+    first.lineBaseFen = START_FEN;
+    first.moves = ["e4", "e5", "Nf3"];
+    first.moveIndex = 3;
+    first.currentFen = "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
+    first.flipped = true;
+
+    const second = newSession("book-b");
+    second.page = 118;
+    second.currentFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+    await Promise.all([putSession(first), putSession(second), setActiveBookId("book-a")]);
+    const restoredFirst = await getSession("book-a");
+    const restoredSecond = await getSession("book-b");
+
+    expect(await getActiveBookId()).toBe("book-a");
+    expect(restoredFirst).toMatchObject({
+      page: 42,
+      selectedDiagramId: "diagram-3",
+      currentFen: first.currentFen,
+      moves: ["e4", "e5", "Nf3"],
+      moveIndex: 3,
+      flipped: true,
+    });
+    expect(restoredSecond).toMatchObject({ page: 118, currentFen: second.currentFen, moves: [] });
+  });
+});
+
+
+
+==================================================
+FILE: .\src\storage.ts
+==================================================
+import type { BookRecord, BookSession } from "./model";
+
+const DB_NAME = "chessbook-reader";
+const DB_VERSION = 1;
+const ACTIVE_KEY = "activeBookId";
+
+function openDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains("books")) {
+        db.createObjectStore("books", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("sessions")) {
+        db.createObjectStore("sessions", { keyPath: "bookId" });
+      }
+      if (!db.objectStoreNames.contains("settings")) {
+        db.createObjectStore("settings", { keyPath: "key" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error("Could not open local library."));
+  });
+}
+
+async function transact<T>(
+  storeName: string,
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  const db = await openDatabase();
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      const transaction = db.transaction(storeName, mode);
+      let outcome: { value: T } | null = null;
+      transaction.oncomplete = () => {
+        if (outcome) resolve(outcome.value);
+        else reject(new Error("Local library transaction completed without a result."));
+      };
+      transaction.onerror = () => reject(transaction.error ?? new Error("Local library transaction failed."));
+      transaction.onabort = () => reject(transaction.error ?? new Error("Local library transaction aborted."));
+      const request = run(transaction.objectStore(storeName));
+      request.onsuccess = () => { outcome = { value: request.result }; };
+      request.onerror = () => reject(request.error ?? new Error("Local library operation failed."));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+export const getBooks = () =>
+  transact<BookRecord[]>("books", "readonly", (store) => store.getAll());
+
+export const getBook = (id: string) =>
+  transact<BookRecord | undefined>("books", "readonly", (store) => store.get(id));
+
+export const putBook = (book: BookRecord) =>
+  transact<IDBValidKey>("books", "readwrite", (store) => store.put(book));
+
+export const removeBook = (id: string) =>
+  transact<undefined>("books", "readwrite", (store) => store.delete(id));
+
+export const getSession = (id: string) =>
+  transact<BookSession | undefined>("sessions", "readonly", (store) => store.get(id));
+
+export const putSession = (session: BookSession) =>
+  transact<IDBValidKey>("sessions", "readwrite", (store) => store.put(session));
+
+export const removeSession = (id: string) =>
+  transact<undefined>("sessions", "readwrite", (store) => store.delete(id));
+
+export const getActiveBookId = async (): Promise<string | null> => {
+  const item = await transact<{ key: string; value: string } | undefined>(
+    "settings",
+    "readonly",
+    (store) => store.get(ACTIVE_KEY),
+  );
+  return item?.value ?? null;
+};
+
+export const setActiveBookId = (value: string | null) =>
+  value
+    ? transact<IDBValidKey>("settings", "readwrite", (store) =>
+        store.put({ key: ACTIVE_KEY, value }),
+      )
+    : transact<undefined>("settings", "readwrite", (store) => store.delete(ACTIVE_KEY));
+
+
+
+==================================================
+FILE: .\src\styles.css
+==================================================
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap");
+/* Desktop viewport sizing */
+html, body, #root {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.workspace {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  overflow: hidden;
+}
+
+.library-panel,
+.board-panel,
+.reader-panel {
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.board-panel {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.board-area {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+  gap: 8px;
+}
+
+.board-frame {
+  width: min(100%, 48vh, 440px);
+  min-width: 0;
+  flex: 0 1 auto;
+  aspect-ratio: 1 / 1;
+}
+
+.reader-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.reader-toolbar {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.page-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+.reader-footer,
+.analysis-strip {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1280px) and (min-width: 821px) {
+  .workspace {
+    grid-template-columns: 190px minmax(300px, 340px) minmax(0, 1fr);
+  }
+
+  .board-panel {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .board-frame {
+    width: min(100%, 42vh, 340px);
+  }
+}
+
+@media (max-width: 820px) {
+  .workspace,
+  .workspace.library-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .library-panel {
+    display: none;
+  }
+
+  .board-panel {
+    max-height: 48vh;
+  }
+
+  .board-frame {
+    width: min(100%, 38vh, 300px);
+  }
+}
+
+
+/* ==========================================================
+   1. CHESS.COM INSPIRED DESIGN TOKENS & SYSTEM
+   ========================================================== */
+
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Palette */
+  --bg-app: #161512;
+  --panel-primary: #262421;
+  --panel-secondary: #312E2B;
+  --panel-elevated: #3A3733;
+  --panel-hover: #45423E;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #B8B5AC;
+  --text-muted: #8F8B83;
+
+  --board-light: #F0D9B5;
+  --board-dark: #B58863;
+
+  --green-primary: #81B64C;
+  --green-hover: #95C85A;
+  --green-active: #6F9F40;
+  --green-subtle: rgba(129, 182, 76, 0.16);
+  --green-glow: rgba(129, 182, 76, 0.32);
+
+  --border-subtle: rgba(255, 255, 255, 0.10);
+  --border-light: rgba(255, 255, 255, 0.16);
+
+  --glass-surface: rgba(49, 46, 43, 0.82);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-subtle: rgba(255, 255, 255, 0.035);
+
+  --focus-outline: #A3D160;
+  --error: #F07178;
+  --success: #81B64C;
+  --amber: #E5B45E;
+
+  /* Backwards compatibility aliases */
+  --bg: var(--bg-app);
+  --panel: var(--panel-primary);
+  --panel-raised: var(--panel-secondary);
+  --line: var(--border-subtle);
+  --line-soft: rgba(255, 255, 255, 0.06);
+  --text: var(--text-primary);
+  --muted: var(--text-muted);
+  --green: var(--green-primary);
+  --green-strong: var(--green-hover);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow: hidden;
+}
+
+/* ==========================================================
+   2. GLOBAL TYPOGRAPHY, BUTTONS & FORM NORMALIZATION
+   ========================================================== */
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 6px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--panel-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, transform 0.08s ease, filter 0.14s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--panel-hover);
+  border-color: var(--border-light);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Accessible focus rings */
+:focus-visible {
+  outline: 2px solid var(--focus-outline) !important;
+  outline-offset: 2px !important;
+}
+
+/* Action button variants */
+.green-button,
+.engine-toggle.engine-active {
+  background: linear-gradient(180deg, var(--green-hover) 0%, var(--green-primary) 100%);
+  border: 1px solid var(--green-hover);
+  color: #FFFFFF;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.green-button:hover:not(:disabled),
+.engine-toggle.engine-active:hover:not(:disabled) {
+  background: linear-gradient(180deg, #9FDD62 0%, var(--green-hover) 100%);
+  border-color: #A8E56B;
+}
+
+.text-button {
+  background: var(--panel-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.text-button:hover:not(:disabled) {
+  background: var(--panel-hover);
+  border-color: var(--border-light);
+}
+
+.mini-button {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  background: var(--panel-secondary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.mini-button:hover:not(:disabled) {
+  background: var(--panel-elevated);
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--panel-secondary);
+  color: var(--text-primary);
+}
+
+/* Inputs & Selects */
+input[type="text"],
+input[type="number"],
+input[type="search"],
+select {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+input:focus,
+select:focus {
+  border-color: var(--focus-outline);
+  box-shadow: 0 0 0 1px var(--focus-outline);
+}
+
+/* ==========================================================
+   3. APPLICATION SHELL & HEADER (TOPBAR)
+   ========================================================== */
+
+.app-shell {
+  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+.topbar {
+  height: 50px;
+  flex: 0 0 50px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  background: #1B1917;
+  border-bottom: 1px solid var(--border-subtle);
+  z-index: 10;
+}
+
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--green-primary);
+  background: rgba(129, 182, 76, 0.12);
+  border: 1px solid rgba(129, 182, 76, 0.28);
+  border-radius: 6px;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-size: 17px;
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+
+.brand-name span {
+  color: var(--green-primary);
+  font-weight: 600;
+}
+
+.top-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--border-subtle);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.current-book {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 38vw;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.current-book strong {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.book-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green-primary);
+  box-shadow: 0 0 6px var(--green-glow);
+  flex-shrink: 0;
+}
+
+.top-spacer {
+  flex: 1 1 auto;
+}
+
+.storage-label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.storage-label i,
+.local-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green-primary);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ==========================================================
+   4. MAIN WORKSPACE THREE-COLUMN LAYOUT
+   ========================================================== */
+
+.workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(190px, 220px) minmax(320px, 380px) minmax(0, 1fr);
+  background: var(--bg-app);
+  overflow: hidden;
+}
+
+.workspace.library-collapsed {
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+}
+
+/* ==========================================================
+   5. LEFT SIDEBAR: LIBRARY & NAVIGATION
+   ========================================================== */
+
+.library-panel {
+  background: var(--panel-primary);
+  border-right: 1px solid var(--border-subtle);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.library-heading {
+  height: 46px;
+  flex: 0 0 46px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  font-weight: 700;
+}
+
+.library-heading .text-button {
+  height: 28px;
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+  background: var(--green-primary);
+  border-color: var(--green-hover);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.library-heading .text-button:hover {
+  background: var(--green-hover);
+}
+
+.hidden-input {
+  display: none !important;
+}
+
+.search-field {
+  margin: 10px 12px 8px;
+  padding: 0 8px;
+  height: 32px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-app);
+  color: var(--text-muted);
+}
+
+.search-field input {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.search-field input::placeholder {
+  color: var(--text-muted);
+}
+
+.library-nav {
+  padding: 4px 8px 10px;
+  display: grid;
+  gap: 2px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.library-nav-item {
+  height: 34px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.library-nav-item span {
+  width: 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.library-nav-item:hover {
+  background: var(--panel-secondary);
+  color: var(--text-primary);
+}
+
+.library-nav-item.nav-active {
+  background: var(--green-subtle);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.library-nav-item.nav-active span {
+  color: var(--green-primary);
+}
+
+.library-list-title {
+  padding: 10px 14px 6px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+}
+
+.book-list {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 2px 8px 12px;
+}
+
+.book-row {
+  display: flex;
+  align-items: center;
+  position: relative;
+  border-radius: 6px;
+  margin-bottom: 3px;
+}
+
+.book-row:hover {
+  background: var(--panel-secondary);
+}
+
+.book-row.active {
+  background: var(--panel-elevated);
+}
+
+.book-open {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 6px 8px;
+  min-width: 0;
+}
+
+.book-cover {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 40px;
+  background: linear-gradient(135deg, #42382c, #262019);
+  border: 1px solid #5a4b38;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: #d6be90;
+  border-radius: 3px;
+}
+
+.book-cover span {
+  font-size: 16px;
+  line-height: 18px;
+}
+
+.book-cover small {
+  font: 8px "DM Mono", monospace;
+  color: #a89470;
+  position: absolute;
+  bottom: 2px;
+}
+
+.book-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 2px;
+}
+
+.book-meta strong {
+  color: var(--text-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.book-meta small {
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.progress-track {
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  width: 100%;
+  margin-top: 2px;
+}
+
+.progress-track i {
+  display: block;
+  height: 100%;
+  background: var(--green-primary);
+}
+
+.book-delete-button {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 4;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--panel-elevated);
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.book-row:hover .book-delete-button,
+.book-row:focus-within .book-delete-button {
+  opacity: 1;
+}
+
+.book-delete-button:hover {
+  background: #4A2826;
+  border-color: #703D3A;
+  color: #FFB0A8;
+}
+
+.library-footer {
+  height: 34px;
+  flex: 0 0 34px;
+  border-top: 1px solid var(--border-subtle);
+  padding: 0 14px;
+  color: var(--text-muted);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-size {
+  margin-left: auto;
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+}
+
+.empty-library {
+  padding: 24px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.empty-library div {
+  font-size: 26px;
+}
+
+.empty-library strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+/* ==========================================================
+   6. CENTER ANALYSIS PANEL & CHESSBOARD
+   ========================================================== */
+
+.board-panel {
+  min-width: 0;
+  background: var(--panel-primary);
+  border-right: 1px solid var(--border-subtle);
+  padding: 10px 14px 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-kicker {
+  box-sizing: border-box;
+  padding: 5px 8px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.engine-idle {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+}
+
+.engine-idle i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #757069;
+}
+
+.engine-idle.engine-ready i {
+  background: var(--green-primary);
+  box-shadow: 0 0 5px var(--green-glow);
+}
+
+.engine-idle.engine-analyzing i,
+.engine-idle.engine-loading i {
+  background: var(--amber);
+  box-shadow: 0 0 5px rgba(229, 180, 94, 0.4);
+}
+
+.engine-idle.engine-error i {
+  background: var(--error);
+}
+
+.board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0 8px;
+  min-height: 38px;
+}
+
+.board-header div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.board-header strong {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+}
+
+.board-header span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.board-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.board-header-actions .setup-position-btn {
+  color: #BEE5C8;
+  border-color: rgba(129, 182, 76, 0.35);
+  background: rgba(129, 182, 76, 0.12);
+}
+
+.board-header-actions .setup-position-btn:hover {
+  background: rgba(129, 182, 76, 0.22);
+  border-color: var(--green-primary);
+}
+
+/* Board frame and evaluation bar */
+.board-area {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.evaluation-bar {
+  display: flex;
+  flex: 0 0 14px;
+  width: 14px;
+  align-self: stretch;
+  min-height: 0;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #201E1B;
+  overflow: hidden;
+  flex-direction: column-reverse;
+}
+
+.eval-white {
+  width: 100%;
+  background: #FFFFFF;
+  transition: height 0.4s ease;
+}
+
+.eval-black {
+  width: 100%;
+  background: #2B2824;
+  transition: height 0.4s ease;
+}
+
+.board-frame {
+  box-sizing: border-box;
+  width: min(100%, min(52vh, 480px));
+  max-width: 100%;
+  min-width: 220px;
+  aspect-ratio: 1 / 1;
+  padding: 3px;
+  background: #2D2822;
+  border: 2px solid #3E372F;
+  border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.chessboard {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  user-select: none;
+  position: relative;
+  touch-action: manipulation;
+}
+
+.square {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: 0;
+  cursor: pointer;
+  background: transparent;
+}
+
+.light-square {
+  background: var(--board-light);
+}
+
+.dark-square {
+  background: var(--board-dark);
+}
+
+
+
+.selected-square::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(180, 205, 50, 0.45);
+  pointer-events: none;
+}
+
+.last-square::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(205, 195, 45, 0.35);
+  pointer-events: none;
+}
+
+.selected-square.last-square::after {
+  background: rgba(195, 205, 45, 0.55);
+}
+
+.piece {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.piece img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.legal-dot {
+  position: absolute;
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.28);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.legal-capture {
+  position: absolute;
+  inset: 4px;
+  z-index: 2;
+  border-radius: 50%;
+  border: 4px solid rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
+.rank-coordinate,
+.file-coordinate {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  font: 10px/1 "DM Mono", monospace;
+  font-weight: 700;
+}
+
+.rank-coordinate {
+  left: 3px;
+  top: 3px;
+}
+
+.file-coordinate {
+  right: 3px;
+  bottom: 2px;
+}
+
+.coord-dark {
+  color: #755535;
+}
+
+.coord-light {
+  color: #E2CA9D;
+}
+
+
+
+/* ==========================================================
+   7. BOARD CONTROLS TOOLBAR (NORMALIZED & WRAPPED)
+   ========================================================== */
+
+.board-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin: 8px 0;
+  min-height: 32px;
+}
+
+.board-controls button {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-elevated);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.board-controls button:hover:not(:disabled) {
+  background: var(--panel-hover);
+  border-color: var(--border-light);
+}
+
+/* Square icon buttons */
+.board-controls button[title*="move"],
+.board-controls button[title*="coordinates"],
+.board-controls button[title*="Expand"] {
+  min-width: 32px;
+  width: 32px;
+  padding: 0;
+  font-size: 13px;
+}
+
+.board-controls button.setup-position-button {
+  color: #BEE5C8;
+  font-weight: 600;
+  background: rgba(129, 182, 76, 0.12);
+  border-color: rgba(129, 182, 76, 0.3);
+  padding: 0 10px;
+}
+
+.board-controls button.setup-position-button:hover:not(:disabled) {
+  background: rgba(129, 182, 76, 0.22);
+  border-color: var(--green-primary);
+}
+
+.board-controls button.annotation-active {
+  background: rgba(50, 119, 168, 0.25);
+  border-color: #3277A8;
+  color: #D8ECFF;
+}
+
+.controls-separator {
+  height: 20px;
+  width: 1px;
+  background: var(--border-subtle);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.controls-spacer {
+  flex: 1 1 auto;
+}
+
+/* ==========================================================
+   8. TURN ROW, FEN DETAILS & MOVES LIST
+   ========================================================== */
+
+.turn-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.turn-row > span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  margin-right: 4px;
+}
+
+.turn-row button {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 5px;
+  background: var(--panel-secondary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.turn-row button.turn-active {
+  background: var(--green-subtle);
+  border-color: var(--green-primary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.turn-row .save-position {
+  margin-left: auto;
+}
+
+.position-editor {
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 6px 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.position-editor summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.fen-entry {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.fen-entry input {
+  min-width: 0;
+  flex: 1 1 auto;
+  height: 30px;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  padding: 0 8px;
+  font: 11px "DM Mono", monospace;
+}
+
+.fen-entry .green-button {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.moves-panel {
+  flex: 1 1 auto;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.moves-heading {
+  padding: 6px 0 4px;
+  color: var(--text-muted);
+  letter-spacing: 0.8px;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.new-line {
+  border: 0;
+  color: var(--green-primary);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.new-line:hover {
+  background: var(--green-subtle);
+}
+
+.move-list {
+  overflow-y: auto;
+  max-height: 80px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 2px;
+  padding: 2px 0 4px;
+  background: var(--panel-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.move-pair {
+  display: flex;
+  align-items: center;
+  height: 24px;
+}
+
+.move-number {
+  font: 11px "DM Mono", monospace;
+  color: var(--text-muted);
+  margin: 0 4px;
+}
+
+.move-pair button {
+  border: 0;
+  background: transparent;
+  border-radius: 3px;
+  padding: 2px 6px;
+  color: var(--text-secondary);
+  font: 11px "DM Mono", monospace;
+  min-height: 20px;
+  height: 20px;
+}
+
+.move-pair button:hover {
+  background: var(--panel-elevated);
+  color: var(--text-primary);
+}
+
+
+[TRUNCATED AT 25000 CHARACTERS]
+
+
+==================================================
+FILE: .\src\test-setup.ts
+==================================================
+import "@testing-library/jest-dom/vitest";
+import { cleanup } from "@testing-library/react";
+import { afterEach } from "vitest";
+
+afterEach(() => {
+  cleanup();
+});
+
+
+
+==================================================
+FILE: .\src\vite-env.d.ts
+==================================================
+/// <reference types="vite/client" />
+
+
+========== DEPENDENCIES AND CHESS LIBRARIES ==========
+        "chess.js": "^1.4.0",
+
+========== PUBLIC AND ASSET INVENTORY ==========
+
+--- public ---
+.\public\assets\pieces\NOTICE.txt
+.\public\assets\pieces\standard.svg
+.\public\assets\pieces\standard.svg.backup-20261016-214238
+.\public\assets\pieces\standalone\bb.svg
+.\public\assets\pieces\standalone\bk.svg
+.\public\assets\pieces\standalone\bn.svg
+.\public\assets\pieces\standalone\bp.svg
+.\public\assets\pieces\standalone\bq.svg
+.\public\assets\pieces\standalone\br.svg
+.\public\assets\pieces\standalone\wb.svg
+.\public\assets\pieces\standalone\wk.svg
+.\public\assets\pieces\standalone\wn.svg
+.\public\assets\pieces\standalone\wp.svg
+.\public\assets\pieces\standalone\wq.svg
+.\public\assets\pieces\standalone\wr.svg
+.\public\stockfish\LICENSE.txt
+.\public\stockfish\stockfish-19-lite-single.js
+.\public\stockfish\stockfish-19-lite-single.wasm
+
+========== AUDIT COMPLETE - NO SOURCE FILES MODIFIED ==========

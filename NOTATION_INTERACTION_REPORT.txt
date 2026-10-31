@@ -1,0 +1,53 @@
+﻿NOTATION LEARNER - INTERACTIVE BOARD UPDATE
+Date: 10/30/2026 23:22:21
+Project: D:\chess\BookChess\ChessBookReader
+Backup: D:\chess\BookChess\ChessBookReader\backups\notation_interaction_20261030_232213
+
+CHANGES
+Selectable board squares with keyboard support.
+Legal destination indicators for selected pieces.
+Selected-square inspector with piece and coordinate details.
+Existing PGN and move-navigation logic preserved.
+
+BUILD EXIT CODE: 2
+
+> chessbook-reader@0.1.0 build
+> tsc -b && vite build
+
+src/NotationLearner.tsx(51,7): error TS2448: Block-scoped variable 'game' used before its declaration.
+src/NotationLearner.tsx(51,7): error TS2454: Variable 'game' is used before being assigned.
+
+TEST EXIT CODE: 0
+
+> chessbook-reader@0.1.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.4 [39m[90mD:/chess/BookChess/ChessBookReader[39m
+
+ [32mâœ“[39m src/board-annotations.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32mâœ“[39m src/position-editor.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32mâœ“[39m src/stockfish.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32mâœ“[39m src/chess-state.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32mâœ“[39m src/opening-explorer.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32mâœ“[39m src/crop-geometry.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32mâœ“[39m src/storage.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 17[2mms[22m[39m
+[90mstderr[2m | src/App.test.tsx
+[22m[39mWarning: Please use the `legacy` build in Node.js environments.
+
+ [32mâœ“[39m src/App.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 876[2mms[22m[39m
+   [32mâœ“[39m App - Manual Position Setup & Stockfish Analysis [2m(2)[22m
+     [33m[2mâœ“[22m[39m renders 'Set Up Position' buttons on the analysis board and toggles setup mode[33m 538[2mms[22m[39m
+     [33m[2mâœ“[22m[39m loads a custom manual position, reflects side to move, and triggers Stockfish analysis[33m 337[2mms[22m[39m
+ [32mâœ“[39m src/ManualBoardEditor.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 1433[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m9 passed[39m[22m[90m (9)[39m
+[2m      Tests [22m [1m[32m48 passed[39m[22m[90m (48)[39m
+[2m   Start at [22m 23:22:18
+[2m   Duration [22m 2.96s[2m (environment 57%, setup 20%, tests 17%, import 3%, transform 2%, worker 1%)[22m
+
+
+FINAL STATUS
+Build: FAIL
+Tests: PASS
+Backup: D:\chess\BookChess\ChessBookReader\backups\notation_interaction_20261030_232213

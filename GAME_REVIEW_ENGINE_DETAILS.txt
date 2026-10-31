@@ -1,0 +1,431 @@
+========== STOCKFISH ENGINE ==========
+export type EngineStatus = "off" | "loading" | "ready" | "analyzing" | "error";
+export type EngineScore = { kind: "cp" | "mate"; value: number; depth: number; bestMove?: string; pv?: string[] };
+
+type UciRequest = { fen: string; depth: number };
+
+export function parseUciInfo(line: string, sideToMove: "w" | "b"): Omit<EngineScore, "bestMove"> | null {
+  if (!line.startsWith("info ")) return null;
+  const depth = Number(line.match(/\bdepth (\d+)/)?.[1]);
+  const score = line.match(/\bscore (cp|mate) (-?\d+)/);
+  if (!score || !Number.isFinite(depth)) return null;
+  const value = Number(score[2]);
+  const whiteValue = sideToMove === "w" ? value : -value;
+  const kind = score[1] as "cp" | "mate";
+  const orientedValue = kind === "mate" && value === 0
+    ? (sideToMove === "w" ? -1 : 1)
+    : whiteValue;
+  const pv = line.match(/\bpv (.+)$/)?.[1]?.trim().split(/\s+/);
+  return {
+    kind,
+    value: orientedValue,
+    depth,
+    ...(pv?.length ? { pv } : {}),
+  };
+}
+
+export function formatEvaluation(score: EngineScore): string {
+  if (score.kind === "mate") return `#${score.value > 0 ? "+" : ""}${score.value}`;
+  const pawns = score.value / 100;
+  return `${pawns > 0 ? "+" : ""}${pawns.toFixed(2)}`;
+}
+
+export function whiteScoreShare(score: EngineScore): number {
+  if (score.kind === "mate") return score.value > 0 ? 0.96 : 0.04;
+  const bounded = Math.max(-1000, Math.min(1000, score.value));
+  return Math.max(0.04, Math.min(0.96, 1 / (1 + 10 ** (-bounded / 400))));
+}
+
+export class StockfishEngine {
+  private readonly worker: Worker;
+  private ready = false;
+  private searching = false;
+  private awaitingStop = false;
+  private queued: UciRequest | null = null;
+  private currentSide: "w" | "b" = "w";
+  private latestScore: EngineScore | null = null;
+
+  constructor(
+    workerUrl: string,
+    private readonly onStatus: (status: EngineStatus, message?: string) => void,
+    private readonly onScore: (score: EngineScore | null) => void,
+  ) {
+    this.worker = new Worker(workerUrl);
+    this.worker.onmessage = (event: MessageEvent<string>) => this.handleLine(String(event.data));
+    this.worker.onerror = (event) => {
+      this.onStatus("error", event.message || "The Stockfish worker failed to load.");
+      this.dispose();
+    };
+    this.onStatus("loading");
+    this.worker.postMessage("uci");
+  }
+
+  analyze(fen: string, depth: number): void {
+    this.queued = { fen, depth: Math.max(1, Math.min(24, Math.floor(depth))) };
+    this.latestScore = null;
+    this.onScore(null);
+    if (!this.ready) return;
+    if (this.searching) {
+      if (!this.awaitingStop) {
+        this.awaitingStop = true;
+        this.worker.postMessage("stop");
+      }
+      return;
+    }
+    this.startQueuedAnalysis();
+  }
+
+  dispose(): void {
+    this.worker.terminate();
+    this.ready = false;
+    this.searching = false;
+    this.queued = null;
+  }
+
+  private handleLine(line: string): void {
+    if (/^Error:/i.test(line)) {
+      this.onStatus("error", line);
+      this.dispose();
+      return;
+    }
+    if (line === "uciok") {
+      this.worker.postMessage("isready");
+      return;
+    }
+    if (line === "readyok") {
+      this.ready = true;
+      this.onStatus("ready");
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (line.startsWith("info ")) {
+      if (this.awaitingStop) return;
+      const score = parseUciInfo(line, this.currentSide);
+      if (score) {
+        // Use the current principal variation's first move for a live arrow.
+        // Stockfish's final "bestmove" will replace this provisional move.
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+          ...score,
+          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+        };
+        this.onScore(this.latestScore);
+      }
+      return;
+    }
+    const bestMove = line.match(/^bestmove (\S+)/)?.[1];
+    if (!bestMove) return;
+    this.searching = false;
+    if (this.awaitingStop) {
+      this.awaitingStop = false;
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (this.latestScore) {
+      this.latestScore = { ...this.latestScore, bestMove: bestMove === "(none)" ? undefined : bestMove };
+      this.onScore(this.latestScore);
+    }
+    this.onStatus("ready");
+  }
+
+  private startQueuedAnalysis(): void {
+    if (!this.ready || this.searching || !this.queued) return;
+    const request = this.queued;
+    this.queued = null;
+    this.currentSide = request.fen.split(/\s+/)[1] === "b" ? "b" : "w";
+    this.searching = true;
+    this.latestScore = null;
+    this.onStatus("analyzing");
+    this.worker.postMessage(`position fen ${request.fen}`);
+    this.worker.postMessage(`go depth ${request.depth}`);
+  }
+}
+
+========== STOCKFISH TESTS ==========
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatEvaluation, parseUciInfo, StockfishEngine, whiteScoreShare } from "./stockfish";
+
+class FakeWorker {
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  commands: string[] = [];
+  terminated = false;
+  postMessage(command: string) { this.commands.push(command); }
+  terminate() { this.terminated = true; }
+  send(data: string) { this.onmessage?.({ data } as MessageEvent<string>); }
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("Stockfish UCI evaluation", () => {
+  it("converts side-to-move centipawns to the White perspective", () => {
+    expect(parseUciInfo("info depth 12 score cp 74 pv e2e4 e7e5", "w"))
+      .toEqual({ kind: "cp", value: 74, depth: 12, pv: ["e2e4", "e7e5"] });
+    expect(parseUciInfo("info depth 15 score cp 74 pv e7e5", "b"))
+      .toMatchObject({ kind: "cp", value: -74, depth: 15 });
+  });
+
+  it("orients mate scores and represents a checkmated side-to-move", () => {
+    expect(parseUciInfo("info depth 20 score mate 3 pv e2e4", "w")?.value).toBe(3);
+    expect(parseUciInfo("info depth 20 score mate 3 pv e7e5", "b")?.value).toBe(-3);
+    expect(parseUciInfo("info depth 20 score mate 0", "w")?.value).toBe(-1);
+    expect(formatEvaluation({ kind: "mate", value: -3, depth: 20 })).toBe("#-3");
+  });
+
+  it("keeps the evaluation bar bounded and consistent around equality", () => {
+    const whiteAdvantage = { kind: "cp" as const, value: 250, depth: 12 };
+    const blackAdvantage = { kind: "cp" as const, value: -250, depth: 12 };
+    expect(formatEvaluation(whiteAdvantage)).toBe("+2.50");
+    expect(whiteScoreShare(whiteAdvantage)).toBeGreaterThan(0.5);
+    expect(whiteScoreShare(blackAdvantage)).toBeLessThan(0.5);
+    expect(whiteScoreShare({ kind: "cp", value: 0, depth: 1 })).toBe(0.5);
+    expect(whiteScoreShare({ kind: "cp", value: 9999, depth: 1 })).toBeLessThanOrEqual(0.96);
+    expect(whiteScoreShare({ kind: "mate", value: -1, depth: 1 })).toBe(0.04);
+  });
+
+  it("publishes the latest principal-variation move during analysis", () => {
+    const worker = new FakeWorker();
+    vi.stubGlobal("Worker", class {
+      constructor() { return worker; }
+    });
+    const scores: any[] = [];
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+
+    worker.send("uciok");
+    worker.send("readyok");
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 14);
+
+    worker.send("info depth 3 score cp 12 pv e2e4 e7e5");
+    expect(scores.at(-1)).toMatchObject({ depth: 3, bestMove: "e2e4" });
+
+    worker.send("info depth 5 score cp 22 pv d2d4 d7d5");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+
+    worker.send("bestmove d2d4");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+    engine.dispose();
+  });
+
+  it("initializes UCI, replaces stale analysis, and terminates the worker", () => {
+    const worker = new FakeWorker();
+    vi.stubGlobal("Worker", class {
+      constructor() { return worker; }
+    });
+    const scores: (ReturnType<typeof parseUciInfo> | null)[] = [];
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+    worker.send("uciok");
+    worker.send("readyok");
+    expect(worker.commands).toEqual(["uci", "isready"]);
+
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 12);
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 b - - 0 1", 16);
+    expect(worker.commands.slice(-1)).toEqual(["stop"]);
+    worker.send("info depth 11 score cp 80 pv e2e4");
+    expect(scores.at(-1)).toBeNull();
+    worker.send("bestmove e2e4");
+    expect(worker.commands.slice(-2)).toEqual([
+      "position fen 8/8/8/8/8/8/4k3/4K3 b - - 0 1",
+      "go depth 16",
+    ]);
+    worker.send("info depth 16 score cp 35 pv e2e4");
+    worker.send("bestmove e2e4");
+    expect(scores.at(-1)).toMatchObject({ kind: "cp", value: -35, depth: 16, bestMove: "e2e4" });
+    engine.dispose();
+    expect(worker.terminated).toBe(true);
+  });
+});
+
+========== APP ENGINE EFFECTS ==========
+  const [userArrows, setUserArrows] = useState<BoardArrow[]>([]);
+  const [redSquares, setRedSquares] = useState<Square[]>([]);
+  const [arrowStart, setArrowStart] = useState<Square | null>(null);
+  const [arrowHover, setArrowHover] = useState<Square | null>(null);
+  const [annotationMode, setAnnotationMode] = useState(false);
+  const [dragSelection, setDragSelection] = useState<{ x: number; y: number; x2: number; y2: number } | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
+  const [cropEditingId, setCropEditingId] = useState<string | null>(null);
+  const [transferCandidate, setTransferCandidate] = useState<Candidate | null>(null);
+  const [transferPreview, setTransferPreview] = useState("");
+  const [transferFen, setTransferFen] = useState("");
+  const [recognitionStatus, setRecognitionStatus] = useState<RecognitionStatus>("idle");
+  const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
+  const [recognitionError, setRecognitionError] = useState("");
+  const [engineEnabled, setEngineEnabled] = useState(false);
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
+  const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+  const [engineMessage, setEngineMessage] = useState("");
+  const [engineDepth, setEngineDepth] = useState(14);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pageStageRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+  const renderTaskRef = useRef<RenderTask | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragCurrentRef = useRef<{ x: number; y: number; x2: number; y2: number } | null>(null);
+  const arrowGestureRef = useRef<Square | null>(null);
+  const suppressBoardContextMenuRef = useRef(false);
+  const arrowGestureMovedRef = useRef(false);
+const scanAbortControllerRef = useRef<AbortController | null>(null);
+  const scanRequestIdRef = useRef(0);
+  const transferRequestRef = useRef(0);
+  const cropEditStartRef = useRef<{ candidate: Candidate; handle: CropHandle; point: { x: number; y: number } } | null>(null);
+  const cropBaselineRef = useRef<Candidate | null>(null);
+  const engineRef = useRef<StockfishEngine | null>(null);
+
+  useEffect(() => {
+          : studyMode
+            ? studyBoard
+            : session;
+  const game = useMemo(() => {
+    if (!boardSession) return new Chess();
+    try {
+      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+    } catch {
+      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+    }
+  }, [boardSession]);
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return new Set<string>();
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+  useEffect(() => {
+    setUserArrows([]);
+    setArrowStart(null);
+    setArrowHover(null);
+    setAnnotationMode(false);
+  }, [book?.id, session?.currentFen]);
+
+  useEffect(() => {
+    if (engineEnabled && boardSession) {
+      engineRef.current?.analyze(game.fen(), engineDepth);
+    }
+  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+
+  function messageOf(cause: unknown): string {
+    return cause instanceof Error ? cause.message : String(cause);
+  }
+
+  function toggleEngine() {
+    if (engineEnabled) {
+      engineRef.current?.dispose();
+      engineRef.current = null;
+      setEngineEnabled(false);
+      setEngineStatus("off");
+      setEngineScore(null);
+      setEngineMessage("");
+      return;
+    }
+    try {
+      setEngineScore(null);
+      setEngineMessage("");
+      const client = new StockfishEngine(
+        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+        (status, message) => {
+          setEngineStatus(status);
+          if (status === "error") {
+            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+            setEngineEnabled(false);
+            setEngineScore(null);
+            engineRef.current?.dispose();
+            engineRef.current = null;
+          }
+        },
+        setEngineScore,
+      );
+      engineRef.current = client;
+      setEngineEnabled(true);
+    } catch (cause) {
+      setEngineStatus("error");
+      setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+      setEngineEnabled(false);
+    }
+  }
+
+  function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+    setSession((current) => {
+      if (!current) return current;
+      return typeof change === "function" ? change(current) : { ...current, ...change };
+    });
+
+========== PGN PARSER ==========
+import { Chess } from "chess.js";
+import { START_FEN } from "./model";
+
+export type ImportedPgn = {
+  headers: Record<string, string>;
+  lineBaseFen: string;
+  moves: string[];
+  finalFen: string;
+};
+
+export function parsePgn(pgn: string): ImportedPgn {
+  const source = pgn.trim();
+
+  if (!source) {
+    throw new Error("Paste or select a PGN game first.");
+  }
+
+  const parsed = new Chess();
+
+  try {
+    parsed.loadPgn(source);
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : "Unknown PGN error";
+    throw new Error(`Invalid PGN: ${detail}`);
+  }
+
+  const headers = parsed.getHeaders();
+  const customFen = headers.FEN?.trim();
+  const lineBaseFen = customFen || START_FEN;
+
+  let replay: Chess;
+
+  try {
+    replay = new Chess(lineBaseFen);
+  } catch {
+    throw new Error("The PGN contains an invalid starting FEN.");
+  }
+
+  const moves = parsed.history();
+
+  if (moves.length === 0) {
+    throw new Error("The PGN contains no moves.");
+  }
+
+  try {
+    for (const san of moves) {
+      replay.move(san);
+    }
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : "Unknown move error";
+    throw new Error(`Could not replay the imported game: ${detail}`);
+  }
+
+  if (replay.fen() !== parsed.fen()) {
+    throw new Error("The imported PGN could not be reproduced from its starting position.");
+  }
+
+  return {
+    headers,
+    lineBaseFen,
+    moves,
+    finalFen: replay.fen(),
+  };
+}

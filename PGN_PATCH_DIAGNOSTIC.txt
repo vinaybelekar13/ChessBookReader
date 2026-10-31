@@ -1,0 +1,48 @@
+========== PGN PATCH DIAGNOSTIC ==========
+Date: 10/30/2026 23:48:09
+
+========== jumpToMove FUNCTION ==========
+  function jumpToMove(index: number) {
+    if (!boardSession) return;
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+    } catch (cause) {
+      setError(`Could not navigate to move: ${messageOf(cause)}`);
+    }
+  }
+
+  async function copyText(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setNotice("Copied to clipboard.");
+    } catch (cause) {
+      setError(`Clipboard access failed: ${messageOf(cause)}`);
+    }
+  }
+
+  function stopBoardScan() {
+    const controller = scanAbortControllerRef.current;
+    if (!controller) return;
+
+    ++scanRequestIdRef.current;
+    scanAbortControllerRef.current = null;
+    controller.abort();
+    setDetecting(false);
+    setNotice("Scan cancelled.");
+
+    patchSession((current) => ({
+      ...current,
+      candidatesByPage: {
+        ...current.candidatesByPage,
+
+========== PGN FILE STATUS ==========
+.\src\pgn-import.ts : EXISTS
+Size: 1423 bytes
+.\src\pgn-import.test.ts : NOT FOUND
+
+========== APP.TSX PGN REFERENCES ==========
+No PGN references found in App.tsx.

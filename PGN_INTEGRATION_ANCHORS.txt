@@ -1,0 +1,215 @@
+========== PGN INTEGRATION ANCHORS ==========
+
+========== APP IMPORTS ==========
+import { useEffect, useMemo, useRef, useState } from "react";
+import CoordinateTraining from "./CoordinateTraining";
+import NotationLearner from "./NotationLearner";
+import {
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+  putSession,
+  removeBook,
+  removeSession,
+  setActiveBookId,
+} from "./storage";
+import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+
+
+function formatUciMove(fen: string, uci: string): string {
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+      from: match[1] as Square,
+      to: match[2] as Square,
+      ...(match[3] ? { promotion: match[3] as "q" | "r" | "b" | "n" } : {}),
+    });
+    return move.san;
+  } catch {
+    return uci;
+  }
+}
+
+
+========== BOARD TOOLBAR ==========
+            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+            <span className="controls-separator" />
+            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+            <span className="controls-spacer" />
+            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+          </div>
+          <div className="turn-row">
+            <span>TO MOVE</span>
+            <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "w");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+            <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+            <span className="controls-separator" />
+            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+            <span className="controls-spacer" />
+            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+          </div>
+          <div className="turn-row">
+            <span>TO MOVE</span>
+            <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "w");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+            <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+
+========== ANALYSIS BOARD STATE ==========
+  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  const [studyMode, setStudyMode] = useState(false);
+  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+  }));
+  const [openingPrepBoard, setOpeningPrepBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+--------------------------------
+    });
+  }
+
+  function patchBoardSession(change: Partial<StudyBoardState>) {
+    if (workspaceMode === "opening-explorer") {
+      return;
+    }
+
+    if (workspaceMode === "analysis") {
+      setAnalysisBoard((current) => ({ ...current, ...change }));
+    } else if (workspaceMode === "opening-prep") {
+      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+    } else if (studyMode) {
+      setStudyBoard((current) => current ? { ...current, ...change } : current);
+    } else {
+      patchSession(change);
+--------------------------------
+    setArrowHover(null);
+  }
+
+  function jumpToMove(index: number) {
+    if (!boardSession) return;
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+    } catch (cause) {
+      setError(`Could not navigate to move: ${messageOf(cause)}`);
+    }
+  }
+
+--------------------------------
+
+========== EXISTING PGN PARSER ==========
+import { Chess } from "chess.js";
+import { START_FEN } from "./model";
+
+export type ImportedPgn = {
+  headers: Record<string, string>;
+  lineBaseFen: string;
+  moves: string[];
+  finalFen: string;
+};
+
+export function parsePgn(pgn: string): ImportedPgn {
+  const source = pgn.trim();
+
+  if (!source) {
+    throw new Error("Paste or select a PGN game first.");
+  }
+
+  const parsed = new Chess();
+
+  try {
+    parsed.loadPgn(source);
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : "Unknown PGN error";
+    throw new Error(`Invalid PGN: ${detail}`);
+  }
+
+  const headers = parsed.getHeaders();
+  const customFen = headers.FEN?.trim();
+  const lineBaseFen = customFen || START_FEN;
+
+  let replay: Chess;
+
+  try {
+    replay = new Chess(lineBaseFen);
+  } catch {
+    throw new Error("The PGN contains an invalid starting FEN.");
+  }
+
+  const moves = parsed.history();
+
+  try {
+    for (const san of moves) {
+      replay.move(san);
+    }
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : "Unknown move error";
+    throw new Error(`Could not replay the imported game: ${detail}`);
+  }
+
+  if (replay.fen() !== parsed.fen()) {
+    throw new Error("The imported PGN could not be reproduced from its starting position.");
+  }
+
+  return {
+    headers,
+    lineBaseFen: replay.history().length ? lineBaseFen : lineBaseFen,
+    moves,
+    finalFen: replay.fen(),
+  };
+}

@@ -1,0 +1,883 @@
+﻿
+========== src\App.tsx ==========
+
+  src\App.tsx:9:import { fenWithTurn, makePosition } from "./chess-state";
+  src\App.tsx:10:import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+  src\App.tsx:11:import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+  src\App.tsx:12:import { ManualBoardEditor } from "./ManualBoardEditor";
+> src\App.tsx:13:import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+  src\App.tsx:14:import {
+  src\App.tsx:15:  getActiveBookId,
+  src\App.tsx:16:  getBooks,
+  src\App.tsx:17:  getSession,
+  src\App.tsx:18:  getSession as getStoredSession,
+  src\App.tsx:19:  putBook,
+  src\App.tsx:20:  putSession,
+  src\App.tsx:21:  removeBook,
+  src\App.tsx:22:  removeSession,
+  src\App.tsx:23:  setActiveBookId,
+  src\App.tsx:24:} from "./storage";
+> src\App.tsx:25:import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+  src\App.tsx:26:import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+  src\App.tsx:27:import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type 
+LichessConnectionStatus } from "./opening-explorer-api";
+  src\App.tsx:28:
+  src\App.tsx:29:
+  src\App.tsx:30:function formatUciMove(fen: string, uci: string): string {
+  src\App.tsx:31:  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  src\App.tsx:32:  if (!match) return uci;
+  src\App.tsx:65:
+  src\App.tsx:66:GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+  src\App.tsx:67:
+  src\App.tsx:68:type LibraryTab = "all" | "recent";
+> src\App.tsx:69:type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "notation-learner";
+  src\App.tsx:70:
+  src\App.tsx:71:const FILE_LIMIT = 100 * 1024 * 1024;
+  src\App.tsx:72:const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+  src\App.tsx:73:const CROP_HANDLES: CropHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+  src\App.tsx:74:type CandidateInput = Omit<Candidate, "id" | "source" | "relativeScore"> &
+  src\App.tsx:75:  Partial<Pick<Candidate, "id" | "source" | "relativeScore">> & { relative_score?: number; confidence?: number };
+  src\App.tsx:76:type RecognitionResult = {
+  src\App.tsx:107:}
+  src\App.tsx:108:
+  src\App.tsx:109:export default function App() {
+  src\App.tsx:110:  const [books, setBooks] = useState<BookRecord[]>([]);
+> src\App.tsx:111:  const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
+  src\App.tsx:112:  const [book, setBook] = useState<BookRecord | null>(null);
+> src\App.tsx:113:  const [session, setSession] = useState<BookSession | null>(null);
+> src\App.tsx:114:  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  src\App.tsx:115:  const [studyMode, setStudyMode] = useState(false);
+  src\App.tsx:116:  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+> src\App.tsx:117:  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+  src\App.tsx:118:    lineBaseFen: START_FEN,
+  src\App.tsx:119:    currentFen: START_FEN,
+  src\App.tsx:120:    moves: [],
+> src\App.tsx:121:    moveIndex: 0,
+  src\App.tsx:122:    flipped: false,
+  src\App.tsx:123:    coordinates: true,
+  src\App.tsx:124:  }));
+  src\App.tsx:125:  const [openingPrepBoard, setOpeningPrepBoard] = useState<StudyBoardState>(() => ({
+  src\App.tsx:126:    lineBaseFen: START_FEN,
+  src\App.tsx:127:    currentFen: START_FEN,
+  src\App.tsx:128:    moves: [],
+> src\App.tsx:129:    moveIndex: 0,
+  src\App.tsx:130:    flipped: false,
+  src\App.tsx:131:    coordinates: true,
+  src\App.tsx:132:  }));
+  src\App.tsx:133:  const [ready, setReady] = useState(false);
+  src\App.tsx:134:  const [notice, setNotice] = useState("");
+  src\App.tsx:135:  const [error, setError] = useState("");
+  src\App.tsx:136:  const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+  src\App.tsx:177:  const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
+  src\App.tsx:178:  const [pdfLoading, setPdfLoading] = useState(false);
+  src\App.tsx:179:  const [rendering, setRendering] = useState(false);
+  src\App.tsx:180:  const [detecting, setDetecting] = useState(false);
+> src\App.tsx:181:  const [fenInput, setFenInput] = useState("");
+  src\App.tsx:182:  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  src\App.tsx:183:  const [promotionRequest, setPromotionRequest] = useState<{ from: Square; to: Square } | null>(null);
+  src\App.tsx:184:  const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
+  src\App.tsx:185:  const [gameEndOverlay, setGameEndOverlay] = useState<{ title: string; message: string } | null>(null);
+  src\App.tsx:186:  const [userArrows, setUserArrows] = useState<BoardArrow[]>([]);
+  src\App.tsx:187:  const [redSquares, setRedSquares] = useState<Square[]>([]);
+  src\App.tsx:188:  const [arrowStart, setArrowStart] = useState<Square | null>(null);
+  src\App.tsx:198:  const [transferFen, setTransferFen] = useState("");
+  src\App.tsx:199:  const [recognitionStatus, setRecognitionStatus] = useState<RecognitionStatus>("idle");
+  src\App.tsx:200:  const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
+  src\App.tsx:201:  const [recognitionError, setRecognitionError] = useState("");
+> src\App.tsx:202:  const [engineEnabled, setEngineEnabled] = useState(false);
+> src\App.tsx:203:  const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
+> src\App.tsx:204:  const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+> src\App.tsx:205:  const [engineMessage, setEngineMessage] = useState("");
+> src\App.tsx:206:  const [engineDepth, setEngineDepth] = useState(14);
+  src\App.tsx:207:  const fileInput = useRef<HTMLInputElement>(null);
+  src\App.tsx:208:  const canvasRef = useRef<HTMLCanvasElement>(null);
+  src\App.tsx:209:  const pageStageRef = useRef<HTMLDivElement>(null);
+  src\App.tsx:210:  const boardRef = useRef<HTMLDivElement>(null);
+  src\App.tsx:211:  const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  src\App.tsx:212:  const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+  src\App.tsx:213:  const renderTaskRef = useRef<RenderTask | null>(null);
+  src\App.tsx:220:  const scanRequestIdRef = useRef(0);
+  src\App.tsx:221:  const transferRequestRef = useRef(0);
+  src\App.tsx:222:  const cropEditStartRef = useRef<{ candidate: Candidate; handle: CropHandle; point: { x: number; y: number } } | null>(null);
+  src\App.tsx:223:  const cropBaselineRef = useRef<Candidate | null>(null);
+> src\App.tsx:224:  const engineRef = useRef<StockfishEngine | null>(null);
+  src\App.tsx:225:
+  src\App.tsx:226:  useEffect(() => {
+  src\App.tsx:227:    let cancelled = false;
+  src\App.tsx:228:    async function initialize() {
+  src\App.tsx:229:      try {
+  src\App.tsx:230:        const [storedBooks, activeId] = await Promise.all([getBooks(), getActiveBookId()]);
+> src\App.tsx:231:        const storedSessions: Record<string, BookSession> = {};
+  src\App.tsx:232:        await Promise.all(storedBooks.map(async (item) => {
+  src\App.tsx:233:          const stored = await getStoredSession(item.id);
+  src\App.tsx:234:          if (stored) storedSessions[item.id] = stored;
+  src\App.tsx:235:        }));
+  src\App.tsx:236:        if (cancelled) return;
+  src\App.tsx:237:        const ordered = storedBooks.sort((a, b) => b.lastOpenedAt - a.lastOpenedAt);
+  src\App.tsx:238:        setSessionIndex(storedSessions);
+  src\App.tsx:365:    return () => window.removeEventListener("keydown", onKey);
+  src\App.tsx:366:  });
+  src\App.tsx:367:
+  src\App.tsx:368:  useEffect(() => () => {
+> src\App.tsx:369:    engineRef.current?.dispose();
+> src\App.tsx:370:    engineRef.current = null;
+  src\App.tsx:371:  }, []);
+  src\App.tsx:372:
+  src\App.tsx:373:  const sortedBooks = useMemo(() => [...books].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt), [books]);
+  src\App.tsx:374:  const visibleBooks = useMemo(() => {
+  src\App.tsx:375:    const needle = bookSearch.trim().toLowerCase();
+  src\App.tsx:376:    return sortedBooks.filter((item) => {
+  src\App.tsx:377:      const matchesTab = true;
+  src\App.tsx:424:    };
+  src\App.tsx:425:  }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+  src\App.tsx:426:
+  src\App.tsx:427:  const boardSession: StudyBoardState | null =
+> src\App.tsx:428:    workspaceMode === "analysis"
+> src\App.tsx:429:      ? analysisBoard
+  src\App.tsx:430:      : workspaceMode === "opening-prep"
+  src\App.tsx:431:        ? openingPrepBoard
+  src\App.tsx:432:        : workspaceMode === "opening-explorer"
+  src\App.tsx:433:          ? {
+  src\App.tsx:434:              lineBaseFen: START_FEN,
+  src\App.tsx:435:              currentFen: openingPosition.fen,
+  src\App.tsx:436:              moves: openingPosition.sanMoves,
+> src\App.tsx:437:              moveIndex: openingPosition.sanMoves.length,
+  src\App.tsx:438:              flipped: false,
+  src\App.tsx:439:              coordinates: true,
+  src\App.tsx:440:            }
+  src\App.tsx:441:          : studyMode
+  src\App.tsx:442:            ? studyBoard
+  src\App.tsx:443:            : session;
+  src\App.tsx:444:  const game = useMemo(() => {
+  src\App.tsx:445:    if (!boardSession) return new Chess();
+  src\App.tsx:446:    try {
+> src\App.tsx:447:      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+  src\App.tsx:448:    } catch {
+  src\App.tsx:449:      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+  src\App.tsx:450:    }
+  src\App.tsx:451:  }, [boardSession]);
+  src\App.tsx:452:  const legalTargets = useMemo(() => {
+  src\App.tsx:453:    if (!selectedSquare) return new Set<string>();
+  src\App.tsx:454:    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  src\App.tsx:455:  }, [game, selectedSquare]);
+  src\App.tsx:456:  const pieceSquares = game.board();
+> src\App.tsx:457:  const moveHistory = useMemo(() => {
+> src\App.tsx:458:    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 
+0).history({ verbose: true }); }
+  src\App.tsx:459:    catch { return []; }
+  src\App.tsx:460:  }, [boardSession]);
+> src\App.tsx:461:  const highlightedMove = lastMove ?? (moveHistory.length
+> src\App.tsx:462:    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+  src\App.tsx:463:    : null);
+> src\App.tsx:464:  const engineArrow = useMemo(
+> src\App.tsx:465:    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+> src\App.tsx:466:    [engineEnabled, engineScore?.bestMove],
+  src\App.tsx:467:  );
+  src\App.tsx:468:
+  src\App.tsx:469:  useEffect(() => {
+  src\App.tsx:470:    setUserArrows([]);
+  src\App.tsx:471:    setArrowStart(null);
+  src\App.tsx:472:    setArrowHover(null);
+  src\App.tsx:473:    setAnnotationMode(false);
+  src\App.tsx:474:  }, [book?.id, session?.currentFen]);
+  src\App.tsx:475:
+  src\App.tsx:476:  useEffect(() => {
+> src\App.tsx:477:    if (engineEnabled && boardSession) {
+> src\App.tsx:478:      engineRef.current?.analyze(game.fen(), engineDepth);
+  src\App.tsx:479:    }
+> src\App.tsx:480:  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+  src\App.tsx:481:
+  src\App.tsx:482:  function messageOf(cause: unknown): string {
+  src\App.tsx:483:    return cause instanceof Error ? cause.message : String(cause);
+  src\App.tsx:484:  }
+  src\App.tsx:485:
+> src\App.tsx:486:  function toggleEngine() {
+> src\App.tsx:487:    if (engineEnabled) {
+> src\App.tsx:488:      engineRef.current?.dispose();
+> src\App.tsx:489:      engineRef.current = null;
+> src\App.tsx:490:      setEngineEnabled(false);
+> src\App.tsx:491:      setEngineStatus("off");
+> src\App.tsx:492:      setEngineScore(null);
+> src\App.tsx:493:      setEngineMessage("");
+  src\App.tsx:494:      return;
+  src\App.tsx:495:    }
+  src\App.tsx:496:    try {
+> src\App.tsx:497:      setEngineScore(null);
+> src\App.tsx:498:      setEngineMessage("");
+> src\App.tsx:499:      const client = new StockfishEngine(
+> src\App.tsx:500:        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+  src\App.tsx:501:        (status, message) => {
+> src\App.tsx:502:          setEngineStatus(status);
+  src\App.tsx:503:          if (status === "error") {
+> src\App.tsx:504:            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+> src\App.tsx:505:            setEngineEnabled(false);
+> src\App.tsx:506:            setEngineScore(null);
+> src\App.tsx:507:            engineRef.current?.dispose();
+> src\App.tsx:508:            engineRef.current = null;
+  src\App.tsx:509:          }
+  src\App.tsx:510:        },
+> src\App.tsx:511:        setEngineScore,
+  src\App.tsx:512:      );
+> src\App.tsx:513:      engineRef.current = client;
+> src\App.tsx:514:      setEngineEnabled(true);
+  src\App.tsx:515:    } catch (cause) {
+> src\App.tsx:516:      setEngineStatus("error");
+> src\App.tsx:517:      setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+> src\App.tsx:518:      setEngineEnabled(false);
+  src\App.tsx:519:    }
+  src\App.tsx:520:  }
+  src\App.tsx:521:
+> src\App.tsx:522:  function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+  src\App.tsx:523:    setSession((current) => {
+  src\App.tsx:524:      if (!current) return current;
+  src\App.tsx:525:      return typeof change === "function" ? change(current) : { ...current, ...change };
+  src\App.tsx:526:    });
+  src\App.tsx:527:  }
+  src\App.tsx:528:
+  src\App.tsx:529:  function patchBoardSession(change: Partial<StudyBoardState>) {
+  src\App.tsx:530:    if (workspaceMode === "opening-explorer") {
+  src\App.tsx:531:      return;
+  src\App.tsx:532:    }
+  src\App.tsx:533:
+> src\App.tsx:534:    if (workspaceMode === "analysis") {
+> src\App.tsx:535:      setAnalysisBoard((current) => ({ ...current, ...change }));
+  src\App.tsx:536:    } else if (workspaceMode === "opening-prep") {
+  src\App.tsx:537:      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+  src\App.tsx:538:    } else if (studyMode) {
+  src\App.tsx:539:      setStudyBoard((current) => current ? { ...current, ...change } : current);
+  src\App.tsx:540:    } else {
+  src\App.tsx:541:      patchSession(change);
+  src\App.tsx:542:    }
+  src\App.tsx:550:      setStudyBoard({
+  src\App.tsx:551:        lineBaseFen: session.lineBaseFen,
+  src\App.tsx:552:        currentFen: session.currentFen,
+  src\App.tsx:553:        moves: [...session.moves],
+> src\App.tsx:554:        moveIndex: session.moveIndex,
+  src\App.tsx:555:        flipped: session.flipped,
+  src\App.tsx:556:        coordinates: session.coordinates,
+  src\App.tsx:557:      });
+  src\App.tsx:558:      setStudyMode(true);
+  src\App.tsx:559:    } else {
+  src\App.tsx:560:      // Preserve the latest Focus Mode board when returning to normal mode.
+  src\App.tsx:561:      if (studyBoard) {
+  src\App.tsx:562:        patchSession({
+  src\App.tsx:563:          lineBaseFen: studyBoard.lineBaseFen,
+  src\App.tsx:564:          currentFen: studyBoard.currentFen,
+  src\App.tsx:565:          moves: [...studyBoard.moves],
+> src\App.tsx:566:          moveIndex: studyBoard.moveIndex,
+  src\App.tsx:567:          flipped: studyBoard.flipped,
+  src\App.tsx:568:          coordinates: studyBoard.coordinates,
+  src\App.tsx:569:        });
+  src\App.tsx:570:      }
+  src\App.tsx:571:      setStudyMode(false);
+  src\App.tsx:572:    }
+  src\App.tsx:573:    setLastMove(null);
+  src\App.tsx:681:    patchSession({ page: Math.max(1, Math.min(session.pageCount || 1, Math.floor(value))) });
+  src\App.tsx:682:  }
+  src\App.tsx:683:
+  src\App.tsx:684:  function moveToPosition(fen: string): boolean {
+> src\App.tsx:685:    const activeSession = session ?? newSession("analysis");
+  src\App.tsx:686:    try {
+  src\App.tsx:687:      const next = new Chess(fen);
+  src\App.tsx:688:      setSession({
+  src\App.tsx:689:        ...activeSession,
+  src\App.tsx:690:        originalFen: fen,
+  src\App.tsx:691:        lineBaseFen: fen,
+> src\App.tsx:692:        currentFen: next.fen(),
+  src\App.tsx:693:        moves: [],
+> src\App.tsx:694:        moveIndex: 0,
+  src\App.tsx:695:      });
+  src\App.tsx:696:      setLastMove(null);
+  src\App.tsx:697:      setSelectedSquare(null);
+  src\App.tsx:698:      setUserArrows([]);
+  src\App.tsx:699:      setNotice("Position loaded. Reset Board returns to this diagram position.");
+  src\App.tsx:700:      return true;
+  src\App.tsx:701:    } catch (cause) {
+  src\App.tsx:706:
+  src\App.tsx:707:  function analyzeManualPosition(fen: string): boolean {
+  src\App.tsx:708:    const loaded = moveToPosition(fen);
+  src\App.tsx:709:    if (!loaded) return false;
+> src\App.tsx:710:    setEngineScore(null);
+> src\App.tsx:711:    setEngineMessage("");
+> src\App.tsx:712:    if (!engineEnabled) {
+> src\App.tsx:713:      toggleEngine();
+  src\App.tsx:714:    } else {
+> src\App.tsx:715:      engineRef.current?.analyze(fen, engineDepth);
+  src\App.tsx:716:    }
+> src\App.tsx:717:    setNotice("Manual position loaded. Stockfish analysis started.");
+  src\App.tsx:718:    return true;
+  src\App.tsx:719:  }
+  src\App.tsx:720:
+  src\App.tsx:721:  function selectCandidate(candidate: Candidate) {
+  src\App.tsx:722:    if (!session) return;
+  src\App.tsx:723:    setCropEditingId(null);
+  src\App.tsx:724:    cropBaselineRef.current = null;
+  src\App.tsx:805:      if (requestId !== transferRequestRef.current) return;
+  src\App.tsx:806:      setTransferFen(result.fen);
+  src\App.tsx:807:      setRecognitionResult(result);
+  src\App.tsx:808:      setRecognitionStatus("complete");
+> src\App.tsx:809:      // A successful scan immediately becomes the active analysis position.
+  src\App.tsx:810:      // Keep the review dialog open so the user can correct uncertain squares;
+  src\App.tsx:811:      // the explicit confirmation button remains available for corrected FENs.
+  src\App.tsx:812:      if (moveToPosition(result.fen)) {
+> src\App.tsx:813:        setNotice("Scanned position loaded automatically onto the analysis board. Review the diagram and correct any uncertain 
+squares before continuing.");
+  src\App.tsx:814:      }
+  src\App.tsx:815:    } catch (cause) {
+  src\App.tsx:816:      if (requestId !== transferRequestRef.current) return;
+  src\App.tsx:817:      setRecognitionStatus("failed");
+  src\App.tsx:818:      setRecognitionError(messageOf(cause));
+  src\App.tsx:819:    }
+  src\App.tsx:820:  }
+  src\App.tsx:862:        from: promotionRequest.from,
+  src\App.tsx:863:        to: promotionRequest.to,
+  src\App.tsx:864:        promotion: piece,
+  src\App.tsx:865:      });
+> src\App.tsx:866:      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+  src\App.tsx:867:      patchBoardSession({
+> src\App.tsx:868:        currentFen: currentGame.fen(),
+  src\App.tsx:869:        moves: nextMoves,
+> src\App.tsx:870:        moveIndex: nextMoves.length,
+  src\App.tsx:871:      });
+  src\App.tsx:872:      updateGameEndOverlay(currentGame);
+  src\App.tsx:873:      setLastMove({ from: promotionRequest.from, to: promotionRequest.to });
+  src\App.tsx:874:      setSelectedSquare(null);
+  src\App.tsx:875:      setPromotionRequest(null);
+  src\App.tsx:876:      setError("");
+  src\App.tsx:877:    } catch {
+  src\App.tsx:891:        setPromotionRequest({ from, to });
+  src\App.tsx:892:        return;
+  src\App.tsx:893:      }
+  src\App.tsx:894:      const result = currentGame.move({ from, to });
+> src\App.tsx:895:      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+  src\App.tsx:896:      if (workspaceMode === "opening-explorer") {
+  src\App.tsx:897:        const line = nextMoves
+  src\App.tsx:898:          .map((move, index) => index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ${move}` : move)
+  src\App.tsx:899:          .join(" ");
+  src\App.tsx:900:        setOpeningExplorerInput(line);
+  src\App.tsx:901:        setOpeningExplorerPly(nextMoves.length);
+  src\App.tsx:902:      } else {
+  src\App.tsx:903:        patchBoardSession({
+> src\App.tsx:904:          currentFen: currentGame.fen(),
+  src\App.tsx:905:          moves: nextMoves,
+> src\App.tsx:906:          moveIndex: nextMoves.length,
+  src\App.tsx:907:        });
+  src\App.tsx:908:      }
+  src\App.tsx:909:      updateGameEndOverlay(currentGame);
+  src\App.tsx:910:      setLastMove({ from, to });
+  src\App.tsx:911:      setSelectedSquare(null);
+  src\App.tsx:912:      setError("");
+  src\App.tsx:913:    } catch {
+  src\App.tsx:1015:  function jumpToMove(index: number) {
+  src\App.tsx:1016:    if (!boardSession) return;
+  src\App.tsx:1017:    try {
+  src\App.tsx:1018:      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+> src\App.tsx:1019:      const last = next.history({ verbose: true }).at(-1);
+> src\App.tsx:1020:      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+  src\App.tsx:1021:      setLastMove(last ? { from: last.from, to: last.to } : null);
+  src\App.tsx:1022:      setSelectedSquare(null);
+  src\App.tsx:1023:    } catch (cause) {
+  src\App.tsx:1024:      setError(`Could not navigate to move: ${messageOf(cause)}`);
+  src\App.tsx:1025:    }
+  src\App.tsx:1026:  }
+  src\App.tsx:1027:
+  src\App.tsx:1153:      }));
+  src\App.tsx:1154:
+  src\App.tsx:1155:      setNotice(
+  src\App.tsx:1156:        candidates.length
+> src\App.tsx:1157:          ? `Found ${candidates.length} board candidate${candidates.length === 1 ? "" : "s"}. Select a candidate to recognize 
+its chess position and load it onto the analysis board.`
+  src\App.tsx:1158:          : "No board candidates found.",
+  src\App.tsx:1159:      );
+  src\App.tsx:1160:    } catch (cause) {
+  src\App.tsx:1161:      if (requestId !== scanRequestIdRef.current) return;
+  src\App.tsx:1162:
+  src\App.tsx:1163:      if (abortController.signal.aborted) {
+  src\App.tsx:1164:        setNotice("Scan cancelled.");
+  src\App.tsx:1326:  function resetBoard() {
+  src\App.tsx:1327:    if (workspaceMode === "opening-prep") {
+  src\App.tsx:1328:      const original = new Chess(openingPrepBoard.lineBaseFen);
+  src\App.tsx:1329:      patchBoardSession({
+> src\App.tsx:1330:        lineBaseFen: original.fen(),
+> src\App.tsx:1331:        currentFen: original.fen(),
+  src\App.tsx:1332:        moves: [],
+> src\App.tsx:1333:        moveIndex: 0,
+  src\App.tsx:1334:      });
+  src\App.tsx:1335:    } else if (studyMode) {
+  src\App.tsx:1336:      if (!studyBoard) return;
+  src\App.tsx:1337:      const original = new Chess(studyBoard.lineBaseFen);
+  src\App.tsx:1338:      patchBoardSession({
+> src\App.tsx:1339:        lineBaseFen: original.fen(),
+> src\App.tsx:1340:        currentFen: original.fen(),
+  src\App.tsx:1341:        moves: [],
+> src\App.tsx:1342:        moveIndex: 0,
+  src\App.tsx:1343:      });
+  src\App.tsx:1344:    } else {
+  src\App.tsx:1345:      if (!session) return;
+  src\App.tsx:1346:      const original = new Chess(session.originalFen);
+  src\App.tsx:1347:      patchSession({
+> src\App.tsx:1348:        lineBaseFen: original.fen(),
+> src\App.tsx:1349:        currentFen: original.fen(),
+  src\App.tsx:1350:        moves: [],
+> src\App.tsx:1351:        moveIndex: 0,
+  src\App.tsx:1352:      });
+  src\App.tsx:1353:    }
+  src\App.tsx:1354:    setLastMove(null);
+  src\App.tsx:1355:    setSelectedSquare(null);
+  src\App.tsx:1356:    setPromotionRequest(null);
+  src\App.tsx:1357:    setError("");
+  src\App.tsx:1358:  }
+  src\App.tsx:1382:        <span className="storage-label"><i /> LOCAL LIBRARY</span>
+  src\App.tsx:1383:        <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+  src\App.tsx:1384:      </header>
+  src\App.tsx:1385:
+> src\App.tsx:1386:      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? 
+"opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "notation-learner" ? 
+"notation-learner-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""}`}>
+  src\App.tsx:1387:        {libraryOpen && (
+  src\App.tsx:1388:          <aside className="library-panel">
+  src\App.tsx:1389:            <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => 
+fileInput.current?.click()}>&#10133; Add Book</button></div>
+  src\App.tsx:1390:            <input
+  src\App.tsx:1391:              ref={fileInput}
+  src\App.tsx:1392:              className="hidden-input"
+  src\App.tsx:1393:              type="file"
+  src\App.tsx:1424:            <section className="sidebar-moves-panel" aria-label="Move list">
+  src\App.tsx:1425:<div className="moves-panel">
+  src\App.tsx:1426:            <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+  src\App.tsx:1427:              if (!session) return;
+> src\App.tsx:1428:              patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+  src\App.tsx:1429:              setLastMove(null);
+> src\App.tsx:1430:              setNotice("New analysis line started from the current position.");
+  src\App.tsx:1431:            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+  src\App.tsx:1432:            <div className="move-list">
+> src\App.tsx:1433:              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+  src\App.tsx:1434:                <div className="move-pair" key={row}>
+  src\App.tsx:1435:                  <span className="move-number">{row + 1}.</span>
+> src\App.tsx:1436:                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} 
+ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => 
+jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+> src\App.tsx:1437:                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} 
+ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => 
+jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+  src\App.tsx:1438:                </div>
+  src\App.tsx:1439:              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+  src\App.tsx:1440:            </div>
+  src\App.tsx:1441:          </div>
+  src\App.tsx:1442:            </section>
+  src\App.tsx:1443:            <div className="library-footer"><span className="local-dot" /> Stored on this device <span 
+className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+  src\App.tsx:1444:          </aside>
+  src\App.tsx:1445:        )}
+  src\App.tsx:1446:
+  src\App.tsx:1447:        {workspaceMode === "notation-learner" ? <NotationLearner /> : workspaceMode === "coordinate-training" ? 
+<CoordinateTraining /> : <>
+> src\App.tsx:1448:        <section className="board-panel" aria-label="Chessboard analysis">
+  src\App.tsx:1449:          <div className="board-header">
+> src\App.tsx:1450:            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === 
+"opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : 
+"Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? 
+"Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+  src\App.tsx:1451:            <div className="board-header-actions">
+  src\App.tsx:1452:              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus 
+mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+  src\App.tsx:1453:              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: 
+!boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+  src\App.tsx:1454:            </div>
+  src\App.tsx:1455:          </div>
+  src\App.tsx:1456:          <div className="board-area">
+  src\App.tsx:1457:            <div
+> src\App.tsx:1458:              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+> src\App.tsx:1459:              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus 
+=== "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+> src\App.tsx:1460:              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage 
+: "No valid engine score yet"}
+  src\App.tsx:1461:            >
+> src\App.tsx:1462:              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+> src\App.tsx:1463:              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} 
+/>
+  src\App.tsx:1464:            </div>
+  src\App.tsx:1465:            <div className="board-frame">
+  src\App.tsx:1466:              <div
+  src\App.tsx:1467:                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+  src\App.tsx:1468:                ref={boardRef}
+  src\App.tsx:1469:                onPointerDown={boardArrowPointerDown}
+  src\App.tsx:1470:                onPointerMove={boardArrowPointerMove}
+  src\App.tsx:1535:                })}
+  src\App.tsx:1536:                <svg className="board-arrows" viewBox="0 0 8 8" aria-hidden="true">
+  src\App.tsx:1537:                  {[
+  src\App.tsx:1538:                    ...userArrows.map((arrow) => ({ arrow, kind: "user" as const })),
+> src\App.tsx:1539:                    ...(engineArrow ? [{ arrow: engineArrow, kind: "engine" as const }] : []),
+  src\App.tsx:1540:                    ...(arrowStart && arrowHover && arrowStart !== arrowHover
+  src\App.tsx:1541:                      ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
+  src\App.tsx:1542:                      : []),
+  src\App.tsx:1543:                  ].map(({ arrow, kind }, index) => {
+  src\App.tsx:1544:                    const from = squareCenter(arrow.from, Boolean(boardSession?.flipped));
+  src\App.tsx:1545:                    const to = squareCenter(arrow.to, Boolean(boardSession?.flipped));
+  src\App.tsx:1546:                    const dx = to.x - from.x;
+  src\App.tsx:1571:                      [baseX - px * headHalfWidth, baseY - py * headHalfWidth],
+  src\App.tsx:1572:                      [baseX - px * shaftHalfWidth, baseY - py * shaftHalfWidth],
+  src\App.tsx:1573:                      [startX - px * shaftHalfWidth, startY - py * shaftHalfWidth],
+  src\App.tsx:1574:                    ];
+> src\App.tsx:1575:                    const color = kind === "engine" ? "#f0a23b" : "#81b64c";
+> src\App.tsx:1576:                    const opacity = kind === "preview" ? 0.52 : kind === "engine" ? 0.78 : 0.80;
+  src\App.tsx:1577:
+  src\App.tsx:1578:                    return (
+  src\App.tsx:1579:                      <polygon
+  src\App.tsx:1580:                        key={`${kind}-${arrow.from}-${arrow.to}-${index}`}
+  src\App.tsx:1581:                        points={points.map(([x, y]) => `${x},${y}`).join(" ")}
+  src\App.tsx:1582:                        fill={color}
+  src\App.tsx:1583:                        opacity={opacity}
+  src\App.tsx:1590:            </div>
+  src\App.tsx:1591:          </div>
+  src\App.tsx:1592:          <div className="board-controls">
+  src\App.tsx:1593:            <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+> src\App.tsx:1594:            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 
+1))}><ChevronLeft size={17} /></button>
+> src\App.tsx:1595:            <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, 
+(boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+  src\App.tsx:1596:            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} 
+/></button>
+  src\App.tsx:1597:            <span className="controls-separator" />
+  src\App.tsx:1598:            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> 
+Reset</button>
+  src\App.tsx:1599:            <button className="setup-position-button" title="Set Up Position manually" onClick={() => 
+setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+  src\App.tsx:1600:            <button
+  src\App.tsx:1601:              className={annotationMode ? "annotation-active" : ""}
+> src\App.tsx:1602:              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+  src\App.tsx:1603:              aria-pressed={annotationMode}
+  src\App.tsx:1604:              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+  src\App.tsx:1605:            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+  src\App.tsx:1606:            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => 
+{ setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+  src\App.tsx:1607:            <span className="controls-spacer" />
+> src\App.tsx:1608:            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" 
+/> FEN</button>
+> src\App.tsx:1609:            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" 
+/> PGN</button>
+  src\App.tsx:1610:          </div>
+  src\App.tsx:1611:          <div className="turn-row">
+  src\App.tsx:1612:            <span>TO MOVE</span>
+  src\App.tsx:1613:            <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+  src\App.tsx:1614:              try {
+> src\App.tsx:1615:                const fen = fenWithTurn(game.fen(), "w");
+> src\App.tsx:1616:                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+  src\App.tsx:1617:                setLastMove(null);
+  src\App.tsx:1618:              } catch (cause) { setError(messageOf(cause)); }
+  src\App.tsx:1619:            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+  src\App.tsx:1620:            <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+  src\App.tsx:1621:              try {
+> src\App.tsx:1622:                const fen = fenWithTurn(game.fen(), "b");
+> src\App.tsx:1623:                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+  src\App.tsx:1624:                setLastMove(null);
+  src\App.tsx:1625:              } catch (cause) { setError(messageOf(cause)); }
+  src\App.tsx:1626:            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+  src\App.tsx:1627:            <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+  src\App.tsx:1628:          </div>
+  src\App.tsx:1629:          <details className="position-editor">
+  src\App.tsx:1630:            <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+> src\App.tsx:1631:            <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} 
+placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if 
+(!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load 
+FEN</button></div>
+  src\App.tsx:1632:          </details>
+> src\App.tsx:1633:          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` 
+: studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+  src\App.tsx:1634:        </section>
+  src\App.tsx:1635:
+  src\App.tsx:1636:        <section className="reader-panel" aria-label="PDF book reader">
+  src\App.tsx:1637:          <div className="opening-explorer-right-workspace">
+  src\App.tsx:1638:          {workspaceMode === "opening-explorer" && (
+  src\App.tsx:1639:            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+  src\App.tsx:1640:              <h3>Opening Explorer</h3>
+  src\App.tsx:1727:                  </div>
+  src\App.tsx:1728:                  <section className="opening-stats" aria-label="Opening statistics" aria-live="polite">
+  src\App.tsx:1729:                    <div className="opening-stats-heading">
+  src\App.tsx:1730:                      <h4>Position statistics</h4>
+> src\App.tsx:1731:                      <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess 
+Opening Explorer</a></span>
+  src\App.tsx:1732:                    </div>
+  src\App.tsx:1733:                    {openingStatsStatus === "loading" && <p>Loading game statisticsÃ¢â‚¬Â¦</p>}
+  src\App.tsx:1734:                    {openingStatsStatus === "error" && (
+  src\App.tsx:1735:                      <p role="status">Statistics are currently unavailable. Check your connection or try again later. The board 
+remains usable.</p>
+  src\App.tsx:1736:                    )}
+  src\App.tsx:1737:                    {openingStatsStatus === "ready" && openingStats && (
+  src\App.tsx:1738:                      <>
+  src\App.tsx:1780:                  <button
+  src\App.tsx:1781:                    type="button"
+  src\App.tsx:1782:                    className="green-button"
+  src\App.tsx:1783:                    onClick={() => {
+> src\App.tsx:1784:                      setAnalysisBoard({
+  src\App.tsx:1785:                        lineBaseFen: START_FEN,
+  src\App.tsx:1786:                        currentFen: openingPosition.fen,
+  src\App.tsx:1787:                        moves: [...openingPosition.sanMoves],
+> src\App.tsx:1788:                        moveIndex: openingPosition.sanMoves.length,
+  src\App.tsx:1789:                        flipped: false,
+  src\App.tsx:1790:                        coordinates: true,
+  src\App.tsx:1791:                      });
+  src\App.tsx:1792:                      setStudyMode(false);
+> src\App.tsx:1793:                      setWorkspaceMode("analysis");
+> src\App.tsx:1794:                      setNotice("Opening position copied to the independent Analysis Board.");
+  src\App.tsx:1795:                    }}
+> src\App.tsx:1796:                  >Open position in Analysis Board</button>
+  src\App.tsx:1797:                  <p className="muted">Position FEN: {openingPosition.fen}</p>
+  src\App.tsx:1798:                </>
+  src\App.tsx:1799:              )}
+  src\App.tsx:1800:            </section>
+  src\App.tsx:1801:          )}
+  src\App.tsx:1802:          </div>
+  src\App.tsx:1803:
+  src\App.tsx:1887:              <button onClick={cancelCandidateSelection}>Cancel</button>
+  src\App.tsx:1888:            </div>}
+  src\App.tsx:1889:            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : 
+"Select a detected board or draw a region."}</div>
+  src\App.tsx:1890:          </div>
+> src\App.tsx:1891:          <div className="analysis-strip">
+> src\App.tsx:1892:            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" 
+/></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : 
+engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· 
+White-positive scores"}</span></div></div>
+> src\App.tsx:1893:            <div className="analysis-divider" />
+> src\App.tsx:1894:            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? 
+"Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+> src\App.tsx:1895:            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => 
+setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option 
+value={16}>16</option><option value={18}>18</option></select></label>
+> src\App.tsx:1896:            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? 
+formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+> src\App.tsx:1897:            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? 
+formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+> src\App.tsx:1898:            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : 
+engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze 
+this position.")}</strong></div>
+  src\App.tsx:1899:          </div>
+  src\App.tsx:1900:        </section>
+  src\App.tsx:1901:        </>}
+  src\App.tsx:1902:      </div>
+  src\App.tsx:1903:
+> src\App.tsx:1904:      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions 
+are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button 
+onClick={() => setSettingsOpen(false)}>Close</button></div>}
+  src\App.tsx:1905:      {transferCandidate && (
+  src\App.tsx:1906:        <ManualBoardEditor
+  src\App.tsx:1907:          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+  src\App.tsx:1908:          title="Review recognized position"
+> src\App.tsx:1909:          subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm 
+your edits."
+  src\App.tsx:1910:          confirmLabel="Use on Board"
+  src\App.tsx:1911:          cropPreviewUrl={transferPreview}
+  src\App.tsx:1912:          recognitionStatus={recognitionStatus}
+  src\App.tsx:1913:          recognitionResult={recognitionResult}
+  src\App.tsx:1914:          recognitionError={recognitionError}
+  src\App.tsx:1915:          onRetryRecognition={() => void openTransfer(transferCandidate)}
+  src\App.tsx:1916:          onConfirm={(confirmedFen) => {
+  src\App.tsx:1922:        />
+  src\App.tsx:1923:      )}
+  src\App.tsx:1924:      {setupOpen && (
+  src\App.tsx:1925:        <ManualBoardEditor
+> src\App.tsx:1926:          initialFen={game.fen()}
+  src\App.tsx:1927:          title="Set Up Position"
+> src\App.tsx:1928:          subtitle="Set up a custom chess position to analyze with Stockfish."
+  src\App.tsx:1929:          confirmLabel="Analyze Position"
+  src\App.tsx:1930:          showPresets={true}
+> src\App.tsx:1931:          currentAnalysisFen={game.fen()}
+  src\App.tsx:1932:          onConfirm={(confirmedFen) => {
+  src\App.tsx:1933:            if (analyzeManualPosition(confirmedFen)) {
+  src\App.tsx:1934:              setSetupOpen(false);
+  src\App.tsx:1935:            }
+  src\App.tsx:1936:          }}
+  src\App.tsx:1937:          onCancel={() => setSetupOpen(false)}
+  src\App.tsx:1938:        />
+  src\App.tsx:1946:            <h2 id="game-end-title">{gameEndOverlay.title}</h2>
+  src\App.tsx:1947:            <p>{gameEndOverlay.message}</p>
+  src\App.tsx:1948:            <div className="game-end-actions">
+  src\App.tsx:1949:              <button type="button" onClick={() => setGameEndOverlay(null)}>Review position</button>
+> src\App.tsx:1950:              <button type="button" onClick={() => { setGameEndOverlay(null); setSelectedSquare(null); }}>Continue 
+analysis</button>
+  src\App.tsx:1951:            </div>
+  src\App.tsx:1952:          </section>
+  src\App.tsx:1953:        </div>
+  src\App.tsx:1954:      )}
+  src\App.tsx:1955:      {promotionRequest && (
+  src\App.tsx:1956:        <div className="promotion-backdrop" onClick={() => setPromotionRequest(null)}>
+  src\App.tsx:1957:          <section className="promotion-dialog" role="dialog" aria-modal="true" aria-labelledby="promotion-title" 
+onClick={(event) => event.stopPropagation()}>
+
+
+
+
+========== src\types.ts ==========
+FILE NOT FOUND
+
+========== src\stockfish.ts ==========
+
+> src\stockfish.ts:1:export type EngineStatus = "off" | "loading" | "ready" | "analyzing" | "error";
+> src\stockfish.ts:2:export type EngineScore = { kind: "cp" | "mate"; value: number; depth: number; bestMove?: string; pv?: string[] };
+  src\stockfish.ts:3:
+  src\stockfish.ts:4:type UciRequest = { fen: string; depth: number };
+  src\stockfish.ts:5:
+> src\stockfish.ts:6:export function parseUciInfo(line: string, sideToMove: "w" | "b"): Omit<EngineScore, "bestMove"> | null {
+  src\stockfish.ts:7:  if (!line.startsWith("info ")) return null;
+  src\stockfish.ts:8:  const depth = Number(line.match(/\bdepth (\d+)/)?.[1]);
+  src\stockfish.ts:9:  const score = line.match(/\bscore (cp|mate) (-?\d+)/);
+  src\stockfish.ts:10:  if (!score || !Number.isFinite(depth)) return null;
+  src\stockfish.ts:11:  const value = Number(score[2]);
+  src\stockfish.ts:12:  const whiteValue = sideToMove === "w" ? value : -value;
+  src\stockfish.ts:13:  const kind = score[1] as "cp" | "mate";
+  src\stockfish.ts:22:    ...(pv?.length ? { pv } : {}),
+  src\stockfish.ts:23:  };
+  src\stockfish.ts:24:}
+  src\stockfish.ts:25:
+> src\stockfish.ts:26:export function formatEvaluation(score: EngineScore): string {
+  src\stockfish.ts:27:  if (score.kind === "mate") return `#${score.value > 0 ? "+" : ""}${score.value}`;
+  src\stockfish.ts:28:  const pawns = score.value / 100;
+  src\stockfish.ts:29:  return `${pawns > 0 ? "+" : ""}${pawns.toFixed(2)}`;
+  src\stockfish.ts:30:}
+  src\stockfish.ts:31:
+> src\stockfish.ts:32:export function whiteScoreShare(score: EngineScore): number {
+  src\stockfish.ts:33:  if (score.kind === "mate") return score.value > 0 ? 0.96 : 0.04;
+  src\stockfish.ts:34:  const bounded = Math.max(-1000, Math.min(1000, score.value));
+  src\stockfish.ts:35:  return Math.max(0.04, Math.min(0.96, 1 / (1 + 10 ** (-bounded / 400))));
+  src\stockfish.ts:36:}
+  src\stockfish.ts:37:
+> src\stockfish.ts:38:export class StockfishEngine {
+  src\stockfish.ts:39:  private readonly worker: Worker;
+  src\stockfish.ts:40:  private ready = false;
+  src\stockfish.ts:41:  private searching = false;
+  src\stockfish.ts:42:  private awaitingStop = false;
+  src\stockfish.ts:43:  private queued: UciRequest | null = null;
+  src\stockfish.ts:44:  private currentSide: "w" | "b" = "w";
+> src\stockfish.ts:45:  private latestScore: EngineScore | null = null;
+  src\stockfish.ts:46:
+  src\stockfish.ts:47:  constructor(
+  src\stockfish.ts:48:    workerUrl: string,
+> src\stockfish.ts:49:    private readonly onStatus: (status: EngineStatus, message?: string) => void,
+> src\stockfish.ts:50:    private readonly onScore: (score: EngineScore | null) => void,
+  src\stockfish.ts:51:  ) {
+  src\stockfish.ts:52:    this.worker = new Worker(workerUrl);
+  src\stockfish.ts:53:    this.worker.onmessage = (event: MessageEvent<string>) => this.handleLine(String(event.data));
+  src\stockfish.ts:54:    this.worker.onerror = (event) => {
+> src\stockfish.ts:55:      this.onStatus("error", event.message || "The Stockfish worker failed to load.");
+  src\stockfish.ts:56:      this.dispose();
+  src\stockfish.ts:57:    };
+  src\stockfish.ts:58:    this.onStatus("loading");
+  src\stockfish.ts:59:    this.worker.postMessage("uci");
+  src\stockfish.ts:60:  }
+  src\stockfish.ts:61:
+  src\stockfish.ts:62:  analyze(fen: string, depth: number): void {
+  src\stockfish.ts:70:        this.worker.postMessage("stop");
+  src\stockfish.ts:71:      }
+  src\stockfish.ts:72:      return;
+  src\stockfish.ts:73:    }
+> src\stockfish.ts:74:    this.startQueuedAnalysis();
+  src\stockfish.ts:75:  }
+  src\stockfish.ts:76:
+  src\stockfish.ts:77:  dispose(): void {
+  src\stockfish.ts:78:    this.worker.terminate();
+  src\stockfish.ts:79:    this.ready = false;
+  src\stockfish.ts:80:    this.searching = false;
+  src\stockfish.ts:81:    this.queued = null;
+  src\stockfish.ts:93:    }
+  src\stockfish.ts:94:    if (line === "readyok") {
+  src\stockfish.ts:95:      this.ready = true;
+  src\stockfish.ts:96:      this.onStatus("ready");
+> src\stockfish.ts:97:      this.startQueuedAnalysis();
+  src\stockfish.ts:98:      return;
+  src\stockfish.ts:99:    }
+  src\stockfish.ts:100:    if (line.startsWith("info ")) {
+  src\stockfish.ts:101:      if (this.awaitingStop) return;
+  src\stockfish.ts:102:      const score = parseUciInfo(line, this.currentSide);
+  src\stockfish.ts:103:      if (score) {
+  src\stockfish.ts:104:        // Use the current principal variation's first move for a live arrow.
+> src\stockfish.ts:105:        // Stockfish's final "bestmove" will replace this provisional move.
+  src\stockfish.ts:106:        const provisionalMove = score.pv?.[0];
+  src\stockfish.ts:107:        this.latestScore = {
+  src\stockfish.ts:108:          ...score,
+  src\stockfish.ts:109:          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+  src\stockfish.ts:110:        };
+  src\stockfish.ts:111:        this.onScore(this.latestScore);
+  src\stockfish.ts:112:      }
+  src\stockfish.ts:116:    if (!bestMove) return;
+  src\stockfish.ts:117:    this.searching = false;
+  src\stockfish.ts:118:    if (this.awaitingStop) {
+  src\stockfish.ts:119:      this.awaitingStop = false;
+> src\stockfish.ts:120:      this.startQueuedAnalysis();
+  src\stockfish.ts:121:      return;
+  src\stockfish.ts:122:    }
+  src\stockfish.ts:123:    if (this.latestScore) {
+  src\stockfish.ts:124:      this.latestScore = { ...this.latestScore, bestMove: bestMove === "(none)" ? undefined : bestMove };
+  src\stockfish.ts:125:      this.onScore(this.latestScore);
+  src\stockfish.ts:126:    }
+  src\stockfish.ts:127:    this.onStatus("ready");
+  src\stockfish.ts:128:  }
+  src\stockfish.ts:129:
+> src\stockfish.ts:130:  private startQueuedAnalysis(): void {
+  src\stockfish.ts:131:    if (!this.ready || this.searching || !this.queued) return;
+  src\stockfish.ts:132:    const request = this.queued;
+  src\stockfish.ts:133:    this.queued = null;
+  src\stockfish.ts:134:    this.currentSide = request.fen.split(/\s+/)[1] === "b" ? "b" : "w";
+  src\stockfish.ts:135:    this.searching = true;
+  src\stockfish.ts:136:    this.latestScore = null;
+  src\stockfish.ts:137:    this.onStatus("analyzing");
+
+
+
+
+========== package.json ==========
+{
+  "name": "chessbook-reader",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^5.0.4"
+  }
+}
+
+
+========== TEST FILES ==========
+D:\chess\BookChess\ChessBookReader\src\App.test.tsx
+D:\chess\BookChess\ChessBookReader\src\board-annotations.test.ts
+D:\chess\BookChess\ChessBookReader\src\chess-state.test.ts
+D:\chess\BookChess\ChessBookReader\src\crop-geometry.test.ts
+D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.test.tsx
+D:\chess\BookChess\ChessBookReader\src\opening-explorer.test.ts
+D:\chess\BookChess\ChessBookReader\src\position-editor.test.ts
+D:\chess\BookChess\ChessBookReader\src\position-editor.test.ts.before_coordinate_fix.bak
+D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts.before-live-pv-test-20261024-131006.bak
+D:\chess\BookChess\ChessBookReader\src\storage.test.ts
+
+========== ALL PGN REFERENCES ==========
+
+src\App.tsx:1609:            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> 
+PGN</button>
+src\NotationLearner.tsx:110:        <label htmlFor="notation-input">Paste PGN moves or a SAN line</label>
+
+
+

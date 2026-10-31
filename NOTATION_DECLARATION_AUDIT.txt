@@ -1,0 +1,552 @@
+﻿NOTATION LEARNER - DECLARATION AUDIT
+Date: 10/30/2026 23:23:19
+File: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+
+===== RELEVANT SOURCE WITH CONTEXT =====
+
+MATCH AT LINE 1: import { useMemo, useState } from "react";
+   1: import { useMemo, useState } from "react";
+   2: import { Chess, type Square } from "chess.js";
+   3: import { ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, RotateCw, BookOpen, GraduationCap } from "lucide-react";
+   4: import "./notation-learner.css";
+   5: 
+   6: const FILES = "abcdefgh";
+   7: const PIECES: Record<string, string> = {
+   8:   wk:"♔", wq:"♕", wr:"♖", wb:"♗", wn:"♘", wp:"♙",
+   9:   bk:"♚", bq:"♛", br:"♜", bb:"♝", bn:"♞", bp:"♟"
+
+MATCH AT LINE 46: const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  41:   const [index, setIndex] = useState(0);
+  42:   const [error, setError] = useState("");
+  43:   const [flipped, setFlipped] = useState(false);
+  44:   const [training, setTraining] = useState(false);
+  45:   const [revealed, setRevealed] = useState(false);
+  46:   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  47: 
+  48:   const legalTargets = useMemo(() => {
+  49:     if (!selectedSquare) return [];
+  50:     return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  51:   }, [game, selectedSquare]);
+  52: 
+  53:   const positions = useMemo(() => {
+  54:     const game = new Chess();
+
+MATCH AT LINE 48: const legalTargets = useMemo(() => {
+  43:   const [flipped, setFlipped] = useState(false);
+  44:   const [training, setTraining] = useState(false);
+  45:   const [revealed, setRevealed] = useState(false);
+  46:   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  47: 
+  48:   const legalTargets = useMemo(() => {
+  49:     if (!selectedSquare) return [];
+  50:     return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  51:   }, [game, selectedSquare]);
+  52: 
+  53:   const positions = useMemo(() => {
+  54:     const game = new Chess();
+  55:     const result = [game.fen()];
+  56:     for (const san of moves) {
+
+MATCH AT LINE 49: if (!selectedSquare) return [];
+  44:   const [training, setTraining] = useState(false);
+  45:   const [revealed, setRevealed] = useState(false);
+  46:   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  47: 
+  48:   const legalTargets = useMemo(() => {
+  49:     if (!selectedSquare) return [];
+  50:     return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  51:   }, [game, selectedSquare]);
+  52: 
+  53:   const positions = useMemo(() => {
+  54:     const game = new Chess();
+  55:     const result = [game.fen()];
+  56:     for (const san of moves) {
+  57:       game.move(san);
+
+MATCH AT LINE 50: return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  45:   const [revealed, setRevealed] = useState(false);
+  46:   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  47: 
+  48:   const legalTargets = useMemo(() => {
+  49:     if (!selectedSquare) return [];
+  50:     return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  51:   }, [game, selectedSquare]);
+  52: 
+  53:   const positions = useMemo(() => {
+  54:     const game = new Chess();
+  55:     const result = [game.fen()];
+  56:     for (const san of moves) {
+  57:       game.move(san);
+  58:       result.push(game.fen());
+
+MATCH AT LINE 51: }, [game, selectedSquare]);
+  46:   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  47: 
+  48:   const legalTargets = useMemo(() => {
+  49:     if (!selectedSquare) return [];
+  50:     return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  51:   }, [game, selectedSquare]);
+  52: 
+  53:   const positions = useMemo(() => {
+  54:     const game = new Chess();
+  55:     const result = [game.fen()];
+  56:     for (const san of moves) {
+  57:       game.move(san);
+  58:       result.push(game.fen());
+  59:     }
+
+MATCH AT LINE 53: const positions = useMemo(() => {
+  48:   const legalTargets = useMemo(() => {
+  49:     if (!selectedSquare) return [];
+  50:     return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  51:   }, [game, selectedSquare]);
+  52: 
+  53:   const positions = useMemo(() => {
+  54:     const game = new Chess();
+  55:     const result = [game.fen()];
+  56:     for (const san of moves) {
+  57:       game.move(san);
+  58:       result.push(game.fen());
+  59:     }
+  60:     return result;
+  61:   }, [moves]);
+
+MATCH AT LINE 54: const game = new Chess();
+  49:     if (!selectedSquare) return [];
+  50:     return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  51:   }, [game, selectedSquare]);
+  52: 
+  53:   const positions = useMemo(() => {
+  54:     const game = new Chess();
+  55:     const result = [game.fen()];
+  56:     for (const san of moves) {
+  57:       game.move(san);
+  58:       result.push(game.fen());
+  59:     }
+  60:     return result;
+  61:   }, [moves]);
+  62: 
+
+MATCH AT LINE 63: const game = useMemo(() => new Chess(positions[index]), [positions, index]);
+  58:       result.push(game.fen());
+  59:     }
+  60:     return result;
+  61:   }, [moves]);
+  62: 
+  63:   const game = useMemo(() => new Chess(positions[index]), [positions, index]);
+  64:   const history = useMemo(() => {
+  65:     const replay = new Chess();
+  66:     const result = [];
+  67:     for (const san of moves.slice(0, index)) result.push(replay.move(san));
+  68:     return result;
+  69:   }, [moves, index]);
+  70: 
+  71:   const lastMove = history.at(-1);
+
+MATCH AT LINE 64: const history = useMemo(() => {
+  59:     }
+  60:     return result;
+  61:   }, [moves]);
+  62: 
+  63:   const game = useMemo(() => new Chess(positions[index]), [positions, index]);
+  64:   const history = useMemo(() => {
+  65:     const replay = new Chess();
+  66:     const result = [];
+  67:     for (const san of moves.slice(0, index)) result.push(replay.move(san));
+  68:     return result;
+  69:   }, [moves, index]);
+  70: 
+  71:   const lastMove = history.at(-1);
+  72:   const board = game.board();
+
+MATCH AT LINE 135: className={`nl-square ${dark ? "dark" : "light"} ${isLast ? "last" : ""} ${selectedSquare === square ? "nl-selected" : ""} ${legalTargets.includes(square) ? "nl-legal-target" : ""}`}
+ 130:               const item = board[8-rank][file];
+ 131:               const isLast = lastMove && (lastMove.from === square || lastMove.to === square);
+ 132:               const dark = (file + rank) % 2 === 0;
+ 133:               return (
+ 134:                 <div key={name} role="gridcell" aria-label={`${name}${item ? ` ${item.color === "w" ? "white" : "black"} ${item.type}` : ""}`}
+ 135:                   className={`nl-square ${dark ? "dark" : "light"} ${isLast ? "last" : ""} ${selectedSquare === square ? "nl-selected" : ""} ${legalTargets.includes(square) ? "nl-legal-target" : ""}`}
+ 136:                   onClick={() => setSelectedSquare(current => current === square ? null : square)}
+ 137:                   onKeyDown={event => {
+ 138:                     if (event.key === "Enter" || event.key === " ") {
+ 139:                       event.preventDefault();
+ 140:                       setSelectedSquare(current => current === square ? null : square);
+ 141:                     }
+ 142:                   }}
+ 143:                   tabIndex={0}
+
+MATCH AT LINE 136: onClick={() => setSelectedSquare(current => current === square ? null : square)}
+ 131:               const isLast = lastMove && (lastMove.from === square || lastMove.to === square);
+ 132:               const dark = (file + rank) % 2 === 0;
+ 133:               return (
+ 134:                 <div key={name} role="gridcell" aria-label={`${name}${item ? ` ${item.color === "w" ? "white" : "black"} ${item.type}` : ""}`}
+ 135:                   className={`nl-square ${dark ? "dark" : "light"} ${isLast ? "last" : ""} ${selectedSquare === square ? "nl-selected" : ""} ${legalTargets.includes(square) ? "nl-legal-target" : ""}`}
+ 136:                   onClick={() => setSelectedSquare(current => current === square ? null : square)}
+ 137:                   onKeyDown={event => {
+ 138:                     if (event.key === "Enter" || event.key === " ") {
+ 139:                       event.preventDefault();
+ 140:                       setSelectedSquare(current => current === square ? null : square);
+ 141:                     }
+ 142:                   }}
+ 143:                   tabIndex={0}
+ 144:                   aria-selected={selectedSquare === square}
+
+MATCH AT LINE 140: setSelectedSquare(current => current === square ? null : square);
+ 135:                   className={`nl-square ${dark ? "dark" : "light"} ${isLast ? "last" : ""} ${selectedSquare === square ? "nl-selected" : ""} ${legalTargets.includes(square) ? "nl-legal-target" : ""}`}
+ 136:                   onClick={() => setSelectedSquare(current => current === square ? null : square)}
+ 137:                   onKeyDown={event => {
+ 138:                     if (event.key === "Enter" || event.key === " ") {
+ 139:                       event.preventDefault();
+ 140:                       setSelectedSquare(current => current === square ? null : square);
+ 141:                     }
+ 142:                   }}
+ 143:                   tabIndex={0}
+ 144:                   aria-selected={selectedSquare === square}
+ 145:                   title={`${square}${item ? ` — ${item.color === "w" ? "White" : "Black"} ${item.type}` : ""}`}>
+ 146:                   {item && <span className={`nl-piece ${item.color === "w" ? "white-piece" : "black-piece"}`}>{PIECES[item.color + item.type]}</span>}
+ 147:                   {file === (flipped ? 7 : 0) && <small className="nl-rank">{rank}</small>}
+ 148:                   {rank === (flipped ? 1 : 1) && <small className="nl-file">{name[0]}</small>}
+
+MATCH AT LINE 144: aria-selected={selectedSquare === square}
+ 139:                       event.preventDefault();
+ 140:                       setSelectedSquare(current => current === square ? null : square);
+ 141:                     }
+ 142:                   }}
+ 143:                   tabIndex={0}
+ 144:                   aria-selected={selectedSquare === square}
+ 145:                   title={`${square}${item ? ` — ${item.color === "w" ? "White" : "Black"} ${item.type}` : ""}`}>
+ 146:                   {item && <span className={`nl-piece ${item.color === "w" ? "white-piece" : "black-piece"}`}>{PIECES[item.color + item.type]}</span>}
+ 147:                   {file === (flipped ? 7 : 0) && <small className="nl-rank">{rank}</small>}
+ 148:                   {rank === (flipped ? 1 : 1) && <small className="nl-file">{name[0]}</small>}
+ 149:                 </div>
+ 150:               );
+ 151:             })}
+ 152:           </div>
+
+MATCH AT LINE 153: {selectedSquare && (
+ 148:                   {rank === (flipped ? 1 : 1) && <small className="nl-file">{name[0]}</small>}
+ 149:                 </div>
+ 150:               );
+ 151:             })}
+ 152:           </div>
+ 153:           {selectedSquare && (
+ 154:             <div className="nl-square-inspector" aria-live="polite">
+ 155:               <strong>{selectedSquare}</strong>
+ 156:               <span>
+ 157:                 {game.get(selectedSquare)
+ 158:                   ? `${game.get(selectedSquare)?.color === "w" ? "White" : "Black"} ${({
+ 159:                       p: "Pawn", n: "Knight", b: "Bishop",
+ 160:                       r: "Rook", q: "Queen", k: "King"
+ 161:                     } as Record<string, string>)[game.get(selectedSquare)!.type]}`
+
+MATCH AT LINE 155: <strong>{selectedSquare}</strong>
+ 150:               );
+ 151:             })}
+ 152:           </div>
+ 153:           {selectedSquare && (
+ 154:             <div className="nl-square-inspector" aria-live="polite">
+ 155:               <strong>{selectedSquare}</strong>
+ 156:               <span>
+ 157:                 {game.get(selectedSquare)
+ 158:                   ? `${game.get(selectedSquare)?.color === "w" ? "White" : "Black"} ${({
+ 159:                       p: "Pawn", n: "Knight", b: "Bishop",
+ 160:                       r: "Rook", q: "Queen", k: "King"
+ 161:                     } as Record<string, string>)[game.get(selectedSquare)!.type]}`
+ 162:                   : "Empty square"}
+ 163:               </span>
+
+MATCH AT LINE 157: {game.get(selectedSquare)
+ 152:           </div>
+ 153:           {selectedSquare && (
+ 154:             <div className="nl-square-inspector" aria-live="polite">
+ 155:               <strong>{selectedSquare}</strong>
+ 156:               <span>
+ 157:                 {game.get(selectedSquare)
+ 158:                   ? `${game.get(selectedSquare)?.color === "w" ? "White" : "Black"} ${({
+ 159:                       p: "Pawn", n: "Knight", b: "Bishop",
+ 160:                       r: "Rook", q: "Queen", k: "King"
+ 161:                     } as Record<string, string>)[game.get(selectedSquare)!.type]}`
+ 162:                   : "Empty square"}
+ 163:               </span>
+ 164:               <span>
+ 165:                 {legalTargets.length
+
+MATCH AT LINE 158: ? `${game.get(selectedSquare)?.color === "w" ? "White" : "Black"} ${({
+ 153:           {selectedSquare && (
+ 154:             <div className="nl-square-inspector" aria-live="polite">
+ 155:               <strong>{selectedSquare}</strong>
+ 156:               <span>
+ 157:                 {game.get(selectedSquare)
+ 158:                   ? `${game.get(selectedSquare)?.color === "w" ? "White" : "Black"} ${({
+ 159:                       p: "Pawn", n: "Knight", b: "Bishop",
+ 160:                       r: "Rook", q: "Queen", k: "King"
+ 161:                     } as Record<string, string>)[game.get(selectedSquare)!.type]}`
+ 162:                   : "Empty square"}
+ 163:               </span>
+ 164:               <span>
+ 165:                 {legalTargets.length
+ 166:                   ? `${legalTargets.length} legal destination${legalTargets.length === 1 ? "" : "s"} highlighted`
+
+MATCH AT LINE 161: } as Record<string, string>)[game.get(selectedSquare)!.type]}`
+ 156:               <span>
+ 157:                 {game.get(selectedSquare)
+ 158:                   ? `${game.get(selectedSquare)?.color === "w" ? "White" : "Black"} ${({
+ 159:                       p: "Pawn", n: "Knight", b: "Bishop",
+ 160:                       r: "Rook", q: "Queen", k: "King"
+ 161:                     } as Record<string, string>)[game.get(selectedSquare)!.type]}`
+ 162:                   : "Empty square"}
+ 163:               </span>
+ 164:               <span>
+ 165:                 {legalTargets.length
+ 166:                   ? `${legalTargets.length} legal destination${legalTargets.length === 1 ? "" : "s"} highlighted`
+ 167:                   : "No legal moves from this square"}
+ 168:               </span>
+ 169:             </div>
+
+MATCH AT LINE 165: {legalTargets.length
+ 160:                       r: "Rook", q: "Queen", k: "King"
+ 161:                     } as Record<string, string>)[game.get(selectedSquare)!.type]}`
+ 162:                   : "Empty square"}
+ 163:               </span>
+ 164:               <span>
+ 165:                 {legalTargets.length
+ 166:                   ? `${legalTargets.length} legal destination${legalTargets.length === 1 ? "" : "s"} highlighted`
+ 167:                   : "No legal moves from this square"}
+ 168:               </span>
+ 169:             </div>
+ 170:           )}
+ 171:           <div className="nl-controls">
+ 172:             <button aria-label="First move" onClick={() => {setIndex(0);setRevealed(false)}}><ChevronFirst/></button>
+ 173:             <button aria-label="Previous move" onClick={() => {setIndex(v => Math.max(0,v-1));setRevealed(false)}}><ChevronLeft/></button>
+
+MATCH AT LINE 166: ? `${legalTargets.length} legal destination${legalTargets.length === 1 ? "" : "s"} highlighted`
+ 161:                     } as Record<string, string>)[game.get(selectedSquare)!.type]}`
+ 162:                   : "Empty square"}
+ 163:               </span>
+ 164:               <span>
+ 165:                 {legalTargets.length
+ 166:                   ? `${legalTargets.length} legal destination${legalTargets.length === 1 ? "" : "s"} highlighted`
+ 167:                   : "No legal moves from this square"}
+ 168:               </span>
+ 169:             </div>
+ 170:           )}
+ 171:           <div className="nl-controls">
+ 172:             <button aria-label="First move" onClick={() => {setIndex(0);setRevealed(false)}}><ChevronFirst/></button>
+ 173:             <button aria-label="Previous move" onClick={() => {setIndex(v => Math.max(0,v-1));setRevealed(false)}}><ChevronLeft/></button>
+ 174:             <span>{index === 0 ? "Starting position" : `${Math.ceil(index/2)}${index%2 ? "." : "..."}`}</span>
+
+===== FULL COMPONENT =====
+   1: import { useMemo, useState } from "react";
+   2: import { Chess, type Square } from "chess.js";
+   3: import { ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, RotateCw, BookOpen, GraduationCap } from "lucide-react";
+   4: import "./notation-learner.css";
+   5: 
+   6: const FILES = "abcdefgh";
+   7: const PIECES: Record<string, string> = {
+   8:   wk:"♔", wq:"♕", wr:"♖", wb:"♗", wn:"♘", wp:"♙",
+   9:   bk:"♚", bq:"♛", br:"♜", bb:"♝", bn:"♞", bp:"♟"
+  10: };
+  11: 
+  12: function parseLine(input: string) {
+  13:   const chess = new Chess();
+  14:   const cleaned = input
+  15:     .replace(/\{[^}]*\}/g, " ")
+  16:     .replace(/\([^)]*\)/g, " ")
+  17:     .replace(/^\s*\[.*\]\s*$/gm, " ")
+  18:     .replace(/\d+\.(\.\.)?/g, " ")
+  19:     .replace(/\$\d+/g, " ")
+  20:     .replace(/\s+/g, " ")
+  21:     .trim();
+  22: 
+  23:   const tokens = cleaned.split(" ").filter(Boolean)
+  24:     .filter((x) => !["1-0", "0-1", "1/2-1/2", "*"].includes(x));
+  25: 
+  26:   const moves: string[] = [];
+  27:   for (const token of tokens) {
+  28:     try {
+  29:       const move = chess.move(token);
+  30:       moves.push(move.san);
+  31:     } catch {
+  32:       throw new Error(`Invalid or illegal move: ${token}`);
+  33:     }
+  34:   }
+  35:   return moves;
+  36: }
+  37: 
+  38: export default function NotationLearner() {
+  39:   const [input, setInput] = useState("1. e4 e5 2. Nf3 Nc6 3. Bb5 a6");
+  40:   const [moves, setMoves] = useState<string[]>(() => parseLine("1. e4 e5 2. Nf3 Nc6 3. Bb5 a6"));
+  41:   const [index, setIndex] = useState(0);
+  42:   const [error, setError] = useState("");
+  43:   const [flipped, setFlipped] = useState(false);
+  44:   const [training, setTraining] = useState(false);
+  45:   const [revealed, setRevealed] = useState(false);
+  46:   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  47: 
+  48:   const legalTargets = useMemo(() => {
+  49:     if (!selectedSquare) return [];
+  50:     return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  51:   }, [game, selectedSquare]);
+  52: 
+  53:   const positions = useMemo(() => {
+  54:     const game = new Chess();
+  55:     const result = [game.fen()];
+  56:     for (const san of moves) {
+  57:       game.move(san);
+  58:       result.push(game.fen());
+  59:     }
+  60:     return result;
+  61:   }, [moves]);
+  62: 
+  63:   const game = useMemo(() => new Chess(positions[index]), [positions, index]);
+  64:   const history = useMemo(() => {
+  65:     const replay = new Chess();
+  66:     const result = [];
+  67:     for (const san of moves.slice(0, index)) result.push(replay.move(san));
+  68:     return result;
+  69:   }, [moves, index]);
+  70: 
+  71:   const lastMove = history.at(-1);
+  72:   const board = game.board();
+  73:   const squares = flipped
+  74:     ? [...Array(8)].flatMap((_, r) => [...Array(8)].map((__, f) => `${FILES[7-f]}${r+1}`))
+  75:     : [...Array(8)].flatMap((_, r) => [...Array(8)].map((__, f) => `${FILES[f]}${8-r}`));
+  76: 
+  77:   function loadLine() {
+  78:     try {
+  79:       const parsed = parseLine(input);
+  80:       setMoves(parsed);
+  81:       setIndex(0);
+  82:       setError("");
+  83:       setRevealed(false);
+  84:     } catch (cause) {
+  85:       setError(cause instanceof Error ? cause.message : String(cause));
+  86:     }
+  87:   }
+  88: 
+  89:   const piece = lastMove?.piece
+  90:     ? ({ p: "Pawn", n: "Knight", b: "Bishop", r: "Rook", q: "Queen", k: "King" } as Record<string,string>)[lastMove.piece]
+  91:     : "Starting position";
+  92: 
+  93:   return (
+  94:     <main className="notation-workspace">
+  95:       <header className="notation-header">
+  96:         <div>
+  97:           <span className="notation-eyebrow">CHESSBOOK TRAINING</span>
+  98:           <h1>Notation Learner</h1>
+  99:           <p>Connect every chess symbol to the position it creates.</p>
+ 100:         </div>
+ 101:         <div className="notation-header-actions">
+ 102:           <button onClick={() => setTraining(v => !v)} className={training ? "nl-active" : ""}>
+ 103:             <GraduationCap size={16}/> {training ? "Training ON" : "Training mode"}
+ 104:           </button>
+ 105:           <button onClick={() => setFlipped(v => !v)}><RotateCw size={16}/> Flip board</button>
+ 106:         </div>
+ 107:       </header>
+ 108: 
+ 109:       <section className="notation-input-panel">
+ 110:         <label htmlFor="notation-input">Paste PGN moves or a SAN line</label>
+ 111:         <textarea id="notation-input" value={input} onChange={e => setInput(e.target.value)} rows={3} spellCheck={false}/>
+ 112:         <div className="nl-input-footer">
+ 113:           <span>Example: 1. e4 e5 2. Nf3 Nc6</span>
+ 114:           <button className="nl-primary" onClick={loadLine}><BookOpen size={15}/> Load notation</button>
+ 115:         </div>
+ 116:         {error && <p className="nl-error" role="alert">{error}</p>}
+ 117:       </section>
+ 118: 
+ 119:       <div className="notation-layout">
+ 120:         <section className="nl-board-card">
+ 121:           <div className="nl-board-meta">
+ 122:             <span>POSITION {index} / {moves.length}</span>
+ 123:             <strong>{game.turn() === "w" ? "White to move" : "Black to move"}</strong>
+ 124:           </div>
+ 125:           <div className="nl-board" role="grid" aria-label="Interactive chess position">
+ 126:             {squares.map(name => {
+ 127:               const square = name as Square;
+ 128:               const file = FILES.indexOf(name[0]);
+ 129:               const rank = Number(name[1]);
+ 130:               const item = board[8-rank][file];
+ 131:               const isLast = lastMove && (lastMove.from === square || lastMove.to === square);
+ 132:               const dark = (file + rank) % 2 === 0;
+ 133:               return (
+ 134:                 <div key={name} role="gridcell" aria-label={`${name}${item ? ` ${item.color === "w" ? "white" : "black"} ${item.type}` : ""}`}
+ 135:                   className={`nl-square ${dark ? "dark" : "light"} ${isLast ? "last" : ""} ${selectedSquare === square ? "nl-selected" : ""} ${legalTargets.includes(square) ? "nl-legal-target" : ""}`}
+ 136:                   onClick={() => setSelectedSquare(current => current === square ? null : square)}
+ 137:                   onKeyDown={event => {
+ 138:                     if (event.key === "Enter" || event.key === " ") {
+ 139:                       event.preventDefault();
+ 140:                       setSelectedSquare(current => current === square ? null : square);
+ 141:                     }
+ 142:                   }}
+ 143:                   tabIndex={0}
+ 144:                   aria-selected={selectedSquare === square}
+ 145:                   title={`${square}${item ? ` — ${item.color === "w" ? "White" : "Black"} ${item.type}` : ""}`}>
+ 146:                   {item && <span className={`nl-piece ${item.color === "w" ? "white-piece" : "black-piece"}`}>{PIECES[item.color + item.type]}</span>}
+ 147:                   {file === (flipped ? 7 : 0) && <small className="nl-rank">{rank}</small>}
+ 148:                   {rank === (flipped ? 1 : 1) && <small className="nl-file">{name[0]}</small>}
+ 149:                 </div>
+ 150:               );
+ 151:             })}
+ 152:           </div>
+ 153:           {selectedSquare && (
+ 154:             <div className="nl-square-inspector" aria-live="polite">
+ 155:               <strong>{selectedSquare}</strong>
+ 156:               <span>
+ 157:                 {game.get(selectedSquare)
+ 158:                   ? `${game.get(selectedSquare)?.color === "w" ? "White" : "Black"} ${({
+ 159:                       p: "Pawn", n: "Knight", b: "Bishop",
+ 160:                       r: "Rook", q: "Queen", k: "King"
+ 161:                     } as Record<string, string>)[game.get(selectedSquare)!.type]}`
+ 162:                   : "Empty square"}
+ 163:               </span>
+ 164:               <span>
+ 165:                 {legalTargets.length
+ 166:                   ? `${legalTargets.length} legal destination${legalTargets.length === 1 ? "" : "s"} highlighted`
+ 167:                   : "No legal moves from this square"}
+ 168:               </span>
+ 169:             </div>
+ 170:           )}
+ 171:           <div className="nl-controls">
+ 172:             <button aria-label="First move" onClick={() => {setIndex(0);setRevealed(false)}}><ChevronFirst/></button>
+ 173:             <button aria-label="Previous move" onClick={() => {setIndex(v => Math.max(0,v-1));setRevealed(false)}}><ChevronLeft/></button>
+ 174:             <span>{index === 0 ? "Starting position" : `${Math.ceil(index/2)}${index%2 ? "." : "..."}`}</span>
+ 175:             <button aria-label="Next move" disabled={index >= moves.length || (training && !revealed)} onClick={() => {setIndex(v => Math.min(moves.length,v+1));setRevealed(false)}}><ChevronRight/></button>
+ 176:             <button aria-label="Last move" disabled={training} onClick={() => setIndex(moves.length)}><ChevronLast/></button>
+ 177:           </div>
+ 178:         </section>
+ 179: 
+ 180:         <aside className="nl-notation-card">
+ 181:           <div className="nl-card-title"><strong>GAME NOTATION</strong><span>{moves.length} plies</span></div>
+ 182:           <div className="nl-move-list">
+ 183:             {moves.length === 0 && <p className="nl-muted">Load a move sequence to begin.</p>}
+ 184:             {Array.from({length: Math.ceil(moves.length/2)}, (_, row) => (
+ 185:               <div className="nl-move-row" key={row}>
+ 186:                 <span>{row+1}.</span>
+ 187:                 {[0,1].map(side => {
+ 188:                   const ply = row*2+side;
+ 189:                   if (!moves[ply]) return <i key={side}/>;
+ 190:                   const hidden = training && ply === index && !revealed;
+ 191:                   return <button key={side} className={index === ply+1 ? "selected" : ""}
+ 192:                     onClick={() => {setIndex(ply+1);setRevealed(false)}}
+ 193:                     disabled={hidden}>
+ 194:                     {hidden ? "?" : moves[ply]}
+ 195:                   </button>;
+ 196:                 })}
+ 197:               </div>
+ 198:             ))}
+ 199:           </div>
+ 200:           <div className="nl-learning">
+ 201:             <span className="notation-eyebrow">MOVE EXPLANATION</span>
+ 202:             {index === 0
+ 203:               ? <p>Start from the initial position. Select a move to see how the notation changes the board.</p>
+ 204:               : <><strong>{piece}</strong><p>{lastMove?.color === "w" ? "White" : "Black"} moved from <b>{lastMove?.from}</b> to <b>{lastMove?.to}</b>.</p><p className="nl-san">{lastMove?.san}</p></>}
+ 205:             {training && index < moves.length && !revealed && <button className="nl-primary" onClick={() => setRevealed(true)}>Reveal next move: {moves[index]}</button>}
+ 206:           </div>
+ 207:         </aside>
+ 208:       </div>
+ 209:       <p className="nl-fen"><strong>FEN</strong> {game.fen()}</p>
+ 210:     </main>
+ 211:   );
+ 212: }
+ 213: 
+ 214: 

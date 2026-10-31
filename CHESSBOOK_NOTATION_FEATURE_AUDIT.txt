@@ -1,0 +1,563 @@
+﻿CHESSBOOK READER - NOTATION FEATURE AUDIT
+Project: D:\chess\BookChess\ChessBookReader
+Generated: 10/30/2026 23:03:18
+
+
+====================================================================================================
+FILE: src\model.ts
+====================================================================================================
+export const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+export type Candidate = {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  relativeScore?: number;
+  confidence?: number;
+  source: "automatic" | "manual";
+};
+
+export type BookRecord = {
+  id: string;
+  title: string;
+  file: Blob;
+  byteLength: number;
+  lastOpenedAt: number;
+  addedAt: number;
+};
+
+export type SavedPosition = {
+  id: string;
+  title: string;
+  fen: string;
+  page: number;
+  savedAt: number;
+};
+
+export type BookSession = {
+  bookId: string;
+  page: number;
+  pageCount: number;
+  zoom: number;
+  selectedDiagramId: string | null;
+  candidatesByPage: Record<string, Candidate[]>;
+  originalFen: string;
+  lineBaseFen: string;
+  currentFen: string;
+  moves: string[];
+  moveIndex: number;
+  flipped: boolean;
+  coordinates: boolean;
+  bookmarks: number[];
+  positions: SavedPosition[];
+};
+
+export function newSession(bookId: string): BookSession {
+  return {
+    bookId,
+    page: 1,
+    pageCount: 0,
+    zoom: 1,
+    selectedDiagramId: null,
+    candidatesByPage: {},
+    originalFen: START_FEN,
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+    bookmarks: [],
+    positions: [],
+  };
+}
+
+
+====================================================================================================
+FILE: src\chess-state.ts
+====================================================================================================
+import { Chess } from "chess.js";
+
+export function makePosition(baseFen: string, moves: string[], moveIndex: number): Chess {
+  const game = new Chess(baseFen);
+  for (const san of moves.slice(0, moveIndex)) {
+    const result = game.move(san);
+    if (!result) throw new Error(`Saved move could not be replayed: ${san}`);
+  }
+  return game;
+}
+
+export function fenWithTurn(fen: string, turn: "w" | "b"): string {
+  const fields = fen.split(/\s+/);
+  if (fields.length !== 6) throw new Error("FEN must contain six fields.");
+  fields[1] = turn;
+  fields[3] = "-";
+  fields[4] = "0";
+  return fields.join(" ");
+}
+
+
+====================================================================================================
+FILE: src\CoordinateTraining.tsx
+====================================================================================================
+import { useEffect, useMemo, useState } from "react";
+import "./coordinate-training.css";
+
+type Orientation = "white" | "black";
+type Mode = "timed" | "untimed" | "streak";
+type SessionResult = { date: string; score: number; accuracy: number; duration: number };
+
+const FILES = "abcdefgh";
+const RANKS = "12345678";
+const randomSquare = (avoid?: string) => {
+  let next = `${FILES[Math.floor(Math.random() * 8)]}${RANKS[Math.floor(Math.random() * 8)]}`;
+  while (next === avoid) next = `${FILES[Math.floor(Math.random() * 8)]}${RANKS[Math.floor(Math.random() * 8)]}`;
+  return next;
+};
+const STORAGE_KEY = "chessbook-coordinate-training-v1";
+
+export default function CoordinateTraining() {
+  const [orientation, setOrientation] = useState<Orientation>("white");
+  const [mode, setMode] = useState<Mode>("timed");
+  const [duration, setDuration] = useState(60);
+  const [remaining, setRemaining] = useState(60);
+  const [target, setTarget] = useState(() => randomSquare());
+  const [score, setScore] = useState(0);
+  const [correct, setCorrect] = useState(0);
+  const [wrong, setWrong] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<"correct" | "wrong" | "">("");
+  const [sound, setSound] = useState(false);
+  const [showCoordinates, setShowCoordinates] = useState(true);
+  const [history, setHistory] = useState<SessionResult[]>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as SessionResult[]; } catch { return []; }
+  });
+  const finished = mode === "timed" && remaining <= 0;
+  const attempts = correct + wrong;
+  const accuracy = attempts ? Math.round((correct / attempts) * 100) : 0;
+  const squares = useMemo(() => {
+    const files = orientation === "white" ? [...FILES] : [...FILES].reverse();
+    const ranks = orientation === "white" ? [...RANKS].reverse() : [...RANKS];
+    return ranks.flatMap((rank) => files.map((file) => `${file}${rank}`));
+  }, [orientation]);
+
+  useEffect(() => {
+    if (!startedAt || finished || mode !== "timed") return;
+    const timer = window.setInterval(() => setRemaining((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [startedAt, finished, mode]);
+
+  useEffect(() => {
+    if (finished && startedAt) {
+      const result = { date: new Date().toISOString(), score, accuracy, duration: duration - remaining };
+      setHistory((previous) => {
+        const next = [result, ...previous].slice(0, 30);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* storage may be unavailable */ }
+        return next;
+      });
+      setStartedAt(null);
+    }
+  }, [finished]);
+
+  function restart(nextMode = mode, nextDuration = duration) {
+    setMode(nextMode);
+    setDuration(nextDuration);
+    setRemaining(nextDuration);
+    setTarget(randomSquare());
+    setScore(0); setCorrect(0); setWrong(0); setStreak(0);
+    setFeedback(""); setStartedAt(null);
+  }
+
+  function chooseSquare(square: string) {
+    if (finished) return;
+    if (!startedAt) setStartedAt(Date.now());
+    if (square === target) {
+      setCorrect((value) => value + 1);
+      setScore((value) => value + 1);
+      setStreak((value) => { const next = value + 1; setBestStreak((best) => Math.max(best, next)); return next; });
+      setFeedback("correct");
+    } else {
+      setWrong((value) => value + 1);
+      setStreak(0);
+      setFeedback("wrong");
+    }
+    setTarget(randomSquare(target));
+  }
+
+  return <main className="coordinate-training-workspace">
+    <header className="ct-header">
+      <div><span className="ct-eyebrow">CHESSBOOK TRAINING</span><h1>Coordinate Training</h1><p>Build instant board vision. Find the square before the clock runs out.</p></div>
+      <div className="ct-header-actions"><button onClick={() => restart()}>â†» Restart</button><button className="ct-primary" onClick={() => restart(mode, duration)}>New session</button></div>
+    </header>
+    <div className="ct-layout">
+      <section className="ct-board-card">
+        <div className="ct-board-top"><span>Find this square</span><strong className="ct-target">{finished ? "TIME!" : target}</strong><span className={`ct-feedback ${feedback}`}>{feedback === "correct" ? "Correct" : feedback === "wrong" ? "Try the next one" : "Select a square"}</span></div>
+        <div className="ct-board" role="group" aria-label="Coordinate training chessboard">
+          {squares.map((square) => {
+            const file = FILES.indexOf(square[0]);
+            const rank = Number(square[1]);
+            const dark = (file + rank) % 2 === 0;
+            return <button key={square} type="button" disabled={finished} onClick={() => chooseSquare(square)} className={`ct-square ${dark ? "dark" : "light"}`} aria-label={square}>
+              {showCoordinates && ((orientation === "white" && file === 0) || (orientation === "black" && file === 7)) && <span className="ct-rank">{rank}</span>}
+              {showCoordinates && ((orientation === "white" && rank === 1) || (orientation === "black" && rank === 8)) && <span className="ct-file">{square[0]}</span>}
+            </button>;
+          })}
+        </div>
+        <div className="ct-board-footer"><span>{orientation === "white" ? "White perspective" : "Black perspective"}</span><button onClick={() => setOrientation((value) => value === "white" ? "black" : "white")}>â‡… Flip board</button></div>
+      </section>
+      <aside className="ct-side">
+        <section className="ct-card ct-stats"><div className="ct-card-heading">SESSION</div><div className="ct-timer">{mode === "untimed" ? "âˆž" : mode === "streak" ? "â€”" : `00:${String(remaining).padStart(2, "0")}`}</div><div className="ct-progress"><i style={{ width: `${mode === "timed" ? ((duration - remaining) / duration) * 100 : 0}%` }} /></div>
+          <div className="ct-stat-grid"><div><strong>{score}</strong><span>Score</span></div><div><strong>{accuracy}%</strong><span>Accuracy</span></div><div><strong>{streak}</strong><span>Streak</span></div><div><strong>{bestStreak}</strong><span>Best streak</span></div></div>
+          {!startedAt && <p className="ct-start-note">Your timer starts with your first answer.</p>}
+          {finished && <div className="ct-finished">Session complete Â· {score} correct squares</div>}
+        </section>
+        <section className="ct-card"><div className="ct-card-heading">TRAINING SETTINGS</div><label>Mode<select value={mode} onChange={(e) => restart(e.target.value as Mode)}><option value="timed">Timed challenge</option><option value="untimed">Untimed practice</option><option value="streak">Streak challenge</option></select></label>
+          <label>Duration<select value={duration} onChange={(e) => restart(mode, Number(e.target.value))}><option value={30}>30 seconds</option><option value={60}>60 seconds</option><option value={120}>2 minutes</option><option value={180}>3 minutes</option></select></label>
+          <label className="ct-toggle"><input type="checkbox" checked={showCoordinates} onChange={(e) => setShowCoordinates(e.target.checked)} /> Show board coordinates</label>
+          <label className="ct-toggle"><input type="checkbox" checked={sound} onChange={(e) => setSound(e.target.checked)} /> Sound feedback (coming soon)</label>
+          <button className="ct-primary ct-full" onClick={() => restart()}>Start / Restart training</button>
+        </section>
+        <section className="ct-card"><div className="ct-card-heading">RECENT SESSIONS</div>{history.length ? history.slice(0, 4).map((item, index) => <div className="ct-history-row" key={`${item.date}-${index}`}><span>{new Date(item.date).toLocaleDateString()}</span><strong>{item.score} correct</strong><em>{item.accuracy}%</em></div>) : <p className="ct-empty">Your completed timed sessions will appear here.</p>}</section>
+      </aside>
+    </div>
+  </main>;
+}
+
+
+====================================================================================================
+FILE: src\App.test.tsx
+====================================================================================================
+import "fake-indexeddb/auto";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import App from "./App";
+
+class FakeWorker {
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  commands: string[] = [];
+  terminated = false;
+  postMessage(command: string) {
+    this.commands.push(command);
+    if (command === "uci") {
+      setTimeout(() => this.send("uciok"), 10);
+    } else if (command === "isready") {
+      setTimeout(() => this.send("readyok"), 10);
+    }
+  }
+  terminate() {
+    this.terminated = true;
+  }
+  send(data: string) {
+    this.onmessage?.({ data } as MessageEvent<string>);
+  }
+}
+
+describe("App - Manual Position Setup & Stockfish Analysis", () => {
+  let fakeWorker: FakeWorker;
+
+  beforeEach(() => {
+    fakeWorker = new FakeWorker();
+    vi.stubGlobal(
+      "Worker",
+      class {
+        constructor() {
+          return fakeWorker;
+        }
+      }
+    );
+  });
+
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase("chessbook-reader");
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  });
+
+  it("renders 'Set Up Position' buttons on the analysis board and toggles setup mode", async () => {
+    render(<App />);
+
+    // Wait for app initialization
+    const setupBtns = await screen.findAllByRole("button", { name: /set up position/i });
+    expect(setupBtns.length).toBeGreaterThanOrEqual(1);
+
+    // Click Set Up Position
+    fireEvent.click(setupBtns[0]);
+
+    // Modal should be open
+    expect(screen.getByRole("dialog", { name: "Set Up Position" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Analyze Position" })).toBeInTheDocument();
+
+    // Click Cancel
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    // Modal should close
+    expect(screen.queryByRole("dialog", { name: "Set Up Position" })).not.toBeInTheDocument();
+  });
+
+  it("loads a custom manual position, reflects side to move, and triggers Stockfish analysis", async () => {
+    render(<App />);
+
+    const setupBtns = await screen.findAllByRole("button", { name: /set up position/i });
+    fireEvent.click(setupBtns[0]);
+
+    // Set custom position with Black to move
+    const fenInput = screen.getByPlaceholderText(/paste a complete six-field fen/i) as HTMLInputElement;
+    const customFen = "4k3/8/8/8/8/8/8/4K3 b - - 0 1";
+    fireEvent.change(fenInput, { target: { value: customFen } });
+
+    // Confirm with Analyze Position
+    const analyzeBtn = screen.getByRole("button", { name: "Analyze Position" });
+    await act(async () => {
+      fireEvent.click(analyzeBtn);
+    });
+
+    // Modal should close
+    expect(screen.queryByRole("dialog", { name: "Set Up Position" })).not.toBeInTheDocument();
+
+    // Board FEN should match the custom position
+    const boardFenElement = screen.getByText(customFen);
+    expect(boardFenElement).toBeInTheDocument();
+
+    // Stockfish worker should have received uci and commands
+    expect(fakeWorker.commands).toContain("uci");
+  });
+});
+
+
+====================================================================================================
+FILE: src\opening-explorer.ts
+====================================================================================================
+import { Chess, type Square } from "chess.js";
+
+export type OpeningLineResult = {
+  fen: string;
+  sanMoves: string[];
+  uciMoves: string[];
+  error: string | null;
+};
+
+export function parseOpeningLine(input: string): OpeningLineResult {
+  const chess = new Chess();
+  const sanMoves: string[] = [];
+  const uciMoves: string[] = [];
+
+  const tokens = input
+    .replace(/\{[^}]*\}/g, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\d+\.(\.\.)?/g, " ")
+    .replace(/\$\d+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((token) => !["1-0", "0-1", "1/2-1/2", "*"].includes(token));
+
+  for (const token of tokens) {
+    try {
+      const uci = token.match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
+      const move = uci
+        ? chess.move({
+            from: uci[1].toLowerCase() as Square,
+            to: uci[2].toLowerCase() as Square,
+            promotion: uci[3]?.toLowerCase(),
+          })
+        : chess.move(token);
+
+      sanMoves.push(move.san);
+      uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+    } catch {
+      return {
+        fen: chess.fen(),
+        sanMoves,
+        uciMoves,
+        error: `Invalid or illegal move: ${token}`,
+      };
+    }
+  }
+
+  return { fen: chess.fen(), sanMoves, uciMoves, error: null };
+}
+
+export function openingPositionAt(input: string, ply: number): OpeningLineResult {
+  const parsed = parseOpeningLine(input);
+  if (parsed.error) return parsed;
+
+  const limit = Math.max(0, Math.min(parsed.sanMoves.length, Math.floor(ply)));
+  const chess = new Chess();
+  const sanMoves: string[] = [];
+  const uciMoves: string[] = [];
+
+  for (let i = 0; i < limit; i++) {
+    const move = chess.move(parsed.sanMoves[i]);
+    sanMoves.push(move.san);
+    uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+  }
+
+  return { fen: chess.fen(), sanMoves, uciMoves, error: null };
+}
+
+====================================================================================================
+FILE: src\storage.ts
+====================================================================================================
+import type { BookRecord, BookSession } from "./model";
+
+const DB_NAME = "chessbook-reader";
+const DB_VERSION = 1;
+const ACTIVE_KEY = "activeBookId";
+
+function openDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains("books")) {
+        db.createObjectStore("books", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("sessions")) {
+        db.createObjectStore("sessions", { keyPath: "bookId" });
+      }
+      if (!db.objectStoreNames.contains("settings")) {
+        db.createObjectStore("settings", { keyPath: "key" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error("Could not open local library."));
+  });
+}
+
+async function transact<T>(
+  storeName: string,
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  const db = await openDatabase();
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      const transaction = db.transaction(storeName, mode);
+      let outcome: { value: T } | null = null;
+      transaction.oncomplete = () => {
+        if (outcome) resolve(outcome.value);
+        else reject(new Error("Local library transaction completed without a result."));
+      };
+      transaction.onerror = () => reject(transaction.error ?? new Error("Local library transaction failed."));
+      transaction.onabort = () => reject(transaction.error ?? new Error("Local library transaction aborted."));
+      const request = run(transaction.objectStore(storeName));
+      request.onsuccess = () => { outcome = { value: request.result }; };
+      request.onerror = () => reject(request.error ?? new Error("Local library operation failed."));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+export const getBooks = () =>
+  transact<BookRecord[]>("books", "readonly", (store) => store.getAll());
+
+export const getBook = (id: string) =>
+  transact<BookRecord | undefined>("books", "readonly", (store) => store.get(id));
+
+export const putBook = (book: BookRecord) =>
+  transact<IDBValidKey>("books", "readwrite", (store) => store.put(book));
+
+export const removeBook = (id: string) =>
+  transact<undefined>("books", "readwrite", (store) => store.delete(id));
+
+export const getSession = (id: string) =>
+  transact<BookSession | undefined>("sessions", "readonly", (store) => store.get(id));
+
+export const putSession = (session: BookSession) =>
+  transact<IDBValidKey>("sessions", "readwrite", (store) => store.put(session));
+
+export const removeSession = (id: string) =>
+  transact<undefined>("sessions", "readwrite", (store) => store.delete(id));
+
+export const getActiveBookId = async (): Promise<string | null> => {
+  const item = await transact<{ key: string; value: string } | undefined>(
+    "settings",
+    "readonly",
+    (store) => store.get(ACTIVE_KEY),
+  );
+  return item?.value ?? null;
+};
+
+export const setActiveBookId = (value: string | null) =>
+  value
+    ? transact<IDBValidKey>("settings", "readwrite", (store) =>
+        store.put({ key: ACTIVE_KEY, value }),
+      )
+    : transact<undefined>("settings", "readwrite", (store) => store.delete(ACTIVE_KEY));
+
+
+====================================================================================================
+FILE: package.json
+====================================================================================================
+{
+  "name": "chessbook-reader",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^5.0.4"
+  }
+}
+
+
+====================================================================================================
+FILE: vite.config.ts
+====================================================================================================
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    host: "127.0.0.1",
+    proxy: { "/api": { target: "http://127.0.0.1:8000", changeOrigin: true } },
+    watch: { ignored: ["**/backend/models/**", "**/backend/.venv-ocr/**"] },
+  },
+  worker: { format: "es" },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test-setup.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
+  },
+});
+
+
+====================================================================================================
+FILE: tsconfig.json
+====================================================================================================
+{
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+}
+

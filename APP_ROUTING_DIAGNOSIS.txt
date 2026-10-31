@@ -1,0 +1,979 @@
+﻿=== BACKUP CREATED AT: D:\chess\BookChess\ChessBookReader\backups\20261031_022041 ===
+
+=== src\App.tsx WORKSPACE ROUTING LINES ===
+--- Match around Line 26 ---
+  22:   removeSession,
+  23:   setActiveBookId,
+  24: } from "./storage";
+  25: import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+  26: import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+  27: import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+  28: 
+  29: 
+  30: function formatUciMove(fen: string, uci: string): string {
+  31:   const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  32:   if (!match) return uci;
+
+--- Match around Line 27 ---
+  23:   setActiveBookId,
+  24: } from "./storage";
+  25: import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+  26: import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+  27: import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+  28: 
+  29: 
+  30: function formatUciMove(fen: string, uci: string): string {
+  31:   const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  32:   if (!match) return uci;
+  33:   try {
+
+--- Match around Line 68 ---
+  64: }
+  65: 
+  66: GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+  67: 
+  68: import { GameReview } from "./GameReview";
+  69: 
+  70: type LibraryTab = "all" | "recent";
+  71: type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "game-review";
+  72: 
+  73: const FILE_LIMIT = 100 * 1024 * 1024;
+  74: const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+
+--- Match around Line 70 ---
+  66: GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+  67: 
+  68: import { GameReview } from "./GameReview";
+  69: 
+  70: type LibraryTab = "all" | "recent";
+  71: type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "game-review";
+  72: 
+  73: const FILE_LIMIT = 100 * 1024 * 1024;
+  74: const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+  75: const CROP_HANDLES: CropHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+  76: type CandidateInput = Omit<Candidate, "id" | "source" | "relativeScore"> &
+
+--- Match around Line 71 ---
+  67: 
+  68: import { GameReview } from "./GameReview";
+  69: 
+  70: type LibraryTab = "all" | "recent";
+  71: type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "game-review";
+  72: 
+  73: const FILE_LIMIT = 100 * 1024 * 1024;
+  74: const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+  75: const CROP_HANDLES: CropHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+  76: type CandidateInput = Omit<Candidate, "id" | "source" | "relativeScore"> &
+  77:   Partial<Pick<Candidate, "id" | "source" | "relativeScore">> & { relative_score?: number; confidence?: number };
+
+--- Match around Line 119 ---
+ 115:   const [session, setSession] = useState<BookSession | null>(null);
+ 116:   type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+ 117:   const [studyMode, setStudyMode] = useState(false);
+ 118:   const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+ 119:   const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+ 120:     lineBaseFen: START_FEN,
+ 121:     currentFen: START_FEN,
+ 122:     moves: [],
+ 123:     moveIndex: 0,
+ 124:     flipped: false,
+ 125:     coordinates: true,
+
+--- Match around Line 138 ---
+ 134:   }));
+ 135:   const [ready, setReady] = useState(false);
+ 136:   const [notice, setNotice] = useState("");
+ 137:   const [error, setError] = useState("");
+ 138:   const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+ 139:   const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+ 140:   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+ 141:   const [bookSearch, setBookSearch] = useState("");
+ 142:   const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+ 143:   const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+ 144:   const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+
+--- Match around Line 139 ---
+ 135:   const [ready, setReady] = useState(false);
+ 136:   const [notice, setNotice] = useState("");
+ 137:   const [error, setError] = useState("");
+ 138:   const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+ 139:   const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+ 140:   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+ 141:   const [bookSearch, setBookSearch] = useState("");
+ 142:   const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+ 143:   const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+ 144:   const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+ 145:   const [openingStatsStatus, setOpeningStatsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+
+--- Match around Line 140 ---
+ 136:   const [notice, setNotice] = useState("");
+ 137:   const [error, setError] = useState("");
+ 138:   const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+ 139:   const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+ 140:   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+ 141:   const [bookSearch, setBookSearch] = useState("");
+ 142:   const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+ 143:   const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+ 144:   const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+ 145:   const [openingStatsStatus, setOpeningStatsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+ 146:   const [lichessStatus, setLichessStatus] = useState<LichessConnectionStatus | null>(null);
+
+--- Match around Line 253 ---
+ 249:         } else {
+ 250:           setBooks(ordered);
+ 251:         }
+ 252:       } catch (cause) {
+ 253:         if (!cancelled) setError(`Could not restore the local library: ${messageOf(cause)}`);
+ 254:       } finally {
+ 255:         if (!cancelled) setReady(true);
+ 256:       }
+ 257:     }
+ 258:     void initialize();
+ 259:     return () => { cancelled = true; };
+
+--- Match around Line 382 ---
+ 378:     return sortedBooks.filter((item) => {
+ 379:       const matchesTab = true;
+ 380:       return matchesTab && item.title.toLowerCase().includes(needle);
+ 381:     });
+ 382:   }, [bookSearch, libraryTab, sessionIndex, sortedBooks]);
+ 383: 
+ 384:   const openingLine = useMemo(
+ 385:     () => parseOpeningLine(openingExplorerInput),
+ 386:     [openingExplorerInput],
+ 387:   );
+ 388:   const openingPosition = useMemo(
+
+--- Match around Line 394 ---
+ 390:     [openingExplorerInput, openingExplorerPly],
+ 391:   );
+ 392: 
+ 393:   useEffect(() => {
+ 394:     if (workspaceMode !== "opening-explorer") return;
+ 395:     if (!lichessStatus?.connected) {
+ 396:       setOpeningStats(null);
+ 397:       setOpeningStatsStatus("idle");
+ 398:       return;
+ 399:     }
+ 400: 
+
+--- Match around Line 427 ---
+ 423:     return () => {
+ 424:       window.clearTimeout(timer);
+ 425:       controller.abort();
+ 426:     };
+ 427:   }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+ 428: 
+ 429:   const boardSession: StudyBoardState | null =
+ 430:     workspaceMode === "analysis"
+ 431:       ? analysisBoard
+ 432:       : workspaceMode === "opening-prep"
+ 433:         ? openingPrepBoard
+
+--- Match around Line 430 ---
+ 426:     };
+ 427:   }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+ 428: 
+ 429:   const boardSession: StudyBoardState | null =
+ 430:     workspaceMode === "analysis"
+ 431:       ? analysisBoard
+ 432:       : workspaceMode === "opening-prep"
+ 433:         ? openingPrepBoard
+ 434:         : workspaceMode === "opening-explorer"
+ 435:           ? {
+ 436:               lineBaseFen: START_FEN,
+
+--- Match around Line 431 ---
+ 427:   }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+ 428: 
+ 429:   const boardSession: StudyBoardState | null =
+ 430:     workspaceMode === "analysis"
+ 431:       ? analysisBoard
+ 432:       : workspaceMode === "opening-prep"
+ 433:         ? openingPrepBoard
+ 434:         : workspaceMode === "opening-explorer"
+ 435:           ? {
+ 436:               lineBaseFen: START_FEN,
+ 437:               currentFen: openingPosition.fen,
+
+--- Match around Line 432 ---
+ 428: 
+ 429:   const boardSession: StudyBoardState | null =
+ 430:     workspaceMode === "analysis"
+ 431:       ? analysisBoard
+ 432:       : workspaceMode === "opening-prep"
+ 433:         ? openingPrepBoard
+ 434:         : workspaceMode === "opening-explorer"
+ 435:           ? {
+ 436:               lineBaseFen: START_FEN,
+ 437:               currentFen: openingPosition.fen,
+ 438:               moves: openingPosition.sanMoves,
+
+--- Match around Line 434 ---
+ 430:     workspaceMode === "analysis"
+ 431:       ? analysisBoard
+ 432:       : workspaceMode === "opening-prep"
+ 433:         ? openingPrepBoard
+ 434:         : workspaceMode === "opening-explorer"
+ 435:           ? {
+ 436:               lineBaseFen: START_FEN,
+ 437:               currentFen: openingPosition.fen,
+ 438:               moves: openingPosition.sanMoves,
+ 439:               moveIndex: openingPosition.sanMoves.length,
+ 440:               flipped: false,
+
+--- Match around Line 532 ---
+ 528:     });
+ 529:   }
+ 530: 
+ 531:   function patchBoardSession(change: Partial<StudyBoardState>) {
+ 532:     if (workspaceMode === "opening-explorer") {
+ 533:       return;
+ 534:     }
+ 535: 
+ 536:     if (workspaceMode === "analysis") {
+ 537:       setAnalysisBoard((current) => ({ ...current, ...change }));
+ 538:     } else if (workspaceMode === "opening-prep") {
+
+--- Match around Line 536 ---
+ 532:     if (workspaceMode === "opening-explorer") {
+ 533:       return;
+ 534:     }
+ 535: 
+ 536:     if (workspaceMode === "analysis") {
+ 537:       setAnalysisBoard((current) => ({ ...current, ...change }));
+ 538:     } else if (workspaceMode === "opening-prep") {
+ 539:       setOpeningPrepBoard((current) => ({ ...current, ...change }));
+ 540:     } else if (studyMode) {
+ 541:       setStudyBoard((current) => current ? { ...current, ...change } : current);
+ 542:     } else {
+
+--- Match around Line 537 ---
+ 533:       return;
+ 534:     }
+ 535: 
+ 536:     if (workspaceMode === "analysis") {
+ 537:       setAnalysisBoard((current) => ({ ...current, ...change }));
+ 538:     } else if (workspaceMode === "opening-prep") {
+ 539:       setOpeningPrepBoard((current) => ({ ...current, ...change }));
+ 540:     } else if (studyMode) {
+ 541:       setStudyBoard((current) => current ? { ...current, ...change } : current);
+ 542:     } else {
+ 543:       patchSession(change);
+
+--- Match around Line 538 ---
+ 534:     }
+ 535: 
+ 536:     if (workspaceMode === "analysis") {
+ 537:       setAnalysisBoard((current) => ({ ...current, ...change }));
+ 538:     } else if (workspaceMode === "opening-prep") {
+ 539:       setOpeningPrepBoard((current) => ({ ...current, ...change }));
+ 540:     } else if (studyMode) {
+ 541:       setStudyBoard((current) => current ? { ...current, ...change } : current);
+ 542:     } else {
+ 543:       patchSession(change);
+ 544:     }
+
+--- Match around Line 629 ---
+ 625:       setBooks((current) => [created, ...current]);
+ 626:       setSessionIndex((current) => ({ ...current, [created.id]: blank }));
+ 627:       setBook(created);
+ 628:       setSession(blank);
+ 629:       setNotice("PDF added to this browser's local library.");
+ 630:       setError("");
+ 631:       if (fileInput.current) fileInput.current.value = "";
+ 632:     } catch (cause) {
+ 633:       setError(`Could not add PDF: ${messageOf(cause)}`);
+ 634:     }
+ 635:   }
+
+--- Match around Line 657 ---
+ 653:         setSession(null);
+ 654:         setPdf(null);
+ 655:       }
+ 656: 
+ 657:       setNotice(`Removed "${item.title}" from your library.`);
+ 658:       setError("");
+ 659:     } catch (cause) {
+ 660:       setError(`Could not remove book: ${messageOf(cause)}`);
+ 661:     }
+ 662:   }
+ 663:   async function renameBook(item: BookRecord) {
+
+--- Match around Line 687 ---
+ 683:     patchSession({ page: Math.max(1, Math.min(session.pageCount || 1, Math.floor(value))) });
+ 684:   }
+ 685: 
+ 686:   function moveToPosition(fen: string): boolean {
+ 687:     const activeSession = session ?? newSession("analysis");
+ 688:     try {
+ 689:       const next = new Chess(fen);
+ 690:       setSession({
+ 691:         ...activeSession,
+ 692:         originalFen: fen,
+ 693:         lineBaseFen: fen,
+
+--- Match around Line 719 ---
+ 715:       toggleEngine();
+ 716:     } else {
+ 717:       engineRef.current?.analyze(fen, engineDepth);
+ 718:     }
+ 719:     setNotice("Manual position loaded. Stockfish analysis started.");
+ 720:     return true;
+ 721:   }
+ 722: 
+ 723:   function selectCandidate(candidate: Candidate) {
+ 724:     if (!session) return;
+ 725:     setCropEditingId(null);
+
+--- Match around Line 811 ---
+ 807:       if (requestId !== transferRequestRef.current) return;
+ 808:       setTransferFen(result.fen);
+ 809:       setRecognitionResult(result);
+ 810:       setRecognitionStatus("complete");
+ 811:       // A successful scan immediately becomes the active analysis position.
+ 812:       // Keep the review dialog open so the user can correct uncertain squares;
+ 813:       // the explicit confirmation button remains available for corrected FENs.
+ 814:       if (moveToPosition(result.fen)) {
+ 815:         setNotice("Scanned position loaded automatically onto the analysis board. Review the diagram and correct any uncertain squares before continuing.");
+ 816:       }
+ 817:     } catch (cause) {
+
+--- Match around Line 815 ---
+ 811:       // A successful scan immediately becomes the active analysis position.
+ 812:       // Keep the review dialog open so the user can correct uncertain squares;
+ 813:       // the explicit confirmation button remains available for corrected FENs.
+ 814:       if (moveToPosition(result.fen)) {
+ 815:         setNotice("Scanned position loaded automatically onto the analysis board. Review the diagram and correct any uncertain squares before continuing.");
+ 816:       }
+ 817:     } catch (cause) {
+ 818:       if (requestId !== transferRequestRef.current) return;
+ 819:       setRecognitionStatus("failed");
+ 820:       setRecognitionError(messageOf(cause));
+ 821:     }
+
+--- Match around Line 898 ---
+ 894:         return;
+ 895:       }
+ 896:       const result = currentGame.move({ from, to });
+ 897:       const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+ 898:       if (workspaceMode === "opening-explorer") {
+ 899:         const line = nextMoves
+ 900:           .map((move, index) => index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ${move}` : move)
+ 901:           .join(" ");
+ 902:         setOpeningExplorerInput(line);
+ 903:         setOpeningExplorerPly(nextMoves.length);
+ 904:       } else {
+
+--- Match around Line 1028 ---
+1024:       }
+1025: 
+1026:       const last = replay.history({ verbose: true }).at(-1);
+1027: 
+1028:       setAnalysisBoard((current) => ({
+1029:         ...current,
+1030:         lineBaseFen: imported.lineBaseFen,
+1031:         currentFen: imported.finalFen,
+1032:         moves: imported.moves,
+1033:         moveIndex: imported.moves.length,
+1034:       }));
+
+--- Match around Line 1036 ---
+1032:         moves: imported.moves,
+1033:         moveIndex: imported.moves.length,
+1034:       }));
+1035: 
+1036:       setWorkspaceMode("analysis");
+1037:       setStudyMode(false);
+1038:       setLastMove(last ? { from: last.from, to: last.to } : null);
+1039:       setSelectedSquare(null);
+1040: 
+1041:       const white = imported.headers.White || "White";
+1042:       const black = imported.headers.Black || "Black";
+
+--- Match around Line 1205 ---
+1201:       }));
+1202: 
+1203:       setNotice(
+1204:         candidates.length
+1205:           ? `Found ${candidates.length} board candidate${candidates.length === 1 ? "" : "s"}. Select a candidate to recognize its chess position and load it onto the analysis board.`
+1206:           : "No board candidates found.",
+1207:       );
+1208:     } catch (cause) {
+1209:       if (requestId !== scanRequestIdRef.current) return;
+1210: 
+1211:       if (abortController.signal.aborted) {
+
+--- Match around Line 1375 ---
+1371:     setNotice("Position saved to this book.");
+1372:   }
+1373: 
+1374:   function resetBoard() {
+1375:     if (workspaceMode === "opening-prep") {
+1376:       const original = new Chess(openingPrepBoard.lineBaseFen);
+1377:       patchBoardSession({
+1378:         lineBaseFen: original.fen(),
+1379:         currentFen: original.fen(),
+1380:         moves: [],
+1381:         moveIndex: 0,
+
+--- Match around Line 1421 ---
+1417:   return (
+1418:     <main className={`app-shell ${studyMode ? "study-focus-mode" : ""}`}>
+1419:       <header className="topbar">
+1420:         <div className="brand-mark">&#9822;</div>
+1421:         <button className="icon-button library-toggle" aria-label="Toggle library" onClick={() => setLibraryOpen((value) => !value)}>&#9776;</button>
+1422:         <div className="brand-name">ChessBook <span>Reader</span></div>
+1423:         <div className="top-divider" />
+1424:         <div className="current-book" title={book?.title ?? "No book open"}>
+1425:           <span className="book-dot" />
+1426:           <strong>{book?.title ?? "No book open"}</strong>
+1427:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+
+--- Match around Line 1430 ---
+1426:           <strong>{book?.title ?? "No book open"}</strong>
+1427:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+1428:         </div>
+1429:         <div className="top-spacer" />
+1430:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+1432:       </header>
+1433: 
+1434:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+1435:         {libraryOpen && (
+1436:           <aside className="library-panel">
+
+--- Match around Line 1434 ---
+1430:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+1432:       </header>
+1433: 
+1434:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+1435:         {libraryOpen && (
+1436:           <aside className="library-panel">
+1437:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+1438:             <input
+1439:               ref={fileInput}
+1440:               className="hidden-input"
+
+--- Match around Line 1435 ---
+1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+1432:       </header>
+1433: 
+1434:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+1435:         {libraryOpen && (
+1436:           <aside className="library-panel">
+1437:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+1438:             <input
+1439:               ref={fileInput}
+1440:               className="hidden-input"
+1441:               type="file"
+
+--- Match around Line 1436 ---
+1432:       </header>
+1433: 
+1434:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+1435:         {libraryOpen && (
+1436:           <aside className="library-panel">
+1437:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+1438:             <input
+1439:               ref={fileInput}
+1440:               className="hidden-input"
+1441:               type="file"
+1442:               accept="application/pdf,.pdf"
+
+--- Match around Line 1437 ---
+1433: 
+1434:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+1435:         {libraryOpen && (
+1436:           <aside className="library-panel">
+1437:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+1438:             <input
+1439:               ref={fileInput}
+1440:               className="hidden-input"
+1441:               type="file"
+1442:               accept="application/pdf,.pdf"
+1443:               onChange={(event) => void addBook(event.target.files?.[0])}
+
+--- Match around Line 1445 ---
+1441:               type="file"
+1442:               accept="application/pdf,.pdf"
+1443:               onChange={(event) => void addBook(event.target.files?.[0])}
+1444:             />
+1445:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+1446:             <nav className="library-nav" aria-label="Library sections">
+1447:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+1448:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+1449:               <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+1450:               <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+1451: 
+
+--- Match around Line 1446 ---
+1442:               accept="application/pdf,.pdf"
+1443:               onChange={(event) => void addBook(event.target.files?.[0])}
+1444:             />
+1445:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+1446:             <nav className="library-nav" aria-label="Library sections">
+1447:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+1448:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+1449:               <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+1450:               <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+1451: 
+1452: 
+
+--- Match around Line 1447 ---
+1443:               onChange={(event) => void addBook(event.target.files?.[0])}
+1444:             />
+1445:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+1446:             <nav className="library-nav" aria-label="Library sections">
+1447:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+1448:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+1449:               <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+1450:               <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+1451: 
+1452: 
+1453: 
+
+--- Match around Line 1448 ---
+1444:             />
+1445:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+1446:             <nav className="library-nav" aria-label="Library sections">
+1447:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+1448:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+1449:               <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+1450:               <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+1451: 
+1452: 
+1453: 
+1454: </nav>
+
+--- Match around Line 1449 ---
+1445:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+1446:             <nav className="library-nav" aria-label="Library sections">
+1447:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+1448:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+1449:               <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+1450:               <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+1451: 
+1452: 
+1453: 
+1454: </nav>
+1455:             <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+
+--- Match around Line 1450 ---
+1446:             <nav className="library-nav" aria-label="Library sections">
+1447:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+1448:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+1449:               <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+1450:               <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+1451: 
+1452: 
+1453: 
+1454: </nav>
+1455:             <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+1456:             <div className="book-list">
+
+--- Match around Line 1455 ---
+1451: 
+1452: 
+1453: 
+1454: </nav>
+1455:             <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+1456:             <div className="book-list">
+1457:                 {visibleBooks.map((item, index) => {
+1458:                   const saved = sessionIndex[item.id];
+1459:                   const progress = saved?.pageCount ? Math.min(100, Math.round((saved.page / saved.pageCount) * 100)) : 0;
+1460:                   return (
+1461:                     <div key={item.id} className={`book-row ${book?.id === item.id ? "active" : ""}`}>
+
+--- Match around Line 1471 ---
+1467:                       <details className="book-menu"><summary aria-label={`Options for ${item.title}`}>&#8942;</summary><div className="book-menu-items"><button onClick={() => void renameBook(item)}>Rename</button><button onClick={() => void deleteBook(item)}>Delete book</button></div></details>
+1468:                     </div>
+1469:                   );
+1470:                 })}
+1471:                 {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+1472:               </div>
+1473:             <section className="sidebar-moves-panel" aria-label="Move list">
+1474: <div className="moves-panel">
+1475:             <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+1476:               if (!session) return;
+1477:               patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+
+--- Match around Line 1479 ---
+1475:             <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+1476:               if (!session) return;
+1477:               patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+1478:               setLastMove(null);
+1479:               setNotice("New analysis line started from the current position.");
+1480:             }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+1481:             <div className="move-list">
+1482:               {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+1483:                 <div className="move-pair" key={row}>
+1484:                   <span className="move-number">{row + 1}.</span>
+1485:                   {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+
+--- Match around Line 1492 ---
+1488:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+1489:             </div>
+1490:           </div>
+1491:             </section>
+1492:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+1493:           </aside>
+1494:         )}
+1495: 
+1496:         {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1497:         <section className="board-panel" aria-label="Chessboard analysis">
+1498:           <div className="board-header">
+
+--- Match around Line 1496 ---
+1492:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+1493:           </aside>
+1494:         )}
+1495: 
+1496:         {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1497:         <section className="board-panel" aria-label="Chessboard analysis">
+1498:           <div className="board-header">
+1499:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1500:             <div className="board-header-actions">
+1501:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+1502:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+
+--- Match around Line 1497 ---
+1493:           </aside>
+1494:         )}
+1495: 
+1496:         {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1497:         <section className="board-panel" aria-label="Chessboard analysis">
+1498:           <div className="board-header">
+1499:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1500:             <div className="board-header-actions">
+1501:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+1502:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+1503:             </div>
+
+--- Match around Line 1499 ---
+1495: 
+1496:         {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+1497:         <section className="board-panel" aria-label="Chessboard analysis">
+1498:           <div className="board-header">
+1499:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+1500:             <div className="board-header-actions">
+1501:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+1502:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+1503:             </div>
+1504:           </div>
+1505:           <div className="board-area">
+
+--- Match around Line 1651 ---
+1647:             <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+1648:             <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+1649:             <button
+1650:               className={annotationMode ? "annotation-active" : ""}
+1651:               title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+1652:               aria-pressed={annotationMode}
+1653:               onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+1654:             ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+1655:             {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+1656:             <span className="controls-spacer" />
+1657:             <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+
+--- Match around Line 1699 ---
+1695:           <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+1696:         </section>
+1697: 
+1698:         <section className="reader-panel" aria-label="PDF book reader">
+1699:           <div className="opening-explorer-right-workspace">
+1700:           {workspaceMode === "opening-explorer" && (
+1701:             <section className="opening-explorer-panel" aria-label="Opening Explorer">
+1702:               <h3>Opening Explorer</h3>
+1703:               <div className="lichess-connection-controls">
+1704:                 {lichessStatus?.connected ? (
+1705:                   <>
+
+--- Match around Line 1700 ---
+1696:         </section>
+1697: 
+1698:         <section className="reader-panel" aria-label="PDF book reader">
+1699:           <div className="opening-explorer-right-workspace">
+1700:           {workspaceMode === "opening-explorer" && (
+1701:             <section className="opening-explorer-panel" aria-label="Opening Explorer">
+1702:               <h3>Opening Explorer</h3>
+1703:               <div className="lichess-connection-controls">
+1704:                 {lichessStatus?.connected ? (
+1705:                   <>
+1706:                     <span role="status">Lichess connected</span>
+
+--- Match around Line 1701 ---
+1697: 
+1698:         <section className="reader-panel" aria-label="PDF book reader">
+1699:           <div className="opening-explorer-right-workspace">
+1700:           {workspaceMode === "opening-explorer" && (
+1701:             <section className="opening-explorer-panel" aria-label="Opening Explorer">
+1702:               <h3>Opening Explorer</h3>
+1703:               <div className="lichess-connection-controls">
+1704:                 {lichessStatus?.connected ? (
+1705:                   <>
+1706:                     <span role="status">Lichess connected</span>
+1707:                     <button
+
+--- Match around Line 1755 ---
+1751:               />
+1752:               {openingLine.error && <p role="alert">{openingLine.error}</p>}
+1753:               {!openingLine.error && (
+1754:                 <>
+1755:                   <div className="opening-explorer-moves" aria-label="Opening moves">
+1756:                     <button
+1757:                       type="button"
+1758:                       disabled={openingExplorerPly === 0}
+1759:                       onClick={() => setOpeningExplorerPly(0)}
+1760:                     >Start</button>
+1761:                     <button
+
+--- Match around Line 1778 ---
+1774:                       disabled={openingExplorerPly >= openingLine.sanMoves.length}
+1775:                       onClick={() => setOpeningExplorerPly(openingLine.sanMoves.length)}
+1776:                     >End</button>
+1777:                   </div>
+1778:                   <div className="opening-explorer-notation">
+1779:                     {openingLine.sanMoves.length
+1780:                       ? openingLine.sanMoves.map((move, index) => (
+1781:                           <button
+1782:                             type="button"
+1783:                             key={`${index}-${move}`}
+1784:                             className={index < openingExplorerPly ? "opening-move-played" : ""}
+
+--- Match around Line 1793 ---
+1789:                   </div>
+1790:                   <section className="opening-stats" aria-label="Opening statistics" aria-live="polite">
+1791:                     <div className="opening-stats-heading">
+1792:                       <h4>Position statistics</h4>
+1793:                       <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
+1794:                     </div>
+1795:                     {openingStatsStatus === "loading" && <p>Loading game statisticsÃ¢â‚¬Â¦</p>}
+1796:                     {openingStatsStatus === "error" && (
+1797:                       <p role="status">Statistics are currently unavailable. Check your connection or try again later. The board remains usable.</p>
+1798:                     )}
+1799:                     {openingStatsStatus === "ready" && openingStats && (
+
+--- Match around Line 1846 ---
+1842:                   <button
+1843:                     type="button"
+1844:                     className="green-button"
+1845:                     onClick={() => {
+1846:                       setAnalysisBoard({
+1847:                         lineBaseFen: START_FEN,
+1848:                         currentFen: openingPosition.fen,
+1849:                         moves: [...openingPosition.sanMoves],
+1850:                         moveIndex: openingPosition.sanMoves.length,
+1851:                         flipped: false,
+1852:                         coordinates: true,
+
+--- Match around Line 1855 ---
+1851:                         flipped: false,
+1852:                         coordinates: true,
+1853:                       });
+1854:                       setStudyMode(false);
+1855:                       setWorkspaceMode("analysis");
+1856:                       setNotice("Opening position copied to the independent Analysis Board.");
+1857:                     }}
+1858:                   >Open position in Analysis Board</button>
+1859:                   <p className="muted">Position FEN: {openingPosition.fen}</p>
+1860:                 </>
+1861:               )}
+
+--- Match around Line 1856 ---
+1852:                         coordinates: true,
+1853:                       });
+1854:                       setStudyMode(false);
+1855:                       setWorkspaceMode("analysis");
+1856:                       setNotice("Opening position copied to the independent Analysis Board.");
+1857:                     }}
+1858:                   >Open position in Analysis Board</button>
+1859:                   <p className="muted">Position FEN: {openingPosition.fen}</p>
+1860:                 </>
+1861:               )}
+1862:             </section>
+
+--- Match around Line 1858 ---
+1854:                       setStudyMode(false);
+1855:                       setWorkspaceMode("analysis");
+1856:                       setNotice("Opening position copied to the independent Analysis Board.");
+1857:                     }}
+1858:                   >Open position in Analysis Board</button>
+1859:                   <p className="muted">Position FEN: {openingPosition.fen}</p>
+1860:                 </>
+1861:               )}
+1862:             </section>
+1863:           )}
+1864:           </div>
+
+--- Match around Line 1953 ---
+1949:               <button onClick={cancelCandidateSelection}>Cancel</button>
+1950:             </div>}
+1951:             <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+1952:           </div>
+1953:           <div className="analysis-strip">
+1954:             <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+1955:             <div className="analysis-divider" />
+1956:             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+1957:             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+1958:             <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+1959:             <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+
+--- Match around Line 1954 ---
+1950:             </div>}
+1951:             <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+1952:           </div>
+1953:           <div className="analysis-strip">
+1954:             <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+1955:             <div className="analysis-divider" />
+1956:             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+1957:             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+1958:             <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+1959:             <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+1960:             <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+
+--- Match around Line 1955 ---
+1951:             <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+1952:           </div>
+1953:           <div className="analysis-strip">
+1954:             <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+1955:             <div className="analysis-divider" />
+1956:             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+1957:             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+1958:             <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+1959:             <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+1960:             <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+1961:           </div>
+
+--- Match around Line 1956 ---
+1952:           </div>
+1953:           <div className="analysis-strip">
+1954:             <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+1955:             <div className="analysis-divider" />
+1956:             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+1957:             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+1958:             <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+1959:             <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+1960:             <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+1961:           </div>
+1962:         </section>
+
+--- Match around Line 1958 ---
+1954:             <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+1955:             <div className="analysis-divider" />
+1956:             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+1957:             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+1958:             <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+1959:             <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+1960:             <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+1961:           </div>
+1962:         </section>
+1963:         </>}
+1964:       </div>
+
+--- Match around Line 1959 ---
+1955:             <div className="analysis-divider" />
+1956:             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+1957:             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+1958:             <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+1959:             <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+1960:             <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+1961:           </div>
+1962:         </section>
+1963:         </>}
+1964:       </div>
+1965: 
+
+--- Match around Line 1960 ---
+1956:             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+1957:             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+1958:             <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+1959:             <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+1960:             <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+1961:           </div>
+1962:         </section>
+1963:         </>}
+1964:       </div>
+1965: 
+1966:       {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+
+--- Match around Line 1966 ---
+1962:         </section>
+1963:         </>}
+1964:       </div>
+1965: 
+1966:       {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+1967:       {transferCandidate && (
+1968:         <ManualBoardEditor
+1969:           initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+1970:           title="Review recognized position"
+1971:           subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits."
+1972:           confirmLabel="Use on Board"
+
+--- Match around Line 1971 ---
+1967:       {transferCandidate && (
+1968:         <ManualBoardEditor
+1969:           initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+1970:           title="Review recognized position"
+1971:           subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits."
+1972:           confirmLabel="Use on Board"
+1973:           cropPreviewUrl={transferPreview}
+1974:           recognitionStatus={recognitionStatus}
+1975:           recognitionResult={recognitionResult}
+1976:           recognitionError={recognitionError}
+1977:           onRetryRecognition={() => void openTransfer(transferCandidate)}
+
+--- Match around Line 1993 ---
+1989:           title="Set Up Position"
+1990:           subtitle="Set up a custom chess position to analyze with Stockfish."
+1991:           confirmLabel="Analyze Position"
+1992:           showPresets={true}
+1993:           currentAnalysisFen={game.fen()}
+1994:           onConfirm={(confirmedFen) => {
+1995:             if (analyzeManualPosition(confirmedFen)) {
+1996:               setSetupOpen(false);
+1997:             }
+1998:           }}
+1999:           onCancel={() => setSetupOpen(false)}
+
+--- Match around Line 2012 ---
+2008:             <h2 id="game-end-title">{gameEndOverlay.title}</h2>
+2009:             <p>{gameEndOverlay.message}</p>
+2010:             <div className="game-end-actions">
+2011:               <button type="button" onClick={() => setGameEndOverlay(null)}>Review position</button>
+2012:               <button type="button" onClick={() => { setGameEndOverlay(null); setSelectedSquare(null); }}>Continue analysis</button>
+2013:             </div>
+2014:           </section>
+2015:         </div>
+2016:       )}
+2017:       {promotionRequest && (
+2018:         <div className="promotion-backdrop" onClick={() => setPromotionRequest(null)}>
+
+--- Match around Line 2037 ---
+2033:     </main>
+2034:   );
+2035: }
+2036: 
+2037: function LibraryNavItem({
+2038:   active,
+2039:   onClick,
+2040:   icon: Icon,
+2041:   label,
+2042: }: {
+2043:   active: boolean;
+
+--- Match around Line 2051 ---
+2047: }) {
+2048:   return (
+2049:     <button
+2050:       type="button"
+2051:       className={`library-nav-item ${active ? "nav-active" : ""}`}
+2052:       onClick={onClick}
+2053:       aria-current={active ? "page" : undefined}
+2054:     >
+2055:       <Icon size={17} strokeWidth={1.8} aria-hidden={true} />
+2056:       <span>{label}</span>
+2057:     </button>
+
+

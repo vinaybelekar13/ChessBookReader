@@ -1,0 +1,444 @@
+CHESSBOOK READER - GAME REVIEW AUDIT
+
+========== APP.TSX MATCHES ==========
+
+  src\App.tsx:8:import { fenWithTurn, makePosition } from "./chess-state";
+  src\App.tsx:9:import { parsePgn } from "./pgn-import";
+> src\App.tsx:10:import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+  src\App.tsx:11:import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+  src\App.tsx:12:import { ManualBoardEditor } from "./ManualBoardEditor";
+> src\App.tsx:13:import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+  src\App.tsx:14:import {
+  src\App.tsx:15:  getActiveBookId,
+  src\App.tsx:16:  getBooks,
+  src\App.tsx:28:
+  src\App.tsx:29:
+> src\App.tsx:30:function formatUciMove(fen: string, uci: string): string {
+  src\App.tsx:31:  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  src\App.tsx:32:  if (!match) return uci;
+  src\App.tsx:33:  try {
+  src\App.tsx:44:}
+  src\App.tsx:45:
+> src\App.tsx:46:function formatUciPv(fen: string, pv: string[]): string {
+  src\App.tsx:47:  const position = new Chess(fen);
+  src\App.tsx:48:  const san: string[] = [];
+  src\App.tsx:49:  for (const uci of pv) {
+  src\App.tsx:200:  const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
+  src\App.tsx:201:  const [recognitionError, setRecognitionError] = useState("");
+> src\App.tsx:202:  const [engineEnabled, setEngineEnabled] = useState(false);
+> src\App.tsx:203:  const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
+> src\App.tsx:204:  const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+  src\App.tsx:205:  const [engineMessage, setEngineMessage] = useState("");
+> src\App.tsx:206:  const [engineDepth, setEngineDepth] = useState(14);
+  src\App.tsx:207:  const fileInput = useRef<HTMLInputElement>(null);
+  src\App.tsx:208:  const canvasRef = useRef<HTMLCanvasElement>(null);
+  src\App.tsx:209:  const pageStageRef = useRef<HTMLDivElement>(null);
+  src\App.tsx:222:  const cropEditStartRef = useRef<{ candidate: Candidate; handle: CropHandle; point: { x: number; y: number } } | null>(null);
+  src\App.tsx:223:  const cropBaselineRef = useRef<Candidate | null>(null);
+> src\App.tsx:224:  const engineRef = useRef<StockfishEngine | null>(null);
+  src\App.tsx:225:
+  src\App.tsx:226:  useEffect(() => {
+  src\App.tsx:227:    let cancelled = false;
+  src\App.tsx:455:  }, [game, selectedSquare]);
+  src\App.tsx:456:  const pieceSquares = game.board();
+> src\App.tsx:457:  const moveHistory = useMemo(() => {
+  src\App.tsx:458:    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+  src\App.tsx:459:    catch { return []; }
+  src\App.tsx:460:  }, [boardSession]);
+> src\App.tsx:461:  const highlightedMove = lastMove ?? (moveHistory.length
+> src\App.tsx:462:    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+  src\App.tsx:463:    : null);
+  src\App.tsx:464:  const engineArrow = useMemo(
+> src\App.tsx:465:    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+> src\App.tsx:466:    [engineEnabled, engineScore?.bestMove],
+  src\App.tsx:467:  );
+  src\App.tsx:468:
+  src\App.tsx:469:  useEffect(() => {
+  src\App.tsx:475:
+  src\App.tsx:476:  useEffect(() => {
+> src\App.tsx:477:    if (engineEnabled && boardSession) {
+> src\App.tsx:478:      engineRef.current?.analyze(game.fen(), engineDepth);
+  src\App.tsx:479:    }
+> src\App.tsx:480:  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+  src\App.tsx:481:
+  src\App.tsx:482:  function messageOf(cause: unknown): string {
+  src\App.tsx:483:    return cause instanceof Error ? cause.message : String(cause);
+  src\App.tsx:485:
+  src\App.tsx:486:  function toggleEngine() {
+> src\App.tsx:487:    if (engineEnabled) {
+  src\App.tsx:488:      engineRef.current?.dispose();
+  src\App.tsx:489:      engineRef.current = null;
+> src\App.tsx:490:      setEngineEnabled(false);
+> src\App.tsx:491:      setEngineStatus("off");
+> src\App.tsx:492:      setEngineScore(null);
+  src\App.tsx:493:      setEngineMessage("");
+  src\App.tsx:494:      return;
+  src\App.tsx:495:    }
+  src\App.tsx:496:    try {
+> src\App.tsx:497:      setEngineScore(null);
+  src\App.tsx:498:      setEngineMessage("");
+> src\App.tsx:499:      const client = new StockfishEngine(
+> src\App.tsx:500:        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+  src\App.tsx:501:        (status, message) => {
+> src\App.tsx:502:          setEngineStatus(status);
+  src\App.tsx:503:          if (status === "error") {
+> src\App.tsx:504:            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+> src\App.tsx:505:            setEngineEnabled(false);
+> src\App.tsx:506:            setEngineScore(null);
+  src\App.tsx:507:            engineRef.current?.dispose();
+  src\App.tsx:508:            engineRef.current = null;
+  src\App.tsx:509:          }
+  src\App.tsx:510:        },
+> src\App.tsx:511:        setEngineScore,
+  src\App.tsx:512:      );
+  src\App.tsx:513:      engineRef.current = client;
+> src\App.tsx:514:      setEngineEnabled(true);
+  src\App.tsx:515:    } catch (cause) {
+> src\App.tsx:516:      setEngineStatus("error");
+> src\App.tsx:517:      setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+> src\App.tsx:518:      setEngineEnabled(false);
+  src\App.tsx:519:    }
+  src\App.tsx:520:  }
+  src\App.tsx:521:
+  src\App.tsx:708:    const loaded = moveToPosition(fen);
+  src\App.tsx:709:    if (!loaded) return false;
+> src\App.tsx:710:    setEngineScore(null);
+  src\App.tsx:711:    setEngineMessage("");
+> src\App.tsx:712:    if (!engineEnabled) {
+  src\App.tsx:713:      toggleEngine();
+  src\App.tsx:714:    } else {
+> src\App.tsx:715:      engineRef.current?.analyze(fen, engineDepth);
+  src\App.tsx:716:    }
+> src\App.tsx:717:    setNotice("Manual position loaded. Stockfish analysis started.");
+  src\App.tsx:718:    return true;
+  src\App.tsx:719:  }
+  src\App.tsx:720:
+  src\App.tsx:832:
+  src\App.tsx:833:  function updateGameEndOverlay(currentGame: Chess) {
+> src\App.tsx:834:    if (currentGame.isCheckmate()) {
+  src\App.tsx:835:      setGameEndOverlay({
+> src\App.tsx:836:        title: "Checkmate",
+  src\App.tsx:837:        message: `${currentGame.turn() === "w" ? "Black" : "White"} wins.`,
+  src\App.tsx:838:      });
+> src\App.tsx:839:    } else if (currentGame.isStalemate()) {
+  src\App.tsx:840:      setGameEndOverlay({
+> src\App.tsx:841:        title: "Stalemate",
+  src\App.tsx:842:        message: "The side to move has no legal moves, but its king is not in check. The game is a draw.",
+  src\App.tsx:843:      });
+  src\App.tsx:844:    } else if (currentGame.isDraw()) {
+  src\App.tsx:845:      let message = "The game is drawn.";
+  src\App.tsx:846:      if (currentGame.isThreefoldRepetition()) message = "Draw by threefold repetition.";
+> src\App.tsx:847:      else if (currentGame.isInsufficientMaterial()) message = "Draw by insufficient material.";
+  src\App.tsx:848:      else if (currentGame.isDrawByFiftyMoves()) message = "Draw by the fifty-move rule.";
+  src\App.tsx:849:      else if (currentGame.isDraw()) message = "Draw by a draw rule.";
+  src\App.tsx:850:      setGameEndOverlay({ title: "Draw", message });
+  src\App.tsx:1477:            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+  src\App.tsx:1478:            <div className="move-list">
+> src\App.tsx:1479:              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+  src\App.tsx:1480:                <div className="move-pair" key={row}>
+  src\App.tsx:1481:                  <span className="move-number">{row + 1}.</span>
+> src\App.tsx:1482:                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) 
+element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+> src\App.tsx:1483:                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 
+2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+  src\App.tsx:1484:                </div>
+  src\App.tsx:1485:              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+  src\App.tsx:1486:            </div>
+  src\App.tsx:1502:          <div className="board-area">
+  src\App.tsx:1503:            <div
+> src\App.tsx:1504:              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+> src\App.tsx:1505:              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine 
+evaluation"}
+> src\App.tsx:1506:              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+  src\App.tsx:1507:            >
+> src\App.tsx:1508:              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+> src\App.tsx:1509:              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+  src\App.tsx:1510:            </div>
+  src\App.tsx:1511:            <div className="board-frame">
+  src\App.tsx:1512:              <div
+  src\App.tsx:1949:          </div>
+  src\App.tsx:1950:          <div className="analysis-strip">
+> src\App.tsx:1951:            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === 
+"error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineâ€¦" : engineStatus === "analyzing" ? "Analyzing current positionâ€¦" : "Ready Â· 
+White-positive scores"}</span></div></div>
+  src\App.tsx:1952:            <div className="analysis-divider" />
+> src\App.tsx:1953:            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : 
+"Analyze position"}</button>
+> src\App.tsx:1954:            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option 
+value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+> src\App.tsx:1955:            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+> src\App.tsx:1956:            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+> src\App.tsx:1957:            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled 
+? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+  src\App.tsx:1958:          </div>
+  src\App.tsx:1959:        </section>
+  src\App.tsx:1960:        </>}
+  src\App.tsx:1961:      </div>
+  src\App.tsx:1962:
+> src\App.tsx:1963:      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally 
+in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+  src\App.tsx:1964:      {transferCandidate && (
+  src\App.tsx:1965:        <ManualBoardEditor
+  src\App.tsx:1966:          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+  src\App.tsx:1985:          initialFen={game.fen()}
+  src\App.tsx:1986:          title="Set Up Position"
+> src\App.tsx:1987:          subtitle="Set up a custom chess position to analyze with Stockfish."
+  src\App.tsx:1988:          confirmLabel="Analyze Position"
+  src\App.tsx:1989:          showPresets={true}
+  src\App.tsx:1990:          currentAnalysisFen={game.fen()}
+  src\App.tsx:2001:          <section className="game-end-dialog" role="dialog" aria-modal="true" aria-labelledby="game-end-title">
+  src\App.tsx:2002:            <div className="game-end-icon" aria-hidden="true">
+> src\App.tsx:2003:              {gameEndOverlay.title === "Checkmate" ? "â™”" : gameEndOverlay.title === "Stalemate" ? "Â½" : "Â½"}
+  src\App.tsx:2004:            </div>
+  src\App.tsx:2005:            <h2 id="game-end-title">{gameEndOverlay.title}</h2>
+  src\App.tsx:2006:            <p>{gameEndOverlay.message}</p>
+
+
+
+
+========== SOURCE FILES ==========
+
+Name                                                             Length
+----                                                             ------
+App.test.tsx                                                       3262
+App.tsx                                                           97053
+App.tsx.20261024-000607.bak                                       73583
+App.tsx.active-board-fix-20261024-024032.bak                      75646
+App.tsx.backup-20261016-202441                                    72804
+App.tsx.backup-20261016-210256                                    73458
+App.tsx.backup-20261016-210731                                    73458
+App.tsx.backup-20261016-211147                                    73458
+App.tsx.backup-20261016-212541                                    74417
+App.tsx.backup-20261016-212813                                    74465
+App.tsx.backup-20261016-212856                                    74465
+App.tsx.bak-20261015-231731                                       70684
+App.tsx.bak-20261016-180030                                         275
+App.tsx.bak-20261017-001122                                          32
+App.tsx.bak-api-port-20261015-235755                              71111
+App.tsx.bak-before-icons-20261016-004530                          71460
+App.tsx.bak-board-picker-20261015-234408                          70728
+App.tsx.bak-encoding-repair-20261016-004121                       71565
+App.tsx.bak-manual-fix-20261015-235153                            70798
+App.tsx.bak-safe                                                  71681
+App.tsx.bak-stockfish-text-20261016-002713                        71681
+App.tsx.bak-ui-repair-20261016-002420                             71681
+App.tsx.bak.20231016T1840                                            42
+App.tsx.bak_20261016_0132                                         73273
+App.tsx.bak_20261016_0230                                         73026
+App.tsx.bak_20261016_0245                                            45
+App.tsx.bak_20261016_194014                                       73572
+App.tsx.bak_fix_20261016_194311                                   73572
+App.tsx.before-analysis-layout-20261026-000802.bak                89304
+App.tsx.before-analysis-navigation.bak                            79238
+App.tsx.before-analysis-state-wiring.bak                          79238
+App.tsx.before-arrow-context-patch-20261024-003404.bak            73830
+App.tsx.before-arrow-fix-20261024-003203.bak                      73830
+App.tsx.before-arrow-style-20261024-004013.bak                    74135
+App.tsx.before-arrow-style-20261024-004031.bak                    74135
+App.tsx.before-arrowhead-refinement-20261024-004156.bak           74162
+App.tsx.before-board-repair-20261024-003827.bak                   74135
+App.tsx.before-clean-arrow-20261024-004343.bak                    74186
+App.tsx.before-clear-all-red-highlights-20261024-005307.bak       75334
+App.tsx.before-context-menu-fix-20261024-003315.bak               73830
+App.tsx.before-coordinate-training-20261030-225036.bak            94049
+App.tsx.before-coordinate-training-20261030-225201.bak            94049
+App.tsx.before-coordinates-icon.bak                               73828
+App.tsx.before-display-repair-20261024-124830.bak                 77722
+App.tsx.before-encoding-repair-20261016-010710.bak                73401
+App.tsx.before-exact-symbol-patch-20261024-125644.bak             77722
+App.tsx.before-exclusive-sidebar.bak                              85313
+App.tsx.before-explorer-layout-20261025-235446.bak                91393
+App.tsx.before-explorer-right-panel-20261025-235646.bak           91466
+App.tsx.before-extra-sharp-arrows-20261024-004446.bak             74162
+App.tsx.before-final-display-fix-20261025-184058.bak              79229
+App.tsx.before-final-glyph-patch-20261024-125912.bak              76102
+App.tsx.before-fix-detect-label-20261024-123924.bak               77622
+App.tsx.before-focus-board-sync-20261024-131312.bak               76183
+App.tsx.before-focus-engine-sync-20261024-131047.bak              76137
+App.tsx.before-fullscreen-focus-20261024-123735.bak               77326
+App.tsx.before-header-icons.bak                                   73792
+App.tsx.before-history-import-fix-20261026-000358.bak             89616
+App.tsx.before-independent-analysis-board.bak                     80016
+App.tsx.before-independent-analysis.bak                           79238
+App.tsx.before-label-separator-fix-20261025-183631.bak            79237
+App.tsx.before-left-click-clear-20261024-005151.bak               75195
+App.tsx.before-library-repair-20261026-000333.bak                 89616
+App.tsx.before-load-study-20261024-121808.bak                     77971
+App.tsx.before-menu-icon-fix-20261024-130320.bak                  76137
+App.tsx.before-move-icons-20261016-005153.bak                     71460
+App.tsx.before-next-last-icons.bak                                73964
+App.tsx.before-notation-20261024-013624                           76124
+App.tsx.before-notes-dock-20261024-122810.bak                     78981
+App.tsx.before-opening-explorer-move-fix-20261025-234542.bak      91063
+App.tsx.before-opening-explorer-ui.bak                            80430
+App.tsx.before-opening-explorer.bak                               80430
+App.tsx.before-opening-prep-isolation-20261025-231958.bak         85445
+App.tsx.before-opening-prep-isolation-20261025-232022.bak         85445
+App.tsx.before-opening-prep-isolation.bak                         85445
+App.tsx.before-opening-stats-20261025-232813.bak                  86175
+App.tsx.before-opening-stats-20261025-232946.bak                  91063
+App.tsx.before-page-scan-icons.bak                                73538
+App.tsx.before-polygon-arrow-renderer-20261024-004754.bak         74258
+App.tsx.before-polygon-arrows-20261024-004633.bak                 74162
+App.tsx.before-position-labels.bak                                73509
+App.tsx.before-pv-expression-fix-20261025-183731.bak              79237
+App.tsx.before-question-mark-fix-20261025-183920.bak              79229
+App.tsx.before-reader-polish-20261024-130156.bak                  76099
+App.tsx.before-reader-toolbar-icons.bak                           73710
+App.tsx.before-red-highlights-20261024-005041.bak                 74929
+App.tsx.before-remove-notes-20261024-123040.bak                   79537
+App.tsx.before-remove-recent-nav-20261026-000424.bak              89616
+App.tsx.before-safe-symbol-fix-20261024-124547.bak                77722
+App.tsx.before-sharp-arrowhead-20261024-004254.bak                74186
+App.tsx.before-status-text-fix.bak                                73538
+App.tsx.before-stockfish-notation-20261025-183359.bak             78241
+App.tsx.before-study-focus-20261024-123431.bak                    77285
+App.tsx.before-study-save-20261024-121647.bak                     77703
+App.tsx.before-study-state.bak                                    75677
+App.tsx.before-symbol-pass2-20261024-005648                       75150
+App.tsx.before-symbol-repair-20261024-125231.bak                  77722
+App.tsx.before-text-encoding-fix-20261024-124129.bak              77722
+App.tsx.before-ui-fix-20261024-003043.bak                         73830
+App.tsx.before-undo-redo-reset.bak                                73909
+App.tsx.before-unicode-display-fix-20261025-184249.bak            79229
+App.tsx.before-workspace-sidebar.bak                              79238
+App.tsx.before-workspace-state-fix.bak                            79238
+App.tsx.before_ts2367.bak                                         70460
+App.tsx.board-controls-20261024-023935.bak                        75561
+App.tsx.navigation-fix-20261024-024144.bak                        75995
+App.tsx.opening-explorer-safety.bak                               85175
+App.tsx.pre-delete-fix-20261016-212932                            74465
+App.tsx.pre-study-patch-20261024-023203.bak                       74088
+App.tsx.pre-study-patch-20261024-023214.bak                       74088
+App.tsx.study-library-20261024-021559.bak                         74871
+App.tsx.study-mode-20261024-022700.bak                            74088
+App.tsx.symbol-backup-20261024-005615                             75282
+board-annotations.test.ts                                          3217
+board-annotations.ts                                               4846
+board-annotations.ts.before-color-type-fix.bak                     4833
+chess-state.test.ts                                                 776
+chess-state.ts                                                      630
+coordinate-training.css                                            5786
+CoordinateTraining.tsx                                             7972
+crop-geometry.test.ts                                              1471
+crop-geometry.ts                                                   2060
+main.tsx                                                            248
+ManualBoardEditor.test.tsx                                         8446
+ManualBoardEditor.tsx                                             24632
+model.ts                                                           1374
+notation-detection.ts                                              6737
+notation-detection.ts.before-notation-20261024-013624              6737
+notation-learner.css                                              16278
+NotationLearner.tsx                                                9792
+opening-explorer-api.ts                                            3746
+opening-explorer-api.ts.before-lichess-url-fix.bak                 2541
+opening-explorer-api.ts.before-opening-stats-20261025-232946.bak   2541
+opening-explorer.test.ts                                           1298
+opening-explorer.ts                                                1863
+pgn-import.test.ts                                                 1206
+pgn-import.ts                                                      1454
+position-editor.test.ts                                            4258
+position-editor.test.ts.before_coordinate_fix.bak                  1244
+position-editor.ts                                                 7118
+stockfish.test.ts                                                  4087
+stockfish.test.ts.before-live-pv-test-20261024-131006.bak          3310
+stockfish.ts                                                       4682
+stockfish.ts.before-live-engine-arrow-20261024-130743.bak          4510
+storage.test.ts                                                    1727
+storage.ts                                                         3410
+StudyLibrary.tsx.before-collapse-20261024-122220.bak              13306
+StudyLibrary.tsx.before-dialog-20261024-122810.bak                13924
+StudyLibrary.tsx.before-load-study-20261024-121808.bak            12820
+StudyLibrary.tsx.before-remove-notes-20261024-123040.bak          15574
+StudyLibrary.tsx.before-study-save-20261024-121647.bak            11653
+StudyLibrary.tsx.study-mode-20261024-022700.bak                   11331
+styles.css                                                       154425
+styles.css.20261024-000607.bak                                   107226
+styles.css.backup-100zoom-20261016-215017                         47699
+styles.css.backup-20261016-201842                                 44197
+styles.css.backup-20261016-210256                                 44971
+styles.css.backup-20261016-210731                                 44971
+styles.css.backup-20261016-211147                                 44971
+styles.css.backup-20261016-211428                                 45350
+styles.css.backup-20261016-211756                                 46325
+styles.css.backup-20261016-212050                                 45783
+styles.css.backup-20261016-212813                                 46627
+styles.css.backup-20261016-212856                                 46627
+styles.css.backup-20261016-213120                                 47525
+styles.css.backup-20261016-213234                                 47707
+styles.css.backup-board-size-20261016-215234                      50554
+styles.css.backup-button-alignment-20261016-215456                51478
+styles.css.backup-default-80-20261016-220122                      52744
+styles.css.backup-no-board-scroll-20261016-215847                 52744
+styles.css.bak-before-readability-20261016-195848                 41854
+styles.css.bak-before-reference-theme-20261016-195643             37016
+styles.css.bak-layout-20261016-002632                             35854
+styles.css.bak-ui-repair-20261016-002420                          33269
+styles.css.bak.20231016T1840                                         48
+styles.css.before-analysis-layout-20261026-000802.bak            144252
+styles.css.before-arrow-fix-20261024-003203.bak                  107282
+styles.css.before-arrow-style-20261024-004013.bak                108568
+styles.css.before-board-repair-20261024-003827.bak               107282
+styles.css.before-collapse-20261024-122220.bak                   140939
+styles.css.before-explorer-glass-ui-20261025-235813.bak          140189
+styles.css.before-explorer-layout-20261025-235446.bak            144161
+styles.css.before-explorer-right-panel-20261025-235646.bak       144915
+styles.css.before-fullscreen-focus-20261024-123735.bak           139317
+styles.css.before-library-repair-20261026-000333.bak             143083
+styles.css.before-notation-20261024-013624                       131023
+styles.css.before-notes-dock-20261024-122810.bak                 142671
+styles.css.before-notes-workspace-20261024-122051.bak            138488
+styles.css.before-opening-explorer.bak                           141421
+styles.css.before-opening-stats-20261025-232813.bak              142491
+styles.css.before-opening-stats-20261025-232946.bak              144161
+styles.css.before-reader-restore-20261026-000620.bak             143083
+styles.css.before-red-highlights-20261024-005041.bak             108568
+styles.css.before-remove-notes-20261024-123040.bak               144672
+styles.css.before-study-focus-20261024-123431.bak                138488
+styles.css.before-ui-fix-20261024-003043.bak                     107282
+styles.css.failed-fix-backup-20261016-211924                      46453
+styles.css.layout-backup                                          50706
+styles.css.pre-delete-fix-20261016-212932                         46627
+styles.css.recovered-20261016-213146                              47525
+styles.css.step2c-backup-20261022-223555                          44282
+styles.css.study-library-20261024-021559.bak                     131698
+test-setup.ts                                                       165
+vite-env.d.ts                                                        39
+
+
+
+
+========== PACKAGE SCRIPTS ==========
+{
+  "name": "chessbook-reader",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^5.0.4"
+  }
+}
+

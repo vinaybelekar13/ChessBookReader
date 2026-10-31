@@ -1,0 +1,3266 @@
+﻿CHESSBOOK READER - GAME REVIEW IMPLEMENTATION AUDIT
+
+========== APP IMPORTS AND TYPES ==========
+
+--- SEARCH: ^import  ---
+LINE 1
+import { useEffect, useMemo, useRef, useState } from "react";
+import CoordinateTraining from "./CoordinateTraining";
+import {
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+LINE 2
+import { useEffect, useMemo, useRef, useState } from "react";
+import CoordinateTraining from "./CoordinateTraining";
+import {
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+LINE 3
+import { useEffect, useMemo, useRef, useState } from "react";
+import CoordinateTraining from "./CoordinateTraining";
+import {
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+LINE 6
+import { useEffect, useMemo, useRef, useState } from "react";
+import CoordinateTraining from "./CoordinateTraining";
+import {
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+LINE 7
+import CoordinateTraining from "./CoordinateTraining";
+import {
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+LINE 8
+import {
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+LINE 9
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+LINE 10
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+  putSession,
+LINE 11
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+  putSession,
+  removeBook,
+LINE 12
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+  putSession,
+  removeBook,
+  removeSession,
+LINE 13
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+  putSession,
+  removeBook,
+  removeSession,
+  setActiveBookId,
+LINE 14
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+  putSession,
+  removeBook,
+  removeSession,
+  setActiveBookId,
+} from "./storage";
+LINE 25
+  putSession,
+  removeBook,
+  removeSession,
+  setActiveBookId,
+} from "./storage";
+import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+
+
+function formatUciMove(fen: string, uci: string): string {
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+LINE 26
+  removeBook,
+  removeSession,
+  setActiveBookId,
+} from "./storage";
+import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+
+
+function formatUciMove(fen: string, uci: string): string {
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+      from: match[1] as Square,
+LINE 27
+  removeSession,
+  setActiveBookId,
+} from "./storage";
+import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+
+
+function formatUciMove(fen: string, uci: string): string {
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+      from: match[1] as Square,
+      to: match[2] as Square,
+
+--- SEARCH: type BookSession ---
+LINE 25
+  putSession,
+  removeBook,
+  removeSession,
+  setActiveBookId,
+} from "./storage";
+import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+
+
+function formatUciMove(fen: string, uci: string): string {
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+
+--- SEARCH: type StudyBoardState ---
+LINE 114
+export default function App() {
+  const [books, setBooks] = useState<BookRecord[]>([]);
+  const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
+  const [book, setBook] = useState<BookRecord | null>(null);
+  const [session, setSession] = useState<BookSession | null>(null);
+  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  const [studyMode, setStudyMode] = useState(false);
+  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+  }));
+
+--- SEARCH: type WorkspaceMode ---
+LINE 69
+}
+
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
+type LibraryTab = "all" | "recent";
+type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training";
+
+const FILE_LIMIT = 100 * 1024 * 1024;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+const CROP_HANDLES: CropHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+type CandidateInput = Omit<Candidate, "id" | "source" | "relativeScore"> &
+  Partial<Pick<Candidate, "id" | "source" | "relativeScore">> & { relative_score?: number; confidence?: number };
+type RecognitionResult = {
+  fen: string;
+  orientation: "normal" | "flipped" | "unknown";
+  board_confidence: number;
+
+========== PGN IMPORT AND GAME LOADING ==========
+
+--- SEARCH: parsePgn ---
+LINE 9
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+LINE 1017
+    setArrowHover(null);
+  }
+
+  function loadPgnText(source: string) {
+    try {
+      const imported = parsePgn(source);
+      const replay = new Chess(imported.lineBaseFen);
+
+      for (const san of imported.moves) {
+        replay.move(san);
+      }
+
+      const last = replay.history({ verbose: true }).at(-1);
+
+      setAnalysisBoard((current) => ({
+        ...current,
+
+--- SEARCH: loadPgn ---
+LINE 1015
+    arrowGestureRef.current = null;
+    setArrowStart(null);
+    setArrowHover(null);
+  }
+
+  function loadPgnText(source: string) {
+    try {
+      const imported = parsePgn(source);
+      const replay = new Chess(imported.lineBaseFen);
+
+      for (const san of imported.moves) {
+        replay.move(san);
+      }
+
+      const last = replay.history({ verbose: true }).at(-1);
+
+LINE 1051
+  }
+
+  async function importPgnFile(file: File) {
+    try {
+      const source = await file.text();
+      loadPgnText(source);
+    } catch (cause) {
+      setError(`Could not read PGN file: ${messageOf(cause)}`);
+    }
+  }
+
+  function pastePgn() {
+    const source = window.prompt("Paste PGN notation:");
+    if (source !== null) loadPgnText(source);
+  }
+  function jumpToMove(index: number) {
+LINE 1059
+    }
+  }
+
+  function pastePgn() {
+    const source = window.prompt("Paste PGN notation:");
+    if (source !== null) loadPgnText(source);
+  }
+  function jumpToMove(index: number) {
+    if (!boardSession) return;
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+    } catch (cause) {
+
+--- SEARCH: ImportedPgn ---
+NO MATCH
+
+--- SEARCH: pgnInput ---
+NO MATCH
+
+--- SEARCH: PGN ---
+LINE 9
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+LINE 1015
+    arrowGestureRef.current = null;
+    setArrowStart(null);
+    setArrowHover(null);
+  }
+
+  function loadPgnText(source: string) {
+    try {
+      const imported = parsePgn(source);
+      const replay = new Chess(imported.lineBaseFen);
+
+      for (const san of imported.moves) {
+        replay.move(san);
+      }
+
+      const last = replay.history({ verbose: true }).at(-1);
+
+LINE 1017
+    setArrowHover(null);
+  }
+
+  function loadPgnText(source: string) {
+    try {
+      const imported = parsePgn(source);
+      const replay = new Chess(imported.lineBaseFen);
+
+      for (const san of imported.moves) {
+        replay.move(san);
+      }
+
+      const last = replay.history({ verbose: true }).at(-1);
+
+      setAnalysisBoard((current) => ({
+        ...current,
+LINE 1041
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+
+      const white = imported.headers.White || "White";
+      const black = imported.headers.Black || "Black";
+      setNotice(`PGN loaded: ${white} vs ${black} · ${imported.moves.length} plies.`);
+      setError("");
+    } catch (cause) {
+      setError(`PGN import failed: ${messageOf(cause)}`);
+    }
+  }
+
+  async function importPgnFile(file: File) {
+    try {
+      const source = await file.text();
+      loadPgnText(source);
+LINE 1044
+      const white = imported.headers.White || "White";
+      const black = imported.headers.Black || "Black";
+      setNotice(`PGN loaded: ${white} vs ${black} · ${imported.moves.length} plies.`);
+      setError("");
+    } catch (cause) {
+      setError(`PGN import failed: ${messageOf(cause)}`);
+    }
+  }
+
+  async function importPgnFile(file: File) {
+    try {
+      const source = await file.text();
+      loadPgnText(source);
+    } catch (cause) {
+      setError(`Could not read PGN file: ${messageOf(cause)}`);
+    }
+LINE 1048
+    } catch (cause) {
+      setError(`PGN import failed: ${messageOf(cause)}`);
+    }
+  }
+
+  async function importPgnFile(file: File) {
+    try {
+      const source = await file.text();
+      loadPgnText(source);
+    } catch (cause) {
+      setError(`Could not read PGN file: ${messageOf(cause)}`);
+    }
+  }
+
+  function pastePgn() {
+    const source = window.prompt("Paste PGN notation:");
+LINE 1051
+  }
+
+  async function importPgnFile(file: File) {
+    try {
+      const source = await file.text();
+      loadPgnText(source);
+    } catch (cause) {
+      setError(`Could not read PGN file: ${messageOf(cause)}`);
+    }
+  }
+
+  function pastePgn() {
+    const source = window.prompt("Paste PGN notation:");
+    if (source !== null) loadPgnText(source);
+  }
+  function jumpToMove(index: number) {
+LINE 1053
+  async function importPgnFile(file: File) {
+    try {
+      const source = await file.text();
+      loadPgnText(source);
+    } catch (cause) {
+      setError(`Could not read PGN file: ${messageOf(cause)}`);
+    }
+  }
+
+  function pastePgn() {
+    const source = window.prompt("Paste PGN notation:");
+    if (source !== null) loadPgnText(source);
+  }
+  function jumpToMove(index: number) {
+    if (!boardSession) return;
+    try {
+LINE 1057
+    } catch (cause) {
+      setError(`Could not read PGN file: ${messageOf(cause)}`);
+    }
+  }
+
+  function pastePgn() {
+    const source = window.prompt("Paste PGN notation:");
+    if (source !== null) loadPgnText(source);
+  }
+  function jumpToMove(index: number) {
+    if (!boardSession) return;
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+LINE 1058
+      setError(`Could not read PGN file: ${messageOf(cause)}`);
+    }
+  }
+
+  function pastePgn() {
+    const source = window.prompt("Paste PGN notation:");
+    if (source !== null) loadPgnText(source);
+  }
+  function jumpToMove(index: number) {
+    if (!boardSession) return;
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+LINE 1059
+    }
+  }
+
+  function pastePgn() {
+    const source = window.prompt("Paste PGN notation:");
+    if (source !== null) loadPgnText(source);
+  }
+  function jumpToMove(index: number) {
+    if (!boardSession) return;
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+    } catch (cause) {
+LINE 1655
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+            <span className="controls-spacer" />
+            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+            <button title="Paste PGN notation" onClick={pastePgn}><FileCode2 size={15} aria-hidden="true" /> Paste PGN</button>
+            <button title="Import a PGN file" onClick={() => document.getElementById("pgn-import-input")?.click()}><FileCode2 size={15} aria-hidden="true" /> Import PGN</button>
+            <input
+              id="pgn-import-input"
+              type="file"
+              accept=".pgn,text/plain"
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void importPgnFile(file);
+LINE 1656
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+            <span className="controls-spacer" />
+            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+            <button title="Paste PGN notation" onClick={pastePgn}><FileCode2 size={15} aria-hidden="true" /> Paste PGN</button>
+            <button title="Import a PGN file" onClick={() => document.getElementById("pgn-import-input")?.click()}><FileCode2 size={15} aria-hidden="true" /> Import PGN</button>
+            <input
+              id="pgn-import-input"
+              type="file"
+              accept=".pgn,text/plain"
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void importPgnFile(file);
+                event.currentTarget.value = "";
+LINE 1657
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+            <span className="controls-spacer" />
+            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+            <button title="Paste PGN notation" onClick={pastePgn}><FileCode2 size={15} aria-hidden="true" /> Paste PGN</button>
+            <button title="Import a PGN file" onClick={() => document.getElementById("pgn-import-input")?.click()}><FileCode2 size={15} aria-hidden="true" /> Import PGN</button>
+            <input
+              id="pgn-import-input"
+              type="file"
+              accept=".pgn,text/plain"
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void importPgnFile(file);
+                event.currentTarget.value = "";
+              }}
+LINE 1659
+            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+            <button title="Paste PGN notation" onClick={pastePgn}><FileCode2 size={15} aria-hidden="true" /> Paste PGN</button>
+            <button title="Import a PGN file" onClick={() => document.getElementById("pgn-import-input")?.click()}><FileCode2 size={15} aria-hidden="true" /> Import PGN</button>
+            <input
+              id="pgn-import-input"
+              type="file"
+              accept=".pgn,text/plain"
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void importPgnFile(file);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+LINE 1661
+            <button title="Paste PGN notation" onClick={pastePgn}><FileCode2 size={15} aria-hidden="true" /> Paste PGN</button>
+            <button title="Import a PGN file" onClick={() => document.getElementById("pgn-import-input")?.click()}><FileCode2 size={15} aria-hidden="true" /> Import PGN</button>
+            <input
+              id="pgn-import-input"
+              type="file"
+              accept=".pgn,text/plain"
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void importPgnFile(file);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          <div className="turn-row">
+            <span>TO MOVE</span>
+LINE 1665
+              type="file"
+              accept=".pgn,text/plain"
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void importPgnFile(file);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          <div className="turn-row">
+            <span>TO MOVE</span>
+            <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "w");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+
+--- SEARCH: setSession ---
+LINE 111
+  };
+}
+
+export default function App() {
+  const [books, setBooks] = useState<BookRecord[]>([]);
+  const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
+  const [book, setBook] = useState<BookRecord | null>(null);
+  const [session, setSession] = useState<BookSession | null>(null);
+  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  const [studyMode, setStudyMode] = useState(false);
+  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+LINE 113
+
+export default function App() {
+  const [books, setBooks] = useState<BookRecord[]>([]);
+  const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
+  const [book, setBook] = useState<BookRecord | null>(null);
+  const [session, setSession] = useState<BookSession | null>(null);
+  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  const [studyMode, setStudyMode] = useState(false);
+  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+LINE 238
+          const stored = await getStoredSession(item.id);
+          if (stored) storedSessions[item.id] = stored;
+        }));
+        if (cancelled) return;
+        const ordered = storedBooks.sort((a, b) => b.lastOpenedAt - a.lastOpenedAt);
+        setSessionIndex(storedSessions);
+        const activeBook = ordered.find((item) => item.id === activeId) ?? ordered[0] ?? null;
+        if (activeBook) {
+          const resumed = { ...activeBook, lastOpenedAt: Date.now() };
+          await putBook(resumed);
+          setBooks([resumed, ...ordered.filter((item) => item.id !== resumed.id)]);
+          setBook(resumed);
+          setSession(storedSessions[activeBook.id] ?? newSession(activeBook.id));
+          if (activeBook.id !== activeId) await setActiveBookId(activeBook.id);
+        } else {
+          setBooks(ordered);
+LINE 245
+        if (activeBook) {
+          const resumed = { ...activeBook, lastOpenedAt: Date.now() };
+          await putBook(resumed);
+          setBooks([resumed, ...ordered.filter((item) => item.id !== resumed.id)]);
+          setBook(resumed);
+          setSession(storedSessions[activeBook.id] ?? newSession(activeBook.id));
+          if (activeBook.id !== activeId) await setActiveBookId(activeBook.id);
+        } else {
+          setBooks(ordered);
+        }
+      } catch (cause) {
+        if (!cancelled) setError(`Could not restore the local library: ${messageOf(cause)}`);
+      } finally {
+        if (!cancelled) setReady(true);
+      }
+    }
+LINE 264
+
+  useEffect(() => {
+    if (!ready || !book || !session) return;
+    const snapshot = session;
+    void Promise.all([putSession(snapshot), setActiveBookId(book.id)])
+      .then(() => setSessionIndex((current) => ({ ...current, [snapshot.bookId]: snapshot })))
+      .catch((cause: unknown) => setError(`Could not save reading session: ${messageOf(cause)}`));
+  }, [ready, book, session]);
+
+  useEffect(() => {
+    pdfRef.current?.cleanup();
+    void loadingTaskRef.current?.destroy();
+    setPdf(null);
+    if (!book) {
+      pdfRef.current = null;
+      loadingTaskRef.current = null;
+LINE 295
+        return;
+      }
+      pdfRef.current = document;
+      setPdf(document);
+      setPdfLoading(false);
+      setSession((current) => current ? { ...current, pageCount: document.numPages } : current);
+    }).catch((cause: unknown) => {
+      if (!cancelled) {
+        setPdfLoading(false);
+        setError(`Could not open this PDF: ${messageOf(cause)}`);
+      }
+    });
+    return () => {
+      cancelled = true;
+      if (loadingTask) void loadingTask.destroy();
+    };
+LINE 523
+      setEngineEnabled(false);
+    }
+  }
+
+  function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+    setSession((current) => {
+      if (!current) return current;
+      return typeof change === "function" ? change(current) : { ...current, ...change };
+    });
+  }
+
+  function patchBoardSession(change: Partial<StudyBoardState>) {
+    if (workspaceMode === "opening-explorer") {
+      return;
+    }
+
+LINE 595
+      const existing = sessionIndex[item.id] ?? await getSession(item.id);
+      const nextSession = existing ?? newSession(item.id);
+      const opened = { ...item, lastOpenedAt: Date.now() };
+      await Promise.all([putBook(opened), putSession(nextSession), setActiveBookId(opened.id)]);
+      setBooks((current) => [...current.filter((candidate) => candidate.id !== opened.id), opened].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt));
+      setSessionIndex((current) => ({ ...current, [opened.id]: nextSession }));
+      setBook(opened);
+      setSession(nextSession);
+      setNotice(`Opened ${opened.title}`);
+      setError("");
+      setSelectedSquare(null);
+    } catch (cause) {
+      setError(`Could not open book: ${messageOf(cause)}`);
+    }
+  }
+
+LINE 597
+      const opened = { ...item, lastOpenedAt: Date.now() };
+      await Promise.all([putBook(opened), putSession(nextSession), setActiveBookId(opened.id)]);
+      setBooks((current) => [...current.filter((candidate) => candidate.id !== opened.id), opened].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt));
+      setSessionIndex((current) => ({ ...current, [opened.id]: nextSession }));
+      setBook(opened);
+      setSession(nextSession);
+      setNotice(`Opened ${opened.title}`);
+      setError("");
+      setSelectedSquare(null);
+    } catch (cause) {
+      setError(`Could not open book: ${messageOf(cause)}`);
+    }
+  }
+
+  async function addBook(file?: File) {
+    if (!file) return;
+LINE 624
+        addedAt: now,
+      };
+      const blank = newSession(created.id);
+      await Promise.all([putBook(created), putSession(blank), setActiveBookId(created.id)]);
+      setBooks((current) => [created, ...current]);
+      setSessionIndex((current) => ({ ...current, [created.id]: blank }));
+      setBook(created);
+      setSession(blank);
+      setNotice("PDF added to this browser's local library.");
+      setError("");
+      if (fileInput.current) fileInput.current.value = "";
+    } catch (cause) {
+      setError(`Could not add PDF: ${messageOf(cause)}`);
+    }
+  }
+
+LINE 626
+      const blank = newSession(created.id);
+      await Promise.all([putBook(created), putSession(blank), setActiveBookId(created.id)]);
+      setBooks((current) => [created, ...current]);
+      setSessionIndex((current) => ({ ...current, [created.id]: blank }));
+      setBook(created);
+      setSession(blank);
+      setNotice("PDF added to this browser's local library.");
+      setError("");
+      if (fileInput.current) fileInput.current.value = "";
+    } catch (cause) {
+      setError(`Could not add PDF: ${messageOf(cause)}`);
+    }
+  }
+
+  async function deleteBook(item: BookRecord) {
+    if (!window.confirm(`Delete "${item.title}" and its saved reading progress from this browser? This cannot be undone.`)) return;
+LINE 643
+    try {
+      await removeBook(item.id);
+      await removeSession(item.id);
+
+      setBooks((current) => current.filter((entry) => entry.id !== item.id));
+      setSessionIndex((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
+
+      if (book?.id === item.id) {
+        setBook(null);
+        setSession(null);
+        setPdf(null);
+      }
+LINE 651
+        return next;
+      });
+
+      if (book?.id === item.id) {
+        setBook(null);
+        setSession(null);
+        setPdf(null);
+      }
+
+      setNotice(`Removed "${item.title}" from your library.`);
+      setError("");
+    } catch (cause) {
+      setError(`Could not remove book: ${messageOf(cause)}`);
+    }
+  }
+  async function renameBook(item: BookRecord) {
+LINE 688
+
+  function moveToPosition(fen: string): boolean {
+    const activeSession = session ?? newSession("analysis");
+    try {
+      const next = new Chess(fen);
+      setSession({
+        ...activeSession,
+        originalFen: fen,
+        lineBaseFen: fen,
+        currentFen: next.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+      setLastMove(null);
+      setSelectedSquare(null);
+      setUserArrows([]);
+
+========== ANALYSIS PANEL AND ENGINE UI ==========
+
+--- SEARCH: engineEnabled ---
+LINE 202
+  const [transferPreview, setTransferPreview] = useState("");
+  const [transferFen, setTransferFen] = useState("");
+  const [recognitionStatus, setRecognitionStatus] = useState<RecognitionStatus>("idle");
+  const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
+  const [recognitionError, setRecognitionError] = useState("");
+  const [engineEnabled, setEngineEnabled] = useState(false);
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
+  const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+  const [engineMessage, setEngineMessage] = useState("");
+  const [engineDepth, setEngineDepth] = useState(14);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pageStageRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+LINE 465
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+  useEffect(() => {
+    setUserArrows([]);
+    setArrowStart(null);
+    setArrowHover(null);
+    setAnnotationMode(false);
+  }, [book?.id, session?.currentFen]);
+
+LINE 466
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+  useEffect(() => {
+    setUserArrows([]);
+    setArrowStart(null);
+    setArrowHover(null);
+    setAnnotationMode(false);
+  }, [book?.id, session?.currentFen]);
+
+  useEffect(() => {
+LINE 477
+    setArrowHover(null);
+    setAnnotationMode(false);
+  }, [book?.id, session?.currentFen]);
+
+  useEffect(() => {
+    if (engineEnabled && boardSession) {
+      engineRef.current?.analyze(game.fen(), engineDepth);
+    }
+  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+
+  function messageOf(cause: unknown): string {
+    return cause instanceof Error ? cause.message : String(cause);
+  }
+
+  function toggleEngine() {
+    if (engineEnabled) {
+LINE 480
+
+  useEffect(() => {
+    if (engineEnabled && boardSession) {
+      engineRef.current?.analyze(game.fen(), engineDepth);
+    }
+  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+
+  function messageOf(cause: unknown): string {
+    return cause instanceof Error ? cause.message : String(cause);
+  }
+
+  function toggleEngine() {
+    if (engineEnabled) {
+      engineRef.current?.dispose();
+      engineRef.current = null;
+      setEngineEnabled(false);
+LINE 487
+  function messageOf(cause: unknown): string {
+    return cause instanceof Error ? cause.message : String(cause);
+  }
+
+  function toggleEngine() {
+    if (engineEnabled) {
+      engineRef.current?.dispose();
+      engineRef.current = null;
+      setEngineEnabled(false);
+      setEngineStatus("off");
+      setEngineScore(null);
+      setEngineMessage("");
+      return;
+    }
+    try {
+      setEngineScore(null);
+LINE 490
+
+  function toggleEngine() {
+    if (engineEnabled) {
+      engineRef.current?.dispose();
+      engineRef.current = null;
+      setEngineEnabled(false);
+      setEngineStatus("off");
+      setEngineScore(null);
+      setEngineMessage("");
+      return;
+    }
+    try {
+      setEngineScore(null);
+      setEngineMessage("");
+      const client = new StockfishEngine(
+        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+LINE 505
+        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+        (status, message) => {
+          setEngineStatus(status);
+          if (status === "error") {
+            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+            setEngineEnabled(false);
+            setEngineScore(null);
+            engineRef.current?.dispose();
+            engineRef.current = null;
+          }
+        },
+        setEngineScore,
+      );
+      engineRef.current = client;
+      setEngineEnabled(true);
+    } catch (cause) {
+LINE 514
+          }
+        },
+        setEngineScore,
+      );
+      engineRef.current = client;
+      setEngineEnabled(true);
+    } catch (cause) {
+      setEngineStatus("error");
+      setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+      setEngineEnabled(false);
+    }
+  }
+
+  function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+    setSession((current) => {
+      if (!current) return current;
+LINE 518
+      engineRef.current = client;
+      setEngineEnabled(true);
+    } catch (cause) {
+      setEngineStatus("error");
+      setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+      setEngineEnabled(false);
+    }
+  }
+
+  function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+    setSession((current) => {
+      if (!current) return current;
+      return typeof change === "function" ? change(current) : { ...current, ...change };
+    });
+  }
+
+LINE 712
+  function analyzeManualPosition(fen: string): boolean {
+    const loaded = moveToPosition(fen);
+    if (!loaded) return false;
+    setEngineScore(null);
+    setEngineMessage("");
+    if (!engineEnabled) {
+      toggleEngine();
+    } else {
+      engineRef.current?.analyze(fen, engineDepth);
+    }
+    setNotice("Manual position loaded. Stockfish analysis started.");
+    return true;
+  }
+
+  function selectCandidate(candidate: Candidate) {
+    if (!session) return;
+LINE 1953
+            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+          </div>
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+LINE 1957
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+          title="Review recognized position"
+
+--- SEARCH: engineScore ---
+LINE 13
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+  putSession,
+  removeBook,
+  removeSession,
+  setActiveBookId,
+LINE 204
+  const [recognitionStatus, setRecognitionStatus] = useState<RecognitionStatus>("idle");
+  const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
+  const [recognitionError, setRecognitionError] = useState("");
+  const [engineEnabled, setEngineEnabled] = useState(false);
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
+  const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+  const [engineMessage, setEngineMessage] = useState("");
+  const [engineDepth, setEngineDepth] = useState(14);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pageStageRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+  const renderTaskRef = useRef<RenderTask | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+LINE 465
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+  useEffect(() => {
+    setUserArrows([]);
+    setArrowStart(null);
+    setArrowHover(null);
+    setAnnotationMode(false);
+  }, [book?.id, session?.currentFen]);
+
+LINE 466
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+  useEffect(() => {
+    setUserArrows([]);
+    setArrowStart(null);
+    setArrowHover(null);
+    setAnnotationMode(false);
+  }, [book?.id, session?.currentFen]);
+
+  useEffect(() => {
+LINE 492
+    if (engineEnabled) {
+      engineRef.current?.dispose();
+      engineRef.current = null;
+      setEngineEnabled(false);
+      setEngineStatus("off");
+      setEngineScore(null);
+      setEngineMessage("");
+      return;
+    }
+    try {
+      setEngineScore(null);
+      setEngineMessage("");
+      const client = new StockfishEngine(
+        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+        (status, message) => {
+          setEngineStatus(status);
+LINE 497
+      setEngineScore(null);
+      setEngineMessage("");
+      return;
+    }
+    try {
+      setEngineScore(null);
+      setEngineMessage("");
+      const client = new StockfishEngine(
+        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+        (status, message) => {
+          setEngineStatus(status);
+          if (status === "error") {
+            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+            setEngineEnabled(false);
+            setEngineScore(null);
+            engineRef.current?.dispose();
+LINE 506
+        (status, message) => {
+          setEngineStatus(status);
+          if (status === "error") {
+            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+            setEngineEnabled(false);
+            setEngineScore(null);
+            engineRef.current?.dispose();
+            engineRef.current = null;
+          }
+        },
+        setEngineScore,
+      );
+      engineRef.current = client;
+      setEngineEnabled(true);
+    } catch (cause) {
+      setEngineStatus("error");
+LINE 511
+            setEngineScore(null);
+            engineRef.current?.dispose();
+            engineRef.current = null;
+          }
+        },
+        setEngineScore,
+      );
+      engineRef.current = client;
+      setEngineEnabled(true);
+    } catch (cause) {
+      setEngineStatus("error");
+      setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+      setEngineEnabled(false);
+    }
+  }
+
+LINE 710
+  }
+
+  function analyzeManualPosition(fen: string): boolean {
+    const loaded = moveToPosition(fen);
+    if (!loaded) return false;
+    setEngineScore(null);
+    setEngineMessage("");
+    if (!engineEnabled) {
+      toggleEngine();
+    } else {
+      engineRef.current?.analyze(fen, engineDepth);
+    }
+    setNotice("Manual position loaded. Stockfish analysis started.");
+    return true;
+  }
+
+LINE 1504
+              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+            </div>
+          </div>
+          <div className="board-area">
+            <div
+              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+            >
+              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+            </div>
+            <div className="board-frame">
+              <div
+                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+                ref={boardRef}
+LINE 1505
+            </div>
+          </div>
+          <div className="board-area">
+            <div
+              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+            >
+              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+            </div>
+            <div className="board-frame">
+              <div
+                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+                ref={boardRef}
+                onPointerDown={boardArrowPointerDown}
+LINE 1506
+          </div>
+          <div className="board-area">
+            <div
+              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+            >
+              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+            </div>
+            <div className="board-frame">
+              <div
+                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+                ref={boardRef}
+                onPointerDown={boardArrowPointerDown}
+                onPointerMove={boardArrowPointerMove}
+LINE 1508
+            <div
+              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+            >
+              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+            </div>
+            <div className="board-frame">
+              <div
+                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+                ref={boardRef}
+                onPointerDown={boardArrowPointerDown}
+                onPointerMove={boardArrowPointerMove}
+                onPointerUp={boardArrowPointerUp}
+                onPointerCancel={cancelBoardArrowGesture}
+LINE 1509
+              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+            >
+              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+            </div>
+            <div className="board-frame">
+              <div
+                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+                ref={boardRef}
+                onPointerDown={boardArrowPointerDown}
+                onPointerMove={boardArrowPointerMove}
+                onPointerUp={boardArrowPointerUp}
+                onPointerCancel={cancelBoardArrowGesture}
+                onContextMenu={(event) => {
+LINE 1955
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+        <ManualBoardEditor
+LINE 1956
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+LINE 1957
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+          title="Review recognized position"
+
+--- SEARCH: formatEvaluation ---
+LINE 13
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+  putSession,
+  removeBook,
+  removeSession,
+  setActiveBookId,
+LINE 1505
+            </div>
+          </div>
+          <div className="board-area">
+            <div
+              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+            >
+              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+            </div>
+            <div className="board-frame">
+              <div
+                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+                ref={boardRef}
+                onPointerDown={boardArrowPointerDown}
+LINE 1955
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+        <ManualBoardEditor
+
+--- SEARCH: best move ---
+LINE 1956
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+
+--- SEARCH: Principal variation ---
+LINE 1957
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+          title="Review recognized position"
+
+--- SEARCH: engineDepth ---
+LINE 206
+  const [recognitionError, setRecognitionError] = useState("");
+  const [engineEnabled, setEngineEnabled] = useState(false);
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
+  const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+  const [engineMessage, setEngineMessage] = useState("");
+  const [engineDepth, setEngineDepth] = useState(14);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pageStageRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+  const renderTaskRef = useRef<RenderTask | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragCurrentRef = useRef<{ x: number; y: number; x2: number; y2: number } | null>(null);
+  const arrowGestureRef = useRef<Square | null>(null);
+LINE 478
+    setAnnotationMode(false);
+  }, [book?.id, session?.currentFen]);
+
+  useEffect(() => {
+    if (engineEnabled && boardSession) {
+      engineRef.current?.analyze(game.fen(), engineDepth);
+    }
+  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+
+  function messageOf(cause: unknown): string {
+    return cause instanceof Error ? cause.message : String(cause);
+  }
+
+  function toggleEngine() {
+    if (engineEnabled) {
+      engineRef.current?.dispose();
+LINE 480
+
+  useEffect(() => {
+    if (engineEnabled && boardSession) {
+      engineRef.current?.analyze(game.fen(), engineDepth);
+    }
+  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+
+  function messageOf(cause: unknown): string {
+    return cause instanceof Error ? cause.message : String(cause);
+  }
+
+  function toggleEngine() {
+    if (engineEnabled) {
+      engineRef.current?.dispose();
+      engineRef.current = null;
+      setEngineEnabled(false);
+LINE 715
+    setEngineScore(null);
+    setEngineMessage("");
+    if (!engineEnabled) {
+      toggleEngine();
+    } else {
+      engineRef.current?.analyze(fen, engineDepth);
+    }
+    setNotice("Manual position loaded. Stockfish analysis started.");
+    return true;
+  }
+
+  function selectCandidate(candidate: Candidate) {
+    if (!session) return;
+    setCropEditingId(null);
+    cropBaselineRef.current = null;
+    patchSession({ selectedDiagramId: candidate.id });
+LINE 1954
+          </div>
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+
+--- SEARCH: engineStatus ---
+LINE 13
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+  putBook,
+  putSession,
+  removeBook,
+  removeSession,
+  setActiveBookId,
+LINE 203
+  const [transferFen, setTransferFen] = useState("");
+  const [recognitionStatus, setRecognitionStatus] = useState<RecognitionStatus>("idle");
+  const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
+  const [recognitionError, setRecognitionError] = useState("");
+  const [engineEnabled, setEngineEnabled] = useState(false);
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
+  const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+  const [engineMessage, setEngineMessage] = useState("");
+  const [engineDepth, setEngineDepth] = useState(14);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pageStageRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+  const renderTaskRef = useRef<RenderTask | null>(null);
+LINE 491
+  function toggleEngine() {
+    if (engineEnabled) {
+      engineRef.current?.dispose();
+      engineRef.current = null;
+      setEngineEnabled(false);
+      setEngineStatus("off");
+      setEngineScore(null);
+      setEngineMessage("");
+      return;
+    }
+    try {
+      setEngineScore(null);
+      setEngineMessage("");
+      const client = new StockfishEngine(
+        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+        (status, message) => {
+LINE 502
+      setEngineScore(null);
+      setEngineMessage("");
+      const client = new StockfishEngine(
+        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+        (status, message) => {
+          setEngineStatus(status);
+          if (status === "error") {
+            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+            setEngineEnabled(false);
+            setEngineScore(null);
+            engineRef.current?.dispose();
+            engineRef.current = null;
+          }
+        },
+        setEngineScore,
+      );
+LINE 516
+        setEngineScore,
+      );
+      engineRef.current = client;
+      setEngineEnabled(true);
+    } catch (cause) {
+      setEngineStatus("error");
+      setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+      setEngineEnabled(false);
+    }
+  }
+
+  function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+    setSession((current) => {
+      if (!current) return current;
+      return typeof change === "function" ? change(current) : { ...current, ...change };
+    });
+LINE 1505
+            </div>
+          </div>
+          <div className="board-area">
+            <div
+              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+            >
+              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+            </div>
+            <div className="board-frame">
+              <div
+                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+                ref={boardRef}
+                onPointerDown={boardArrowPointerDown}
+LINE 1506
+          </div>
+          <div className="board-area">
+            <div
+              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+            >
+              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+            </div>
+            <div className="board-frame">
+              <div
+                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+                ref={boardRef}
+                onPointerDown={boardArrowPointerDown}
+                onPointerMove={boardArrowPointerMove}
+LINE 1951
+              <button onClick={cancelCandidateSelection}>Cancel</button>
+            </div>}
+            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+          </div>
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+LINE 1953
+            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+          </div>
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+LINE 1957
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+          title="Review recognized position"
+
+========== MOVE HISTORY AND BOARD SESSION ==========
+
+--- SEARCH: moveHistory ---
+LINE 457
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return new Set<string>();
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+LINE 461
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+  useEffect(() => {
+    setUserArrows([]);
+    setArrowStart(null);
+LINE 462
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+  useEffect(() => {
+    setUserArrows([]);
+    setArrowStart(null);
+    setArrowHover(null);
+LINE 1479
+              patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+              setLastMove(null);
+              setNotice("New analysis line started from the current position.");
+            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+            </div>
+          </div>
+            </section>
+            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+LINE 1482
+            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+            </div>
+          </div>
+            </section>
+            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+          </aside>
+        )}
+
+LINE 1483
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+            </div>
+          </div>
+            </section>
+            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+          </aside>
+        )}
+
+        {workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+
+--- SEARCH: jumpToMove ---
+LINE 1061
+
+  function pastePgn() {
+    const source = window.prompt("Paste PGN notation:");
+    if (source !== null) loadPgnText(source);
+  }
+  function jumpToMove(index: number) {
+    if (!boardSession) return;
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+    } catch (cause) {
+      setError(`Could not navigate to move: ${messageOf(cause)}`);
+    }
+LINE 1482
+            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+            </div>
+          </div>
+            </section>
+            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+          </aside>
+        )}
+
+LINE 1483
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+            </div>
+          </div>
+            </section>
+            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+          </aside>
+        )}
+
+        {workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+LINE 1639
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div className="board-controls">
+            <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+            <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+            <span className="controls-separator" />
+            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+LINE 1640
+              </div>
+            </div>
+          </div>
+          <div className="board-controls">
+            <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+            <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+            <span className="controls-separator" />
+            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+LINE 1641
+            </div>
+          </div>
+          <div className="board-controls">
+            <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+            <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+            <span className="controls-separator" />
+            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+LINE 1642
+          </div>
+          <div className="board-controls">
+            <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+            <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+            <span className="controls-separator" />
+            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+
+--- SEARCH: lineBaseFen ---
+LINE 114
+export default function App() {
+  const [books, setBooks] = useState<BookRecord[]>([]);
+  const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
+  const [book, setBook] = useState<BookRecord | null>(null);
+  const [session, setSession] = useState<BookSession | null>(null);
+  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  const [studyMode, setStudyMode] = useState(false);
+  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+  }));
+LINE 118
+  const [session, setSession] = useState<BookSession | null>(null);
+  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  const [studyMode, setStudyMode] = useState(false);
+  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+  }));
+  const [openingPrepBoard, setOpeningPrepBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+LINE 126
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+  }));
+  const [openingPrepBoard, setOpeningPrepBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+    coordinates: true,
+  }));
+  const [ready, setReady] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+LINE 434
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+        ? openingPrepBoard
+        : workspaceMode === "opening-explorer"
+          ? {
+              lineBaseFen: START_FEN,
+              currentFen: openingPosition.fen,
+              moves: openingPosition.sanMoves,
+              moveIndex: openingPosition.sanMoves.length,
+              flipped: false,
+              coordinates: true,
+            }
+          : studyMode
+            ? studyBoard
+            : session;
+  const game = useMemo(() => {
+LINE 447
+            ? studyBoard
+            : session;
+  const game = useMemo(() => {
+    if (!boardSession) return new Chess();
+    try {
+      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+    } catch {
+      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+    }
+  }, [boardSession]);
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return new Set<string>();
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+LINE 458
+    if (!selectedSquare) return new Set<string>();
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+LINE 551
+      if (!session) {
+        setError("Open a book before entering study mode.");
+        return;
+      }
+      setStudyBoard({
+        lineBaseFen: session.lineBaseFen,
+        currentFen: session.currentFen,
+        moves: [...session.moves],
+        moveIndex: session.moveIndex,
+        flipped: session.flipped,
+        coordinates: session.coordinates,
+      });
+      setStudyMode(true);
+    } else {
+      // Preserve the latest Focus Mode board when returning to normal mode.
+      if (studyBoard) {
+LINE 563
+      setStudyMode(true);
+    } else {
+      // Preserve the latest Focus Mode board when returning to normal mode.
+      if (studyBoard) {
+        patchSession({
+          lineBaseFen: studyBoard.lineBaseFen,
+          currentFen: studyBoard.currentFen,
+          moves: [...studyBoard.moves],
+          moveIndex: studyBoard.moveIndex,
+          flipped: studyBoard.flipped,
+          coordinates: studyBoard.coordinates,
+        });
+      }
+      setStudyMode(false);
+    }
+    setLastMove(null);
+LINE 691
+    try {
+      const next = new Chess(fen);
+      setSession({
+        ...activeSession,
+        originalFen: fen,
+        lineBaseFen: fen,
+        currentFen: next.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+      setLastMove(null);
+      setSelectedSquare(null);
+      setUserArrows([]);
+      setNotice("Position loaded. Reset Board returns to this diagram position.");
+      return true;
+    } catch (cause) {
+LINE 1018
+  }
+
+  function loadPgnText(source: string) {
+    try {
+      const imported = parsePgn(source);
+      const replay = new Chess(imported.lineBaseFen);
+
+      for (const san of imported.moves) {
+        replay.move(san);
+      }
+
+      const last = replay.history({ verbose: true }).at(-1);
+
+      setAnalysisBoard((current) => ({
+        ...current,
+        lineBaseFen: imported.lineBaseFen,
+LINE 1028
+
+      const last = replay.history({ verbose: true }).at(-1);
+
+      setAnalysisBoard((current) => ({
+        ...current,
+        lineBaseFen: imported.lineBaseFen,
+        currentFen: imported.finalFen,
+        moves: imported.moves,
+        moveIndex: imported.moves.length,
+      }));
+
+      setWorkspaceMode("analysis");
+      setStudyMode(false);
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+
+LINE 1064
+    if (source !== null) loadPgnText(source);
+  }
+  function jumpToMove(index: number) {
+    if (!boardSession) return;
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+    } catch (cause) {
+      setError(`Could not navigate to move: ${messageOf(cause)}`);
+    }
+  }
+
+  async function copyText(value: string) {
+LINE 1374
+    setNotice("Position saved to this book.");
+  }
+
+  function resetBoard() {
+    if (workspaceMode === "opening-prep") {
+      const original = new Chess(openingPrepBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else if (studyMode) {
+      if (!studyBoard) return;
+      const original = new Chess(studyBoard.lineBaseFen);
+      patchBoardSession({
+LINE 1376
+
+  function resetBoard() {
+    if (workspaceMode === "opening-prep") {
+      const original = new Chess(openingPrepBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else if (studyMode) {
+      if (!studyBoard) return;
+      const original = new Chess(studyBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+LINE 1383
+        moves: [],
+        moveIndex: 0,
+      });
+    } else if (studyMode) {
+      if (!studyBoard) return;
+      const original = new Chess(studyBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else {
+      if (!session) return;
+      const original = new Chess(session.originalFen);
+      patchSession({
+LINE 1385
+      });
+    } else if (studyMode) {
+      if (!studyBoard) return;
+      const original = new Chess(studyBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else {
+      if (!session) return;
+      const original = new Chess(session.originalFen);
+      patchSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+LINE 1394
+      });
+    } else {
+      if (!session) return;
+      const original = new Chess(session.originalFen);
+      patchSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    }
+    setLastMove(null);
+    setSelectedSquare(null);
+    setPromotionRequest(null);
+    setError("");
+  }
+LINE 1474
+              </div>
+            <section className="sidebar-moves-panel" aria-label="Move list">
+<div className="moves-panel">
+            <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+              if (!session) return;
+              patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+              setLastMove(null);
+              setNotice("New analysis line started from the current position.");
+            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+LINE 1675
+          <div className="turn-row">
+            <span>TO MOVE</span>
+            <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "w");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+            <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "b");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+LINE 1682
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+            <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "b");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+            <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+          </div>
+          <details className="position-editor">
+            <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+            <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+          </details>
+          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+LINE 1844
+                  <button
+                    type="button"
+                    className="green-button"
+                    onClick={() => {
+                      setAnalysisBoard({
+                        lineBaseFen: START_FEN,
+                        currentFen: openingPosition.fen,
+                        moves: [...openingPosition.sanMoves],
+                        moveIndex: openingPosition.sanMoves.length,
+                        flipped: false,
+                        coordinates: true,
+                      });
+                      setStudyMode(false);
+                      setWorkspaceMode("analysis");
+                      setNotice("Opening position copied to the independent Analysis Board.");
+                    }}
+
+--- SEARCH: boardSession ---
+LINE 427
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+
+  const boardSession: StudyBoardState | null =
+    workspaceMode === "analysis"
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+        ? openingPrepBoard
+        : workspaceMode === "opening-explorer"
+          ? {
+              lineBaseFen: START_FEN,
+              currentFen: openingPosition.fen,
+              moves: openingPosition.sanMoves,
+              moveIndex: openingPosition.sanMoves.length,
+LINE 445
+            }
+          : studyMode
+            ? studyBoard
+            : session;
+  const game = useMemo(() => {
+    if (!boardSession) return new Chess();
+    try {
+      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+    } catch {
+      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+    }
+  }, [boardSession]);
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return new Set<string>();
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  }, [game, selectedSquare]);
+LINE 447
+            ? studyBoard
+            : session;
+  const game = useMemo(() => {
+    if (!boardSession) return new Chess();
+    try {
+      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+    } catch {
+      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+    }
+  }, [boardSession]);
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return new Set<string>();
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+LINE 449
+  const game = useMemo(() => {
+    if (!boardSession) return new Chess();
+    try {
+      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+    } catch {
+      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+    }
+  }, [boardSession]);
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return new Set<string>();
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+LINE 451
+    try {
+      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+    } catch {
+      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+    }
+  }, [boardSession]);
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return new Set<string>();
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+LINE 458
+    if (!selectedSquare) return new Set<string>();
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+LINE 460
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+  useEffect(() => {
+    setUserArrows([]);
+LINE 477
+    setArrowHover(null);
+    setAnnotationMode(false);
+  }, [book?.id, session?.currentFen]);
+
+  useEffect(() => {
+    if (engineEnabled && boardSession) {
+      engineRef.current?.analyze(game.fen(), engineDepth);
+    }
+  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+
+  function messageOf(cause: unknown): string {
+    return cause instanceof Error ? cause.message : String(cause);
+  }
+
+  function toggleEngine() {
+    if (engineEnabled) {
+LINE 480
+
+  useEffect(() => {
+    if (engineEnabled && boardSession) {
+      engineRef.current?.analyze(game.fen(), engineDepth);
+    }
+  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+
+  function messageOf(cause: unknown): string {
+    return cause instanceof Error ? cause.message : String(cause);
+  }
+
+  function toggleEngine() {
+    if (engineEnabled) {
+      engineRef.current?.dispose();
+      engineRef.current = null;
+      setEngineEnabled(false);
+LINE 529
+      if (!current) return current;
+      return typeof change === "function" ? change(current) : { ...current, ...change };
+    });
+  }
+
+  function patchBoardSession(change: Partial<StudyBoardState>) {
+    if (workspaceMode === "opening-explorer") {
+      return;
+    }
+
+    if (workspaceMode === "analysis") {
+      setAnalysisBoard((current) => ({ ...current, ...change }));
+    } else if (workspaceMode === "opening-prep") {
+      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+    } else if (studyMode) {
+      setStudyBoard((current) => current ? { ...current, ...change } : current);
+LINE 857
+      setGameEndOverlay(null);
+    }
+  }
+
+  function completePromotion(piece: "q" | "r" | "b" | "n") {
+    if (!promotionRequest || !boardSession) return;
+    const activeBoard = boardSession;
+    try {
+      const currentGame = new Chess(activeBoard.currentFen);
+      const result = currentGame.move({
+        from: promotionRequest.from,
+        to: promotionRequest.to,
+        promotion: piece,
+      });
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+      patchBoardSession({
+LINE 858
+    }
+  }
+
+  function completePromotion(piece: "q" | "r" | "b" | "n") {
+    if (!promotionRequest || !boardSession) return;
+    const activeBoard = boardSession;
+    try {
+      const currentGame = new Chess(activeBoard.currentFen);
+      const result = currentGame.move({
+        from: promotionRequest.from,
+        to: promotionRequest.to,
+        promotion: piece,
+      });
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+      patchBoardSession({
+        currentFen: currentGame.fen(),
+LINE 867
+        from: promotionRequest.from,
+        to: promotionRequest.to,
+        promotion: piece,
+      });
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+      patchBoardSession({
+        currentFen: currentGame.fen(),
+        moves: nextMoves,
+        moveIndex: nextMoves.length,
+      });
+      updateGameEndOverlay(currentGame);
+      setLastMove({ from: promotionRequest.from, to: promotionRequest.to });
+      setSelectedSquare(null);
+      setPromotionRequest(null);
+      setError("");
+    } catch {
+LINE 884
+      setPromotionRequest(null);
+    }
+  }
+
+  function makeMove(from: Square, to: Square) {
+    if (!boardSession) return;
+    const activeBoard = boardSession;
+    try {
+      const currentGame = new Chess(activeBoard.currentFen);
+      const mover = currentGame.get(from);
+      const promote = mover?.type === "p" && (to.endsWith("8") || to.endsWith("1"));
+      if (promote) {
+        setPromotionRequest({ from, to });
+        return;
+      }
+      const result = currentGame.move({ from, to });
+LINE 885
+    }
+  }
+
+  function makeMove(from: Square, to: Square) {
+    if (!boardSession) return;
+    const activeBoard = boardSession;
+    try {
+      const currentGame = new Chess(activeBoard.currentFen);
+      const mover = currentGame.get(from);
+      const promote = mover?.type === "p" && (to.endsWith("8") || to.endsWith("1"));
+      if (promote) {
+        setPromotionRequest({ from, to });
+        return;
+      }
+      const result = currentGame.move({ from, to });
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+LINE 903
+          .map((move, index) => index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ${move}` : move)
+          .join(" ");
+        setOpeningExplorerInput(line);
+        setOpeningExplorerPly(nextMoves.length);
+      } else {
+        patchBoardSession({
+          currentFen: currentGame.fen(),
+          moves: nextMoves,
+          moveIndex: nextMoves.length,
+        });
+      }
+      updateGameEndOverlay(currentGame);
+      setLastMove({ from, to });
+      setSelectedSquare(null);
+      setError("");
+    } catch {
+LINE 930
+      setUserArrows([]);
+      setArrowStart(null);
+      setArrowHover(null);
+      return;
+    }
+if (!boardSession) return;
+    if (annotationMode) {
+      if (!arrowStart) {
+        setArrowStart(square);
+        return;
+      }
+      if (arrowStart !== square) setUserArrows((arrows) => toggleArrow(arrows, { from: arrowStart, to: square }));
+      setArrowStart(null);
+      setArrowHover(null);
+      return;
+    }
+LINE 960
+  const bounds = boardRef.current.getBoundingClientRect();
+  const square = boardSquareAtPoint(
+    event.clientX,
+    event.clientY,
+    bounds,
+    Boolean(boardSession?.flipped),
+  );
+
+  if (!square) return;
+
+  // Only suppress the context menu if an arrow is actually drawn.
+  suppressBoardContextMenuRef.current = false;
+  arrowGestureMovedRef.current = false;
+  arrowGestureRef.current = square;
+  setArrowStart(square);
+  setArrowHover(square);
+LINE 978
+}
+
+  function boardArrowPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (!arrowGestureRef.current || !boardRef.current) return;
+    const bounds = boardRef.current.getBoundingClientRect();
+    const square = boardSquareAtPoint(event.clientX, event.clientY, bounds, Boolean(boardSession?.flipped));
+    if (square && square !== arrowGestureRef.current) arrowGestureMovedRef.current = true;
+    setArrowHover(square);
+  }
+
+  function boardArrowPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+  const from = arrowGestureRef.current;
+
+  if (!from || !boardRef.current) return;
+
+  const bounds = boardRef.current.getBoundingClientRect();
+LINE 993
+  const bounds = boardRef.current.getBoundingClientRect();
+  const to = boardSquareAtPoint(
+    event.clientX,
+    event.clientY,
+    bounds,
+    Boolean(boardSession?.flipped),
+  );
+
+  if (to && to !== from) {
+    setUserArrows((arrows) => toggleArrow(arrows, { from, to }));
+    suppressBoardContextMenuRef.current = true;
+  } else {
+    suppressBoardContextMenuRef.current = false;
+  }
+
+  arrowGestureRef.current = null;
+LINE 1062
+  function pastePgn() {
+    const source = window.prompt("Paste PGN notation:");
+    if (source !== null) loadPgnText(source);
+  }
+  function jumpToMove(index: number) {
+    if (!boardSession) return;
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+    } catch (cause) {
+      setError(`Could not navigate to move: ${messageOf(cause)}`);
+    }
+  }
+LINE 1064
+    if (source !== null) loadPgnText(source);
+  }
+  function jumpToMove(index: number) {
+    if (!boardSession) return;
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+    } catch (cause) {
+      setError(`Could not navigate to move: ${messageOf(cause)}`);
+    }
+  }
+
+  async function copyText(value: string) {
+LINE 1066
+  function jumpToMove(index: number) {
+    if (!boardSession) return;
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+    } catch (cause) {
+      setError(`Could not navigate to move: ${messageOf(cause)}`);
+    }
+  }
+
+  async function copyText(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+LINE 1375
+  }
+
+  function resetBoard() {
+    if (workspaceMode === "opening-prep") {
+      const original = new Chess(openingPrepBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else if (studyMode) {
+      if (!studyBoard) return;
+      const original = new Chess(studyBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+LINE 1384
+        moveIndex: 0,
+      });
+    } else if (studyMode) {
+      if (!studyBoard) return;
+      const original = new Chess(studyBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else {
+      if (!session) return;
+      const original = new Chess(session.originalFen);
+      patchSession({
+        lineBaseFen: original.fen(),
+LINE 1482
+            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+            </div>
+          </div>
+            </section>
+            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+          </aside>
+        )}
+
+LINE 1483
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+            </div>
+          </div>
+            </section>
+            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+          </aside>
+        )}
+
+        {workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+LINE 1499
+        <section className="board-panel" aria-label="Chessboard analysis">
+          <div className="board-header">
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div className="board-header-actions">
+              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+            </div>
+          </div>
+          <div className="board-area">
+            <div
+              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+            >
+              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+LINE 1513
+              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+            </div>
+            <div className="board-frame">
+              <div
+                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+                ref={boardRef}
+                onPointerDown={boardArrowPointerDown}
+                onPointerMove={boardArrowPointerMove}
+                onPointerUp={boardArrowPointerUp}
+                onPointerCancel={cancelBoardArrowGesture}
+                onContextMenu={(event) => {
+  event.preventDefault();
+
+  if (suppressBoardContextMenuRef.current || arrowGestureMovedRef.current) {
+    suppressBoardContextMenuRef.current = false;
+LINE 1534
+
+  const square = boardSquareAtPoint(
+    event.clientX,
+    event.clientY,
+    bounds,
+    Boolean(boardSession?.flipped),
+  );
+  if (!square) return;
+
+  setRedSquares((current) =>
+    current.includes(square)
+      ? current.filter((item) => item !== square)
+      : [...current, square]
+  );
+}}
+              >
+LINE 1548
+}}
+              >
+                {Array.from({ length: 64 }, (_, index) => {
+                  const visibleRow = Math.floor(index / 8);
+                  const visibleCol = index % 8;
+                  const fileIndex = boardSession?.flipped ? 7 - visibleCol : visibleCol;
+                  const rankIndex = boardSession?.flipped ? visibleRow : 7 - visibleRow;
+                  const square = squareName(fileIndex, rankIndex);
+                  const piece = pieceSquares[7 - rankIndex]?.[fileIndex];
+                  const legal = legalTargets.has(square);
+                  const isLast = highlightedMove?.from === square || highlightedMove?.to === square;
+                  const light = (fileIndex + rankIndex) % 2 === 1;
+                  return (
+                    <button
+                      key={square}
+                      className={`square ${light ? "light-square" : "dark-square"} ${selectedSquare === square ? "selected-square" : ""} ${isLast ? "last-square" : ""} ${redSquares.includes(square) ? "red-highlight" : ""}`}
+LINE 1549
+              >
+                {Array.from({ length: 64 }, (_, index) => {
+                  const visibleRow = Math.floor(index / 8);
+                  const visibleCol = index % 8;
+                  const fileIndex = boardSession?.flipped ? 7 - visibleCol : visibleCol;
+                  const rankIndex = boardSession?.flipped ? visibleRow : 7 - visibleRow;
+                  const square = squareName(fileIndex, rankIndex);
+                  const piece = pieceSquares[7 - rankIndex]?.[fileIndex];
+                  const legal = legalTargets.has(square);
+                  const isLast = highlightedMove?.from === square || highlightedMove?.to === square;
+                  const light = (fileIndex + rankIndex) % 2 === 1;
+                  return (
+                    <button
+                      key={square}
+                      className={`square ${light ? "light-square" : "dark-square"} ${selectedSquare === square ? "selected-square" : ""} ${isLast ? "last-square" : ""} ${redSquares.includes(square) ? "red-highlight" : ""}`}
+                      aria-label={`${square}${piece ? ` ${piece.color === "w" ? "white" : "black"} ${piece.type}` : ""}`}
+LINE 1577
+                      onDrop={(event) => { event.preventDefault(); const from = event.dataTransfer.getData("text/plain") as Square; if (from) makeMove(from, square); }}
+                      onDragEnd={() => setSelectedSquare(null)}
+                    >
+                      {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece.color}${piece.type}.svg`} /></span>}
+                      {legal && <span className={piece ? "legal-capture" : "legal-dot"} />}
+                      {boardSession?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
+                      {boardSession?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
+                    </button>
+                  );
+                })}
+                <svg className="board-arrows" viewBox="0 0 8 8" aria-hidden="true">
+                  {[
+                    ...userArrows.map((arrow) => ({ arrow, kind: "user" as const })),
+                    ...(engineArrow ? [{ arrow: engineArrow, kind: "engine" as const }] : []),
+                    ...(arrowStart && arrowHover && arrowStart !== arrowHover
+                      ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
+LINE 1578
+                      onDragEnd={() => setSelectedSquare(null)}
+                    >
+                      {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece.color}${piece.type}.svg`} /></span>}
+                      {legal && <span className={piece ? "legal-capture" : "legal-dot"} />}
+                      {boardSession?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
+                      {boardSession?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
+                    </button>
+                  );
+                })}
+                <svg className="board-arrows" viewBox="0 0 8 8" aria-hidden="true">
+                  {[
+                    ...userArrows.map((arrow) => ({ arrow, kind: "user" as const })),
+                    ...(engineArrow ? [{ arrow: engineArrow, kind: "engine" as const }] : []),
+                    ...(arrowStart && arrowHover && arrowStart !== arrowHover
+                      ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
+                      : []),
+LINE 1590
+                    ...(engineArrow ? [{ arrow: engineArrow, kind: "engine" as const }] : []),
+                    ...(arrowStart && arrowHover && arrowStart !== arrowHover
+                      ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
+                      : []),
+                  ].map(({ arrow, kind }, index) => {
+                    const from = squareCenter(arrow.from, Boolean(boardSession?.flipped));
+                    const to = squareCenter(arrow.to, Boolean(boardSession?.flipped));
+                    const dx = to.x - from.x;
+                    const dy = to.y - from.y;
+                    const length = Math.hypot(dx, dy);
+                    if (length < 0.001) return null;
+
+                    const ux = dx / length;
+                    const uy = dy / length;
+                    const px = -uy;
+                    const py = ux;
+LINE 1591
+                    ...(arrowStart && arrowHover && arrowStart !== arrowHover
+                      ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
+                      : []),
+                  ].map(({ arrow, kind }, index) => {
+                    const from = squareCenter(arrow.from, Boolean(boardSession?.flipped));
+                    const to = squareCenter(arrow.to, Boolean(boardSession?.flipped));
+                    const dx = to.x - from.x;
+                    const dy = to.y - from.y;
+                    const length = Math.hypot(dx, dy);
+                    if (length < 0.001) return null;
+
+                    const ux = dx / length;
+                    const uy = dy / length;
+                    const px = -uy;
+                    const py = ux;
+
+LINE 1640
+              </div>
+            </div>
+          </div>
+          <div className="board-controls">
+            <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+            <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+            <span className="controls-separator" />
+            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+LINE 1641
+            </div>
+          </div>
+          <div className="board-controls">
+            <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+            <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+            <span className="controls-separator" />
+            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+LINE 1642
+          </div>
+          <div className="board-controls">
+            <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+            <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+            <span className="controls-separator" />
+            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+LINE 1675
+          <div className="turn-row">
+            <span>TO MOVE</span>
+            <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "w");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+            <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "b");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+LINE 1682
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+            <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "b");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+            <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+          </div>
+          <details className="position-editor">
+            <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+            <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+          </details>
+          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+LINE 1692
+          </div>
+          <details className="position-editor">
+            <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+            <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+          </details>
+          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+        </section>
+
+        <section className="reader-panel" aria-label="PDF book reader">
+          <div className="opening-explorer-right-workspace">
+          {workspaceMode === "opening-explorer" && (
+            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+              <h3>Opening Explorer</h3>
+              <div className="lichess-connection-controls">
+                {lichessStatus?.connected ? (
+                  <>
+
+========== MODEL DEFINITIONS ==========
+
+--- SEARCH: export type BookSession ---
+LINE 31
+  fen: string;
+  page: number;
+  savedAt: number;
+};
+
+export type BookSession = {
+  bookId: string;
+  page: number;
+  pageCount: number;
+  zoom: number;
+  selectedDiagramId: string | null;
+  candidatesByPage: Record<string, Candidate[]>;
+  originalFen: string;
+  lineBaseFen: string;
+  currentFen: string;
+  moves: string[];
+
+--- SEARCH: export interface BookSession ---
+NO MATCH
+
+--- SEARCH: type BookSession ---
+LINE 31
+  fen: string;
+  page: number;
+  savedAt: number;
+};
+
+export type BookSession = {
+  bookId: string;
+  page: number;
+  pageCount: number;
+  zoom: number;
+  selectedDiagramId: string | null;
+  candidatesByPage: Record<string, Candidate[]>;
+  originalFen: string;
+  lineBaseFen: string;
+  currentFen: string;
+  moves: string[];
+
+--- SEARCH: export const START_FEN ---
+LINE 1
+export const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+export type Candidate = {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  relativeScore?: number;
+  confidence?: number;
+  source: "automatic" | "manual";
+
+========== PACKAGE SCRIPTS AND DEPENDENCIES ==========
+
+--- SEARCH: "scripts" ---
+LINE 6
+{
+  "name": "chessbook-reader",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+
+--- SEARCH: "test" ---
+LINE 10
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+
+--- SEARCH: "build" ---
+LINE 8
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+
+--- SEARCH: "chess.js" ---
+LINE 14
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.7",
+
+--- SEARCH: "vitest" ---
+LINE 11
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+LINE 30
+    "@vitejs/plugin-react": "^4.7.0",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^5.0.4"
+  }
+}
+
+========== AUDIT COMPLETE ==========
