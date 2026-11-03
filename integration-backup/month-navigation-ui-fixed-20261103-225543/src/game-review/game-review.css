@@ -1,0 +1,909 @@
+﻿@import "tailwindcss/theme" theme(static);
+@import "tailwindcss/utilities";
+
+@config "../../external/chess-game-review/tailwind.config.js";
+@source "./**/*.{js,ts,jsx,tsx}";
+@source "../../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
+@custom-variant dark (&:is(.dark *));
+
+/* =========================================================
+   CHESSBOOK READER — GAME REVIEW DESIGN SYSTEM
+   ========================================================= */
+
+.game-review-root {
+  --gr-bg: #151a20;
+  --gr-surface: #1d252d;
+  --gr-surface-raised: #252f38;
+  --gr-surface-hover: #303c45;
+  --gr-border: rgba(210, 225, 218, .10);
+  --gr-border-strong: rgba(210, 225, 218, .17);
+  --gr-text: #edf2ed;
+  --gr-muted: #aab7b1;
+  --gr-subtle: #788780;
+  --gr-accent: #91b99b;
+  --gr-accent-strong: #a8cdae;
+  --gr-accent-dark: #527c60;
+  --gr-gold: #d6bd82;
+  --gr-danger: #d77d82;
+
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  color: var(--gr-text);
+  color-scheme: dark;
+  background:
+    radial-gradient(ellipse at 16% 0%, rgba(89, 130, 105, .13), transparent 38%),
+    radial-gradient(ellipse at 90% 100%, rgba(75, 100, 120, .12), transparent 40%),
+    var(--gr-bg);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.game-review-root *,
+.game-review-root *::before,
+.game-review-root *::after {
+  box-sizing: border-box;
+}
+
+.game-review-root button,
+.game-review-root input,
+.game-review-root textarea {
+  font: inherit;
+}
+
+.game-review-root button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.game-review-root ::selection {
+  color: #fff;
+  background: rgba(112, 158, 123, .42);
+}
+
+.game-review-root ::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.game-review-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.game-review-root ::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 20px;
+  background: rgba(171, 190, 179, .25);
+  background-clip: padding-box;
+}
+
+.game-review-root ::-webkit-scrollbar-thumb:hover {
+  background: rgba(171, 190, 179, .43);
+  background-clip: padding-box;
+}
+
+/* Workspace */
+
+.game-review-root #App {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  padding: clamp(14px, 2vw, 30px);
+  overflow: visible;
+}
+
+.game-review-root .game-review-layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 642px) minmax(320px, 460px);
+  align-items: start;
+  justify-content: center;
+  gap: clamp(18px, 2.4vw, 34px);
+  width: 100%;
+  max-width: 1160px;
+  min-width: 0;
+  margin-inline: auto;
+  animation: gr-workspace-enter .55s cubic-bezier(.2, .7, .2, 1) both;
+}
+
+/* Chessboard */
+
+.game-review-root #Board {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 642px;
+  min-width: 0;
+  overflow: visible;
+}
+
+.game-review-root #Board > div:first-child,
+.game-review-root #Board > div:last-child {
+  min-width: 0;
+  padding: 5px 10px;
+  border: 1px solid var(--gr-border);
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(39, 51, 57, .84), rgba(28, 37, 44, .72));
+  box-shadow: 0 5px 18px rgba(0, 0, 0, .12);
+  transition: border-color .2s ease, background .2s ease;
+}
+
+.game-review-root #Board&Bar {
+  min-width: 0;
+}
+
+.game-review-root #actual-board {
+  position: relative;
+  flex: 1 1 0;
+  width: calc(100% - 42px);
+  max-width: 600px;
+  min-width: 0;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border: 1px solid rgba(235, 240, 222, .14);
+  border-radius: 5px;
+  background: #829d70;
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, .24),
+    0 0 0 5px rgba(255, 255, 255, .025);
+}
+
+.game-review-root #actual-board > img:first-child {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  object-fit: fill;
+  filter: saturate(.68) hue-rotate(7deg) brightness(1.025);
+}
+
+.game-review-root #actual-board > *:not(img:first-child) {
+  max-width: 100%;
+}
+
+.game-review-root #actual-board img:not(:first-child) {
+  transition: filter .16s ease, transform .16s ease;
+}
+
+.game-review-root #actual-board img:not(:first-child):hover {
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .22));
+}
+
+/* Evaluation bar */
+
+.game-review-root #Board&Bar > *:first-child {
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+/* Player information */
+
+.game-review-root #Board > div:first-child,
+.game-review-root #Board > div:last-child {
+  color: var(--gr-text);
+}
+
+.game-review-root #Board > div:first-child span,
+.game-review-root #Board > div:last-child span {
+  color: inherit;
+}
+
+.game-review-root #Board [class*="text-foreground-500"] {
+  color: var(--gr-muted) !important;
+}
+
+/* Controls glass panel */
+
+.game-review-root #Controls {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: 460px;
+  min-width: 0;
+  height: min(696px, calc(100vh - 145px));
+  min-height: 480px;
+  max-height: 696px;
+  padding: 20px;
+  overflow: hidden;
+  border: 1px solid var(--gr-border-strong);
+  border-radius: 20px;
+  background:
+    linear-gradient(145deg, rgba(43, 55, 62, .83), rgba(27, 35, 43, .90));
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, .20),
+    inset 0 1px 0 rgba(255, 255, 255, .045);
+  backdrop-filter: blur(22px) saturate(125%);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  transition: border-color .25s ease, box-shadow .25s ease;
+}
+
+.game-review-root #Controls:hover {
+  border-color: rgba(168, 205, 174, .23);
+  box-shadow:
+    0 26px 65px rgba(0, 0, 0, .23),
+    0 0 35px rgba(117, 159, 125, .055),
+    inset 0 1px 0 rgba(255, 255, 255, .055);
+}
+
+/* Controls header */
+
+.game-review-root #Controls > div:first-child {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--gr-border);
+}
+
+.game-review-root #Controls > div:first-child p {
+  color: var(--gr-text);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -.025em;
+}
+
+.game-review-root #Controls > div:first-child img {
+  filter: saturate(.8);
+}
+
+/* Scrollable content */
+
+.game-review-root #Controls > div:nth-child(2) {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0 3px 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/* Source accordions */
+
+.game-review-root #Controls [data-slot="base"] {
+  color: var(--gr-text);
+}
+
+.game-review-root #Controls [data-slot="trigger"] {
+  color: var(--gr-text);
+}
+
+.game-review-root #Controls [data-slot="trigger"]:hover {
+  background: rgba(255, 255, 255, .035);
+}
+
+.game-review-root #Controls [data-slot="heading"] {
+  color: var(--gr-text);
+  font-weight: 600;
+}
+
+.game-review-root #Controls [data-slot="indicator"] {
+  color: var(--gr-muted);
+}
+
+.game-review-root #Controls [data-slot="content"] {
+  color: var(--gr-muted);
+}
+
+/* Accordion panels */
+
+.game-review-root #Controls [data-slot="item"] {
+  margin-bottom: 11px;
+  overflow: hidden;
+  border: 1px solid var(--gr-border);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .025);
+  transition: border-color .2s ease, background .2s ease, transform .2s ease;
+}
+
+.game-review-root #Controls [data-slot="item"]:hover {
+  border-color: rgba(168, 205, 174, .22);
+  background: rgba(255, 255, 255, .045);
+}
+
+/* Input and button styles are centralized in the dark theme section below. */
+
+/* PGN form */
+
+.game-review-root #Controls #Forms {
+  min-width: 0;
+}
+
+.game-review-root #Controls [data-slot="card"] {
+  border: 1px solid var(--gr-border);
+  border-radius: 13px;
+  background: rgba(12, 18, 23, .34);
+  box-shadow: none;
+}
+
+.game-review-root #Controls textarea {
+  min-height: 100px;
+  line-height: 1.6;
+}
+
+/* Game list and filters */
+
+.game-review-root #Controls #Games {
+  gap: 13px;
+}
+
+.game-review-root #Controls #Games > div {
+  border-color: var(--gr-border);
+}
+
+.game-review-root #Controls #Games [data-slot="accordion-item"] {
+  border-color: var(--gr-border);
+  background: rgba(255, 255, 255, .025);
+}
+
+.game-review-root #Controls #Games > div > button,
+.game-review-root #Controls #Games [data-slot="base"] {
+  color: var(--gr-text);
+}
+
+.game-review-root #Controls #Games > div:last-child > * {
+  border-bottom: 1px solid rgba(210, 225, 218, .065);
+  transition: background .18s ease;
+}
+
+.game-review-root #Controls #Games > div:last-child > *:hover {
+  background: rgba(145, 185, 155, .07);
+}
+
+/* Review section */
+
+.game-review-root #Review {
+  color: var(--gr-text);
+  animation: gr-content-enter .3s ease both;
+}
+
+.game-review-root #Review p {
+  color: var(--gr-muted);
+}
+
+.game-review-root #Review button {
+  min-height: 44px;
+  border-radius: 11px;
+}
+
+.game-review-root #Review [role="progressbar"] {
+  overflow: hidden;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, .08);
+}
+
+.game-review-root #Review [data-slot="indicator"] {
+  border-radius: inherit;
+}
+
+/* Navigation */
+
+.game-review-root #GameNav {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 12px;
+  transform: none;
+  border: 1px solid var(--gr-border);
+  border-radius: 14px;
+  background: rgba(13, 19, 24, .42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.game-review-root #GameNav > div:first-child {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.game-review-root #GameNav > div:first-child button {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  border: 1px solid var(--gr-border);
+  border-radius: 10px;
+  color: var(--gr-text);
+  background: rgba(255, 255, 255, .075);
+}
+
+.game-review-root #GameNav > div:first-child button:not(:disabled):hover {
+  color: #e5f1e5;
+  border-color: rgba(168, 205, 174, .30);
+  background: rgba(145, 185, 155, .15);
+}
+
+.game-review-root #GameNav #minor-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.game-review-root #GameNav #minor-buttons button {
+  min-height: 36px;
+  border-radius: 9px;
+}
+
+.game-review-root #GameNav #minor-buttons button:last-child {
+  margin-left: auto;
+}
+
+/* Settings */
+
+.game-review-root #Controls [role="dialog"],
+.game-review-root #Controls [data-slot="popover-content"],
+.game-review-root #Controls [data-slot="listbox-wrapper"] {
+  color: var(--gr-text);
+  border: 1px solid var(--gr-border-strong);
+  border-radius: 13px;
+  background: #252f38;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, .35);
+}
+
+/* Loading and errors */
+
+.game-review-root [role="progressbar"] {
+  accent-color: var(--gr-accent);
+}
+
+.game-review-root .game-review-error {
+  padding: 28px;
+  color: #f0a2a2;
+  overflow-wrap: anywhere;
+}
+
+.game-review-root .game-review-error pre {
+  white-space: pre-wrap;
+}
+
+/* Animations */
+
+@keyframes gr-workspace-enter {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gr-content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive layout */
+
+@media (max-width: 1200px) {
+  .game-review-root #App {
+    padding: 18px;
+  }
+
+  .game-review-root .game-review-layout {
+    grid-template-columns: minmax(0, 642px);
+    justify-content: center;
+    gap: 22px;
+  }
+
+  .game-review-root #Board,
+  .game-review-root #Controls {
+    width: 100%;
+    max-width: 642px;
+    justify-self: center;
+  }
+
+  .game-review-root #Controls {
+    height: auto;
+    min-height: 480px;
+    max-height: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .game-review-root #App {
+    padding: 10px;
+  }
+
+  .game-review-root .game-review-layout {
+    gap: 15px;
+  }
+
+  .game-review-root #Controls {
+    min-height: 440px;
+    padding: 13px;
+    border-radius: 15px;
+  }
+
+  .game-review-root #GameNav {
+    padding: 9px;
+  }
+
+  .game-review-root #GameNav > div:first-child button {
+    height: 39px;
+  }
+}
+
+/* Accessibility */
+
+@media (prefers-reduced-motion: reduce) {
+  .game-review-root *,
+  .game-review-root *::before,
+  .game-review-root *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* =====================================================
+   CHESS.COM INSPIRED — NEUTRAL DARK THEME
+   ===================================================== */
+
+.game-review-root {
+  --gr-bg: #161512;
+  --gr-surface: #262421;
+  --gr-surface-raised: #302e2a;
+  --gr-surface-hover: #3b3934;
+  --gr-border: rgba(255,255,255,.075);
+  --gr-border-strong: rgba(255,255,255,.11);
+  --gr-text: #f0eee8;
+  --gr-muted: #b7b4ac;
+  --gr-subtle: #89867e;
+  --gr-accent: #81b64c;
+  --gr-accent-strong: #95c65e;
+  --gr-accent-dark: #527c32;
+  --gr-gold: #d6bd82;
+  --gr-danger: #dc7777;
+
+  background: #161512 !important;
+  color: #f0eee8 !important;
+  color-scheme: dark;
+}
+
+/* Main workspace */
+.game-review-root,
+.game-review-root #App {
+  background: #161512 !important;
+}
+
+/* Player information */
+.game-review-root #Board > div:first-child,
+.game-review-root #Board > div:last-child {
+  background: #262421 !important;
+  border: 1px solid #393731 !important;
+  box-shadow: none !important;
+  color: #f0eee8 !important;
+}
+
+/* Main controls panel */
+.game-review-root #Controls {
+  background: #262421 !important;
+  background-image: none !important;
+  border: 1px solid #393731 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,.25) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.game-review-root #Controls:hover {
+  border-color: #48453d !important;
+  box-shadow: 0 10px 32px rgba(0,0,0,.3) !important;
+}
+
+/* Header */
+.game-review-root #Controls > div:first-child {
+  border-bottom-color: #403d36 !important;
+}
+
+.game-review-root #Controls > div:first-child p {
+  color: #f0eee8 !important;
+}
+
+/* Source selection panels */
+.game-review-root #Controls [data-slot="item"] {
+  background: #302e2a !important;
+  border: 1px solid #45423b !important;
+  border-radius: 9px !important;
+}
+
+.game-review-root #Controls [data-slot="item"]:hover {
+  background: #393730 !important;
+  border-color: #5a574c !important;
+}
+
+.game-review-root #Controls [data-slot="trigger"],
+.game-review-root #Controls [data-slot="heading"] {
+  color: #e8e5dd !important;
+}
+
+/* Inputs */
+.game-review-root #Controls [data-slot="input-wrapper"],
+.game-review-root #Controls [data-slot="inner-wrapper"] {
+  background: #171613 !important;
+  border: 1px solid #514e45 !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+}
+
+.game-review-root #Controls [data-slot="input-wrapper"]:hover {
+  background: #1c1a17 !important;
+  border-color: #777267 !important;
+}
+
+.game-review-root #Controls [data-slot="input-wrapper"]:focus-within {
+  border-color: #81b64c !important;
+  box-shadow: 0 0 0 2px rgba(129,182,76,.2) !important;
+}
+
+.game-review-root #Controls input,
+.game-review-root #Controls textarea {
+  color: #f0eee8 !important;
+}
+
+.game-review-root #Controls input::placeholder,
+.game-review-root #Controls textarea::placeholder {
+  color: #a7a49c !important;
+}
+
+/* Primary buttons */
+.game-review-root #Controls button[data-color="primary"],
+.game-review-root #Controls button[class*="bg-primary"] {
+  background: #81b64c !important;
+  color: #171912 !important;
+  border: 1px solid #81b64c !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+  font-weight: 700 !important;
+}
+
+.game-review-root #Controls button[data-color="primary"]:hover,
+.game-review-root #Controls button[class*="bg-primary"]:hover {
+  background: #95c65e !important;
+  border-color: #95c65e !important;
+}
+
+/* Secondary buttons */
+.game-review-root #Controls button[data-variant="flat"],
+.game-review-root #Controls button[data-variant="bordered"],
+.game-review-root #Controls button[data-variant="light"] {
+  background: #383630;
+  color: #e9e6df;
+  border-color: #4b4840;
+}
+
+/* PGN card */
+.game-review-root #Controls [data-slot="card"] {
+  background: #302e2a !important;
+  border-color: #45423b !important;
+}
+
+/* Navigation */
+.game-review-root #GameNav {
+  background: #201e1b !important;
+  border: 1px solid #39362f !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.game-review-root #GameNav > div:first-child button {
+  background: #383630 !important;
+  color: #f0eee8 !important;
+  border: 1px solid #4a473f !important;
+  border-radius: 7px !important;
+}
+
+.game-review-root #GameNav > div:first-child button:not(:disabled):hover {
+  background: #49463e !important;
+  border-color: #81b64c !important;
+}
+
+.game-review-root #GameNav #minor-buttons button {
+  background: #383630 !important;
+  color: #f0eee8 !important;
+  border-radius: 7px !important;
+}
+
+/* Dropdowns and popovers */
+.game-review-root #Controls [role="dialog"],
+.game-review-root #Controls [data-slot="popover-content"],
+.game-review-root #Controls [data-slot="listbox-wrapper"] {
+  background: #302e2a !important;
+  color: #f0eee8 !important;
+  border: 1px solid #4a473f !important;
+}
+
+/* Board frame */
+.game-review-root #actual-board {
+  border-color: #454238 !important;
+  box-shadow: 0 8px 25px rgba(0,0,0,.3) !important;
+}
+
+/* Scrollbars */
+.game-review-root ::-webkit-scrollbar-thumb {
+  background: #57534a;
+  background-clip: padding-box;
+}
+
+/* Remove blue/green glass gradients */
+.game-review-root #Controls::before {
+  background: none !important;
+}
+
+
+/* =========================================================
+   CHESS.COM-STYLE USERNAME FORM AND MOVE CONTROLS
+   ========================================================= */
+
+.game-review-root #Controls .game-review-username-form {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  align-items: end;
+  gap: 10px;
+  width: 100%;
+}
+
+.game-review-root #Controls .game-review-username-form > div:first-child {
+  min-width: 0;
+  width: 100%;
+}
+
+.game-review-root #Controls .game-review-username-form [data-slot="label"] {
+  display: block !important;
+  position: static !important;
+  transform: none !important;
+  margin: 0 0 7px 2px !important;
+  color: #bababa !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  opacity: 1 !important;
+}
+
+.game-review-root #Controls .game-review-username-form [data-slot="input-wrapper"] {
+  min-height: 46px !important;
+  height: 46px !important;
+  padding-inline: 13px !important;
+  background: #171717 !important;
+  border: 1px solid #454545 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.game-review-root #Controls .game-review-username-form [data-slot="input-wrapper"]:focus-within {
+  border-color: #81b64c !important;
+  box-shadow: 0 0 0 2px rgba(129, 182, 76, .18) !important;
+}
+
+.game-review-root #Controls .game-review-username-form input {
+  height: 100% !important;
+  color: #f5f5f5 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: normal !important;
+}
+
+.game-review-root #Controls .game-review-username-form input::placeholder {
+  color: #858585 !important;
+  opacity: 1 !important;
+}
+
+.game-review-root #Controls .game-review-username-form button {
+  width: 92px !important;
+  min-width: 92px !important;
+  height: 46px !important;
+  padding: 0 15px !important;
+  border: 1px solid #81b64c !important;
+  border-radius: 8px !important;
+  background: #81b64c !important;
+  color: #17200f !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+  transition: background .18s ease, transform .18s ease !important;
+}
+
+.game-review-root #Controls .game-review-username-form button:not(:disabled):hover {
+  background: #95c65e !important;
+  border-color: #95c65e !important;
+  transform: translateY(-1px);
+}
+
+.game-review-root #Controls .game-review-username-form button:disabled {
+  opacity: .45 !important;
+  cursor: not-allowed !important;
+}
+
+.game-review-root #GameNav {
+  gap: 9px !important;
+}
+
+.game-review-root #GameNav > div:first-child {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px !important;
+  width: 100%;
+}
+
+.game-review-root #GameNav > div:first-child button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 0 !important;
+  height: 44px !important;
+  border: 1px solid #414141 !important;
+  border-radius: 7px !important;
+  background: #303030 !important;
+  color: #f2f2f2 !important;
+  box-shadow: none !important;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease !important;
+}
+
+.game-review-root #GameNav > div:first-child button:not(:disabled):hover {
+  background: #414141 !important;
+  border-color: #81b64c !important;
+}
+
+.game-review-root #GameNav > div:first-child button:not(:disabled):active {
+  transform: scale(.96);
+}
+
+.game-review-root #GameNav #minor-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px !important;
+}
+
+.game-review-root #GameNav #minor-buttons button {
+  min-height: 38px !important;
+  border: 1px solid #414141 !important;
+  border-radius: 7px !important;
+  background: #303030 !important;
+  color: #ededed !important;
+}
+
+.game-review-root #GameNav #minor-buttons button:hover {
+  background: #414141 !important;
+  border-color: #81b64c !important;
+}
+
+@media (max-width: 480px) {
+  .game-review-root #Controls .game-review-username-form {
+    grid-template-columns: minmax(0, 1fr) 82px;
+    gap: 7px;
+  }
+
+  .game-review-root #Controls .game-review-username-form button {
+    width: 82px !important;
+    min-width: 82px !important;
+  }
+}

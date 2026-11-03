@@ -32,7 +32,8 @@ function opening(value: unknown): OpeningExplorerStats["opening"] {
   };
 }
 
-export async function fetchOpeningExplorerStats(
+async function fetchOpeningStatsFrom(
+  endpoint: string,
   uciMoves: string[],
   signal?: AbortSignal,
 ): Promise<OpeningExplorerStats> {
@@ -42,7 +43,7 @@ export async function fetchOpeningExplorerStats(
   if (uciMoves.length) query.set("play", uciMoves.join(","));
 
   const response = await fetch(
-    `/api/lichess/opening-explorer?${query.toString()}`,
+    `${endpoint}?${query.toString()}`,
     {
       method: "GET",
       credentials: "same-origin",
@@ -89,6 +90,20 @@ export async function fetchOpeningExplorerStats(
     moves,
     opening: opening(data.opening),
   };
+}
+
+export function fetchOpeningExplorerStats(
+  uciMoves: string[],
+  signal?: AbortSignal,
+): Promise<OpeningExplorerStats> {
+  return fetchOpeningStatsFrom("/api/lichess/opening-explorer", uciMoves, signal);
+}
+
+export function fetchPublicOpeningExplorerStats(
+  uciMoves: string[],
+  signal?: AbortSignal,
+): Promise<OpeningExplorerStats> {
+  return fetchOpeningStatsFrom("/api/lichess/opening-explorer/public", uciMoves, signal);
 }
 
 export type LichessConnectionStatus = {

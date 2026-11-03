@@ -1,0 +1,76 @@
+﻿
+  src\App.tsx:1489:        <span className="storage-label"><i /> LOCAL LIBRARY</span>
+  src\App.tsx:1490:        <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+  src\App.tsx:1491:      </header>
+  src\App.tsx:1492:
+> src\App.tsx:1493:      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} 
+${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+  src\App.tsx:1494:        {libraryOpen && (
+  src\App.tsx:1495:          <aside className="library-panel">
+  src\App.tsx:1496:            <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+  src\App.tsx:1497:            <input
+  src\App.tsx:1498:              ref={fileInput}
+  src\App.tsx:1499:              className="hidden-input"
+  src\App.tsx:1500:              type="file"
+  src\App.tsx:1501:              accept="application/pdf,.pdf"
+  src\App.tsx:1554:
+  src\App.tsx:1555:        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+  src\App.tsx:1556:        <section className="board-panel" aria-label="Chessboard analysis">
+  src\App.tsx:1557:          <div className="board-header">
+> src\App.tsx:1558:            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : 
+session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready 
+for a position"}</span></div>
+  src\App.tsx:1559:            <div className="board-header-actions">
+  src\App.tsx:1560:              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+  src\App.tsx:1561:              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip 
+board</span></button>
+  src\App.tsx:1562:            </div>
+  src\App.tsx:1563:          </div>
+  src\App.tsx:1564:          <div className="board-area">
+  src\App.tsx:1565:            <div
+  src\App.tsx:1566:              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+  src\App.tsx:1811:          )}
+  src\App.tsx:1812:        </section>
+  src\App.tsx:1813:
+  src\App.tsx:1814:        <section className="reader-panel" aria-label="PDF book reader">
+> src\App.tsx:1815:          <div className="opening-explorer-right-workspace">
+  src\App.tsx:1816:          {workspaceMode === "opening-explorer" && (
+  src\App.tsx:1817:            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+  src\App.tsx:1818:              <h3>Opening Explorer</h3>
+  src\App.tsx:1819:              <div className="lichess-connection-controls">
+  src\App.tsx:1820:                {lichessStatus?.connected ? (
+  src\App.tsx:1821:                  <>
+  src\App.tsx:1822:                    <span role="status">Lichess connected</span>
+  src\App.tsx:1823:                    <button
+  src\App.tsx:2004:              title="Stop scanning and remove detected board overlays"
+  src\App.tsx:2005:            >Clear</button>
+  src\App.tsx:2006:            <span className="detection-status">{detecting ? "Scanning current page..." : currentCandidates.length ? `${currentCandidates.length} candidate${currentCandidates.length === 1 ? "" : "s"}` : detectionAttempted 
+? "No boards found" : "Not scanned"}</span>
+  src\App.tsx:2007:          </div>
+> src\App.tsx:2008:          <div className="page-workspace">
+  src\App.tsx:2009:            {!book && <div className="reader-empty"><div className="empty-glyph">&#128218;</div><strong>Open a chess book</strong><span>Import a PDF to read pages and mark chess diagrams.</span><button 
+className="green-button" onClick={() => fileInput.current?.click()}>Add a book</button></div>}
+  src\App.tsx:2010:            {book && (
+  src\App.tsx:2011:              <div className="page-scroll">
+  src\App.tsx:2012:                <div
+  src\App.tsx:2013:                  className={`page-stage ${rendering ? "is-rendering" : ""} ${manualMode ? "manual-mode" : ""}`}
+  src\App.tsx:2014:                  ref={pageStageRef}
+  src\App.tsx:2015:                  onPointerDown={startRegion}
+  src\App.tsx:2016:                  onPointerMove={moveRegion}
+  src\App.tsx:2078:        </section>
+  src\App.tsx:2079:        </>}
+  src\App.tsx:2080:      </div>
+  src\App.tsx:2081:
+> src\App.tsx:2082:      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser 
+worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+  src\App.tsx:2083:      {transferCandidate && (
+  src\App.tsx:2084:        <ManualBoardEditor
+  src\App.tsx:2085:          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+  src\App.tsx:2086:          title="Review recognized position"
+  src\App.tsx:2087:          subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits."
+  src\App.tsx:2088:          confirmLabel="Use on Board"
+  src\App.tsx:2089:          cropPreviewUrl={transferPreview}
+  src\App.tsx:2090:          recognitionStatus={recognitionStatus}
+
+
+

@@ -1,0 +1,1255 @@
+========== PHASE 1: GAME REVIEW IMPLEMENTATION AUDIT ==========
+
+
+========== FILE: src\GameReview.tsx ==========
+import { useMemo, useState } from "react";
+import {
+  ArrowLeft, ArrowRight, BarChart3, ChevronDown, ChevronRight,
+  CircleAlert, Crown, FileUp, Lightbulb, Play, RotateCcw,
+  Sparkles, Target, Trophy
+} from "lucide-react";
+
+type MoveTag = "Best" | "Excellent" | "Good" | "Inaccuracy" | "Mistake" | "Blunder";
+
+type ReviewMove = {
+  number: number;
+  white: string;
+  black: string;
+  whiteTag: MoveTag;
+  blackTag: MoveTag;
+  whiteEval: string;
+  blackEval: string;
+};
+
+const sampleMoves: ReviewMove[] = [
+  { number: 1, white: "e4", black: "e5", whiteTag: "Best", blackTag: "Best", whiteEval: "+0.2", blackEval: "+0.2" },
+  { number: 2, white: "Nf3", black: "Nc6", whiteTag: "Best", blackTag: "Excellent", whiteEval: "+0.3", blackEval: "+0.2" },
+  { number: 3, white: "Bb5", black: "a6", whiteTag: "Excellent", blackTag: "Good", whiteEval: "+0.4", blackEval: "+0.3" },
+  { number: 4, white: "Ba4", black: "Nf6", whiteTag: "Best", blackTag: "Best", whiteEval: "+0.3", blackEval: "+0.3" },
+  { number: 5, white: "O-O", black: "Be7", whiteTag: "Best", blackTag: "Good", whiteEval: "+0.4", blackEval: "+0.4" },
+  { number: 6, white: "Re1", black: "b5", whiteTag: "Good", blackTag: "Good", whiteEval: "+0.5", blackEval: "+0.5" },
+  { number: 7, white: "Bb3", black: "d6", whiteTag: "Excellent", blackTag: "Good", whiteEval: "+0.5", blackEval: "+0.6" },
+  { number: 8, white: "c3", black: "O-O", whiteTag: "Good", blackTag: "Best", whiteEval: "+0.6", blackEval: "+0.6" },
+  { number: 9, white: "h3", black: "Na5", whiteTag: "Inaccuracy", blackTag: "Good", whiteEval: "+0.1", blackEval: "+0.2" },
+  { number: 10, white: "Bc2", black: "c5", whiteTag: "Good", blackTag: "Excellent", whiteEval: "+0.2", blackEval: "+0.2" },
+  { number: 11, white: "d4", black: "Qc7", whiteTag: "Best", blackTag: "Mistake", whiteEval: "+0.8", blackEval: "+1.5" },
+  { number: 12, white: "Nbd2", black: "cxd4", whiteTag: "Excellent", blackTag: "Good", whiteEval: "+1.4", blackEval: "+1.4" },
+  { number: 13, white: "cxd4", black: "Bd7", whiteTag: "Best", blackTag: "Inaccuracy", whiteEval: "+1.8", blackEval: "+2.4" },
+  { number: 14, white: "Nf1", black: "Rac8", whiteTag: "Good", blackTag: "Good", whiteEval: "+2.1", blackEval: "+2.2" },
+  { number: 15, white: "Ne3", black: "Nxd4", whiteTag: "Blunder", blackTag: "Best", whiteEval: "-0.4", blackEval: "-0.4" },
+];
+
+const startBoard = [
+  ["?","?","?","?","?","?","?","?"],
+  ["?","?","?","","?","?","?","?"],
+  ["","","","","","","",""],
+  ["","?","","?","","","",""],
+  ["","","","","?","","","",""],
+  ["","","","","","?","",""],
+  ["?","?","?","?","","?","?","?"],
+  ["?","?","?","?","?","","","?"],
+];
+
+const tagClass: Record<MoveTag, string> = {
+  Best: "best", Excellent: "excellent", Good: "good",
+  Inaccuracy: "inaccuracy", Mistake: "mistake", Blunder: "blunder"
+};
+
+export function GameReview() {
+  const [activePly, setActivePly] = useState(0);
+  const [tab, setTab] = useState<"overview" | "moves">("overview");
+  const [filter, setFilter] = useState<"All" | MoveTag>("All");
+  const [showSampleNotice, setShowSampleNotice] = useState(true);
+
+  const currentMove = Math.floor(activePly / 2);
+  const currentSide = activePly % 2 === 0 ? "White" : "Black";
+
+  const filteredMoves = useMemo(() => sampleMoves.flatMap((move, index) => {
+    const white = { ply: index * 2 + 1, san: move.white, tag: move.whiteTag, side: "White" };
+    const black = { ply: index * 2 + 2, san: move.black, tag: move.blackTag, side: "Black" };
+    return [white, black].filter(item => filter === "All" || item.tag === filter);
+  }), [filter]);
+
+  function navigate(delta: number) {
+    setActivePly(value => Math.max(0, Math.min(sampleMoves.length * 2, value + delta)));
+  }
+
+  return (
+    <main className="game-review-page">
+      <div className="gr-topline">
+        <div>
+          <div className="gr-eyebrow">CHESS ANALYSIS / GAME REVIEW</div>
+          <h1>Game Review</h1>
+          <p>Understand your decisions. Find the moments that changed the game.</p>
+        </div>
+        <div className="gr-top-actions">
+          <button className="gr-button gr-button-secondary" onClick={() => setActivePly(0)}>
+            <RotateCcw size={15} /> Reset
+          </button>
+          <button className="gr-button gr-button-primary" onClick={() => document.getElementById("gr-pgn-input")?.click()}>
+            <FileUp size={16} /> Import PGN
+          </button>
+          <input id="gr-pgn-input" type="file" accept=".pgn,text/plain" hidden />
+        </div>
+      </div>
+
+      {showSampleNotice && (
+        <div className="gr-demo-notice">
+          <Sparkles size={16} />
+          <span><strong>Preview mode</strong> — this is sample review data. Engine analysis will be connected after the UI is approved.</span>
+          <button onClick={() => setShowSampleNotice(false)} aria-label="Dismiss preview notice">×</button>
+        </div>
+      )}
+
+      <section className="gr-game-card">
+        <div className="gr-game-players">
+          <div className="gr-player">
+            <div className="gr-avatar gr-white-avatar">W</div>
+            <div><strong>Magnus Carlsen</strong><span>White · 2847</span></div>
+          </div>
+          <div className="gr-result">1 – 0</div>
+          <div className="gr-player gr-player-black">
+            <div className="gr-avatar gr-black-avatar">B</div>
+            <div><strong>Hikaru Nakamura</strong><span>Black · 2789</span></div>
+          </div>
+        </div>
+        <div className="gr-game-meta">
+          <span>Ruy Lopez</span><i /> <span>Blitz · 5+3</span><i /> <span>Sample game</span><i /> <span>30 moves</span>
+        </div>
+      </section>
+
+      <section className="gr-stat-grid">
+        <article className="gr-stat-card">
+          <div className="gr-stat-label"><Target size={15} /> WHITE ACCURACY</div>
+          <div className="gr-stat-value">91.4<span>%</span></div>
+          <div className="gr-stat-foot"><span className="gr-dot gr-dot-green" /> Strong performance</div>
+        </article>
+        <article className="gr-stat-card">
+          <div className="gr-stat-label"><Target size={15} /> BLACK ACCURACY</div>
+          <div className="gr-stat-value">76.8<span>%</span></div>
+          <div className="gr-stat-foot"><span className="gr-dot gr-dot-amber" /> Inconsistent play</div>
+        </article>
+        <article className="gr-stat-card">
+          <div className="gr-stat-label"><BarChart3 size={15} /> MOVE QUALITY</div>
+          <div className="gr-quality-row"><strong>18</strong><span>Good or better</span></div>
+          <div className="gr-quality-bar"><i style={{ width: "72%" }} /></div>
+          <div className="gr-stat-foot">25 moves reviewed</div>
+        </article>
+        <article className="gr-stat-card">
+          <div className="gr-stat-label"><Trophy size={15} /> GAME RESULT</div>
+          <div className="gr-stat-value gr-result-value">1 – 0</div>
+          <div className="gr-stat-foot">White won · Sample result</div>
+        </article>
+      </section>
+
+      <div className="gr-tabs">
+        <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Overview</button>
+        <button className={tab === "moves" ? "active" : ""} onClick={() => setTab("moves")}>Move by move</button>
+      </div>
+
+      {tab === "overview" ? (
+        <div className="gr-main-grid">
+          <section className="gr-panel gr-board-panel">
+            <div className="gr-panel-heading">
+              <div><h2>Board replay</h2><span>Move {Math.ceil(activePly / 2)} · {currentSide} to play</span></div>
+              <span className="gr-preview-tag">SAMPLE POSITION</span>
+            </div>
+            <div className="gr-board-wrap">
+              <div className="gr-rank-labels">{[8,7,6,5,4,3,2,1].map(n => <span key={n}>{n}</span>)}</div>
+              <div className="gr-board">
+                {startBoard.flatMap((row, r) => row.map((piece, c) => (
+                  <div key={`${r}-${c}`} className={`gr-square ${(r + c) % 2 === 0 ? "light" : "dark"}`}>
+                    {piece && <span className={piece.charCodeAt(0) > 9817 ? "white-piece" : "black-piece"}>{piece}</span>}
+                  </div>
+                )))}
+              </div>
+              <div className="gr-file-labels">{["a","b","c","d","e","f","g","h"].map(f => <span key={f}>{f}</span>)}</div>
+            </div>
+            <div className="gr-board-controls">
+              <button onClick={() => setActivePly(0)} title="Start"><span>?</span></button>
+              <button onClick={() => navigate(-1)} title="Previous move"><ArrowLeft size={17} /></button>
+              <button className="gr-play-button" onClick={() => navigate(1)} title="Next move"><Play size={16} /></button>
+              <button onClick={() => navigate(1)} title="Next move"><ArrowRight size={17} /></button>
+              <button onClick={() => setActivePly(sampleMoves.length * 2)} title="End"><span>?</span></button>
+              <span className="gr-ply-counter">{activePly} / {sampleMoves.length * 2}</span>
+            </div>
+          </section>
+
+          <section className="gr-panel gr-insights-panel">
+            <div className="gr-panel-heading"><div><h2>Game insights</h2><span>Key moments from this game</span></div><Lightbulb size={19} /></div>
+            <div className="gr-insight-item">
+              <div className="gr-insight-icon gr-icon-amber"><CircleAlert size={17} /></div>
+              <div><span className="gr-insight-label">INACCURACY · 9...Na5</span><strong>A questionable knight maneuver</strong><p>White's position becomes less comfortable after this decision.</p></div>
+              <button onClick={() => { setActivePly(18); setTab("moves"); }}><ChevronRight size={17} /></button>
+            </div>
+            <div className="gr-insight-item">
+              <div className="gr-insight-icon gr-icon-red"><CircleAlert size={17} /></div>
+              <div><span className="gr-insight-label">MISTAKE · 11...Qc7</span><strong>Black gives up some control</strong><p>White gets a more promising position after the mistake.</p></div>
+              <button onClick={() => { setActivePly(22); setTab("moves"); }}><ChevronRight size={17} /></button>
+            </div>
+            <div className="gr-insight-item">
+              <div className="gr-insight-icon gr-icon-red"><Crown size={17} /></div>
+              <div><span className="gr-insight-label">BLUNDER · 15.Ne3</span><strong>A critical turning point</strong><p>This move changes the evaluation dramatically in the sample review.</p></div>
+              <button onClick={() => { setActivePly(29); setTab("moves"); }}><ChevronRight size={17} /></button>
+            </div>
+            <div className="gr-insight-footer">Insights shown here are illustrative, not engine-generated.</div>
+          </section>
+
+          <section className="gr-panel gr-move-preview">
+            <div className="gr-panel-heading"><div><h2>Move timeline</h2><span>Browse the game's decisions</span></div><button className="gr-text-link" onClick={() => setTab("moves")}>View all moves <ChevronRight size={14} /></button></div>
+            <div className="gr-timeline">
+              {sampleMoves.slice(0, 8).map((move, index) => (
+                <button key={move.number} className={currentMove === index ? "selected" : ""} onClick={() => setActivePly(index * 2 + 1)}>
+                  <span className="gr-timeline-number">{move.number}.</span>
+                  <span>{move.white}</span><i className={`gr-move-dot ${tagClass[move.whiteTag]}`} />
+                  <span>{move.black}</span><i className={`gr-move-dot ${tagClass[move.blackTag]}`} />
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : (
+        <section className="gr-panel gr-full-moves">
+          <div className="gr-panel-heading"><div><h2>Move-by-move analysis</h2><span>Review every decision and its classification</span></div></div>
+          <div className="gr-filter-row">
+            {(["All","Best","Excellent","Good","Inaccuracy","Mistake","Blunder"] as const).map(value => (
+              <button key={value} className={filter === value ? "active" : ""} onClick={() => setFilter(value)}>{value}</button>
+            ))}
+          </div>
+          <div className="gr-move-table">
+            <div className="gr-move-table-head"><span>PLY</span><span>MOVE</span><span>SIDE</span><span>CLASSIFICATION</span><span>EVALUATION</span></div>
+            {filteredMoves.map(item => (
+              <button key={item.ply} className={`gr-move-table-row ${activePly === item.ply ? "selected" : ""}`} onClick={() => setActivePly(item.ply)}>
+                <span>{item.ply}</span><strong>{item.san}</strong><span>{item.side}</span><span><i className={`gr-move-dot ${tagClass[item.tag]}`} />{item.tag}</span><span>{sampleMoves[Math.floor((item.ply - 1) / 2)][item.side === "White" ? "whiteEval" : "blackEval"]}</span>
+              </button>
+            ))}
+          </div>
+          {filteredMoves.length === 0 && <div className="gr-empty">No moves match this filter.</div>}
+        </section>
+      )}
+
+      <div className="gr-bottom-note"><ChevronDown size={15} /> Sample review interface · Real PGN import and engine-powered analysis will be connected in the next stage.</div>
+    </main>
+  );
+}
+
+
+
+========== FILE: src\pgn-import.ts ==========
+import { Chess } from "chess.js";
+import { START_FEN } from "./model";
+
+export type ImportedPgn = {
+  headers: Record<string, string>;
+  lineBaseFen: string;
+  moves: string[];
+  finalFen: string;
+};
+
+export function parsePgn(pgn: string): ImportedPgn {
+  const source = pgn.trim();
+
+  if (!source) {
+    throw new Error("Paste or select a PGN game first.");
+  }
+
+  const parsed = new Chess();
+
+  try {
+    parsed.loadPgn(source);
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : "Unknown PGN error";
+    throw new Error(`Invalid PGN: ${detail}`);
+  }
+
+  const headers = parsed.getHeaders();
+  const customFen = headers.FEN?.trim();
+  const lineBaseFen = customFen || START_FEN;
+
+  let replay: Chess;
+
+  try {
+    replay = new Chess(lineBaseFen);
+  } catch {
+    throw new Error("The PGN contains an invalid starting FEN.");
+  }
+
+  const moves = parsed.history();
+
+  if (moves.length === 0) {
+    throw new Error("The PGN contains no moves.");
+  }
+
+  try {
+    for (const san of moves) {
+      replay.move(san);
+    }
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : "Unknown move error";
+    throw new Error(`Could not replay the imported game: ${detail}`);
+  }
+
+  if (replay.fen() !== parsed.fen()) {
+    throw new Error("The imported PGN could not be reproduced from its starting position.");
+  }
+
+  return {
+    headers,
+    lineBaseFen,
+    moves,
+    finalFen: replay.fen(),
+  };
+}
+
+
+
+========== FILE: src\pgn-import.test.ts ==========
+import { describe, expect, it } from "vitest";
+import { parsePgn } from "./pgn-import";
+import { START_FEN } from "./model";
+
+describe("parsePgn", () => {
+  it("parses a standard PGN and its headers", () => {
+    const result = parsePgn(`[Event "Test Game"]
+[White "Alice"]
+[Black "Bob"]
+
+1. e4 e5 2. Nf3 Nc6 *`);
+
+    expect(result.headers.White).toBe("Alice");
+    expect(result.headers.Black).toBe("Bob");
+    expect(result.lineBaseFen).toBe(START_FEN);
+    expect(result.moves).toEqual(["e4", "e5", "Nf3", "Nc6"]);
+    expect(result.finalFen).toBeTruthy();
+  });
+
+  it("supports a custom starting FEN", () => {
+    const fen = "7k/8/8/8/8/8/8/KR6 w - - 0 1";
+    const result = parsePgn(`[Event "Custom Position"]
+[SetUp "1"]
+[FEN "${fen}"]
+
+1. Rb7 *`);
+
+    expect(result.lineBaseFen).toBe(fen);
+    expect(result.moves).toEqual(["Rb7"]);
+  });
+
+  it("rejects empty input", () => {
+    expect(() => parsePgn("   ")).toThrow(/Paste or select/i);
+  });
+
+  it("rejects a PGN with no moves", () => {
+    expect(() => parsePgn(`[Event "Empty Game"]
+
+*`)).toThrow(/no moves/i);
+  });
+
+  it("rejects invalid move notation", () => {
+    expect(() => parsePgn(`1. e4 ThisIsNotAMove`)).toThrow();
+  });
+});
+
+
+
+========== FILE: src\stockfish.test.ts ==========
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatEvaluation, parseUciInfo, StockfishEngine, whiteScoreShare } from "./stockfish";
+
+class FakeWorker {
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  commands: string[] = [];
+  terminated = false;
+  postMessage(command: string) { this.commands.push(command); }
+  terminate() { this.terminated = true; }
+  send(data: string) { this.onmessage?.({ data } as MessageEvent<string>); }
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("Stockfish UCI evaluation", () => {
+  it("converts side-to-move centipawns to the White perspective", () => {
+    expect(parseUciInfo("info depth 12 score cp 74 pv e2e4 e7e5", "w"))
+      .toEqual({ kind: "cp", value: 74, depth: 12, pv: ["e2e4", "e7e5"] });
+    expect(parseUciInfo("info depth 15 score cp 74 pv e7e5", "b"))
+      .toMatchObject({ kind: "cp", value: -74, depth: 15 });
+  });
+
+  it("orients mate scores and represents a checkmated side-to-move", () => {
+    expect(parseUciInfo("info depth 20 score mate 3 pv e2e4", "w")?.value).toBe(3);
+    expect(parseUciInfo("info depth 20 score mate 3 pv e7e5", "b")?.value).toBe(-3);
+    expect(parseUciInfo("info depth 20 score mate 0", "w")?.value).toBe(-1);
+    expect(formatEvaluation({ kind: "mate", value: -3, depth: 20 })).toBe("#-3");
+  });
+
+  it("keeps the evaluation bar bounded and consistent around equality", () => {
+    const whiteAdvantage = { kind: "cp" as const, value: 250, depth: 12 };
+    const blackAdvantage = { kind: "cp" as const, value: -250, depth: 12 };
+    expect(formatEvaluation(whiteAdvantage)).toBe("+2.50");
+    expect(whiteScoreShare(whiteAdvantage)).toBeGreaterThan(0.5);
+    expect(whiteScoreShare(blackAdvantage)).toBeLessThan(0.5);
+    expect(whiteScoreShare({ kind: "cp", value: 0, depth: 1 })).toBe(0.5);
+    expect(whiteScoreShare({ kind: "cp", value: 9999, depth: 1 })).toBeLessThanOrEqual(0.96);
+    expect(whiteScoreShare({ kind: "mate", value: -1, depth: 1 })).toBe(0.04);
+  });
+
+  it("publishes the latest principal-variation move during analysis", () => {
+    const worker = new FakeWorker();
+    vi.stubGlobal("Worker", class {
+      constructor() { return worker; }
+    });
+    const scores: any[] = [];
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+
+    worker.send("uciok");
+    worker.send("readyok");
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 14);
+
+    worker.send("info depth 3 score cp 12 pv e2e4 e7e5");
+    expect(scores.at(-1)).toMatchObject({ depth: 3, bestMove: "e2e4" });
+
+    worker.send("info depth 5 score cp 22 pv d2d4 d7d5");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+
+    worker.send("bestmove d2d4");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+    engine.dispose();
+  });
+
+  it("initializes UCI, replaces stale analysis, and terminates the worker", () => {
+    const worker = new FakeWorker();
+    vi.stubGlobal("Worker", class {
+      constructor() { return worker; }
+    });
+    const scores: (ReturnType<typeof parseUciInfo> | null)[] = [];
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+    worker.send("uciok");
+    worker.send("readyok");
+    expect(worker.commands).toEqual(["uci", "isready"]);
+
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 12);
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 b - - 0 1", 16);
+    expect(worker.commands.slice(-1)).toEqual(["stop"]);
+    worker.send("info depth 11 score cp 80 pv e2e4");
+    expect(scores.at(-1)).toBeNull();
+    worker.send("bestmove e2e4");
+    expect(worker.commands.slice(-2)).toEqual([
+      "position fen 8/8/8/8/8/8/4k3/4K3 b - - 0 1",
+      "go depth 16",
+    ]);
+    worker.send("info depth 16 score cp 35 pv e2e4");
+    worker.send("bestmove e2e4");
+    expect(scores.at(-1)).toMatchObject({ kind: "cp", value: -35, depth: 16, bestMove: "e2e4" });
+    engine.dispose();
+    expect(worker.terminated).toBe(true);
+  });
+});
+
+
+
+========== FILE: package.json ==========
+{
+  "name": "chessbook-reader",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^5.0.4"
+  }
+}
+
+
+
+========== FILE: tsconfig.json ==========
+{
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+}
+
+
+
+========== FILE: vite.config.ts ==========
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    host: "127.0.0.1",
+    proxy: { "/api": { target: "http://127.0.0.1:8000", changeOrigin: true } },
+    watch: { ignored: ["**/backend/models/**", "**/backend/.venv-ocr/**"] },
+  },
+  worker: { format: "es" },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test-setup.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
+  },
+});
+
+
+========== GAME REVIEW REFERENCES IN APP.TSX ==========
+
+  src\App.tsx:4:  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  src\App.tsx:5:  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+  src\App.tsx:6:import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+  src\App.tsx:7:import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+  src\App.tsx:8:import { fenWithTurn, makePosition } from "./chess-state";
+> src\App.tsx:9:import { parsePgn } from "./pgn-import";
+  src\App.tsx:10:import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+  src\App.tsx:11:import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+  src\App.tsx:12:import { ManualBoardEditor } from "./ManualBoardEditor";
+  src\App.tsx:13:import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+  src\App.tsx:14:import {
+  src\App.tsx:15:  getActiveBookId,
+  src\App.tsx:16:  getBooks,
+  src\App.tsx:17:  getSession,
+  src\App.tsx:18:  getSession as getStoredSession,
+  src\App.tsx:19:  putBook,
+  src\App.tsx:20:  putSession,
+  src\App.tsx:21:  removeBook,
+> src\App.tsx:22:  removeSession,
+  src\App.tsx:23:  setActiveBookId,
+  src\App.tsx:24:} from "./storage";
+  src\App.tsx:25:import { newSession, START_FEN, type BookRecord, type BookSession, type Candidate } from "./model";
+  src\App.tsx:26:import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+  src\App.tsx:27:import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+  src\App.tsx:28:
+  src\App.tsx:29:
+  src\App.tsx:30:function formatUciMove(fen: string, uci: string): string {
+  src\App.tsx:63:  return san.join(" ");
+  src\App.tsx:64:}
+  src\App.tsx:65:
+  src\App.tsx:66:GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+  src\App.tsx:67:
+> src\App.tsx:68:import { GameReview } from "./GameReview";
+  src\App.tsx:69:
+  src\App.tsx:70:type LibraryTab = "all" | "recent";
+  src\App.tsx:71:type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "game-review";
+  src\App.tsx:72:
+  src\App.tsx:73:const FILE_LIMIT = 100 * 1024 * 1024;
+  src\App.tsx:74:const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+  src\App.tsx:75:const CROP_HANDLES: CropHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+  src\App.tsx:76:type CandidateInput = Omit<Candidate, "id" | "source" | "relativeScore"> &
+  src\App.tsx:111:export default function App() {
+  src\App.tsx:112:  const [books, setBooks] = useState<BookRecord[]>([]);
+  src\App.tsx:113:  const [sessionIndex, setSessionIndex] = useState<Record<string, BookSession>>({});
+  src\App.tsx:114:  const [book, setBook] = useState<BookRecord | null>(null);
+  src\App.tsx:115:  const [session, setSession] = useState<BookSession | null>(null);
+> src\App.tsx:116:  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  src\App.tsx:117:  const [studyMode, setStudyMode] = useState(false);
+  src\App.tsx:118:  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  src\App.tsx:119:  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+  src\App.tsx:120:    lineBaseFen: START_FEN,
+> src\App.tsx:121:    currentFen: START_FEN,
+> src\App.tsx:122:    moves: [],
+  src\App.tsx:123:    moveIndex: 0,
+  src\App.tsx:124:    flipped: false,
+  src\App.tsx:125:    coordinates: true,
+  src\App.tsx:126:  }));
+  src\App.tsx:127:  const [openingPrepBoard, setOpeningPrepBoard] = useState<StudyBoardState>(() => ({
+  src\App.tsx:128:    lineBaseFen: START_FEN,
+> src\App.tsx:129:    currentFen: START_FEN,
+> src\App.tsx:130:    moves: [],
+  src\App.tsx:131:    moveIndex: 0,
+  src\App.tsx:132:    flipped: false,
+  src\App.tsx:133:    coordinates: true,
+  src\App.tsx:134:  }));
+  src\App.tsx:135:  const [ready, setReady] = useState(false);
+  src\App.tsx:136:  const [notice, setNotice] = useState("");
+  src\App.tsx:137:  const [error, setError] = useState("");
+  src\App.tsx:138:  const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+  src\App.tsx:405:    }
+  src\App.tsx:406:
+  src\App.tsx:407:    const controller = new AbortController();
+  src\App.tsx:408:    const timer = window.setTimeout(() => {
+  src\App.tsx:409:      setOpeningStatsStatus("loading");
+> src\App.tsx:410:      fetchOpeningExplorerStats(openingPosition.uciMoves, controller.signal)
+  src\App.tsx:411:        .then((result) => {
+  src\App.tsx:412:          setOpeningStats(result);
+  src\App.tsx:413:          setOpeningStatsStatus("ready");
+  src\App.tsx:414:        })
+  src\App.tsx:415:        .catch(() => {
+  src\App.tsx:416:          if (!controller.signal.aborted) {
+  src\App.tsx:417:            setOpeningStats(null);
+  src\App.tsx:418:            setOpeningStatsStatus("error");
+  src\App.tsx:424:      window.clearTimeout(timer);
+  src\App.tsx:425:      controller.abort();
+  src\App.tsx:426:    };
+  src\App.tsx:427:  }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+  src\App.tsx:428:
+> src\App.tsx:429:  const boardSession: StudyBoardState | null =
+  src\App.tsx:430:    workspaceMode === "analysis"
+  src\App.tsx:431:      ? analysisBoard
+  src\App.tsx:432:      : workspaceMode === "opening-prep"
+  src\App.tsx:433:        ? openingPrepBoard
+  src\App.tsx:434:        : workspaceMode === "opening-explorer"
+  src\App.tsx:435:          ? {
+  src\App.tsx:436:              lineBaseFen: START_FEN,
+> src\App.tsx:437:              currentFen: openingPosition.fen,
+> src\App.tsx:438:              moves: openingPosition.sanMoves,
+> src\App.tsx:439:              moveIndex: openingPosition.sanMoves.length,
+  src\App.tsx:440:              flipped: false,
+  src\App.tsx:441:              coordinates: true,
+  src\App.tsx:442:            }
+  src\App.tsx:443:          : studyMode
+  src\App.tsx:444:            ? studyBoard
+  src\App.tsx:445:            : session;
+  src\App.tsx:446:  const game = useMemo(() => {
+> src\App.tsx:447:    if (!boardSession) return new Chess();
+  src\App.tsx:448:    try {
+> src\App.tsx:449:      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+  src\App.tsx:450:    } catch {
+> src\App.tsx:451:      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+  src\App.tsx:452:    }
+> src\App.tsx:453:  }, [boardSession]);
+  src\App.tsx:454:  const legalTargets = useMemo(() => {
+  src\App.tsx:455:    if (!selectedSquare) return new Set<string>();
+> src\App.tsx:456:    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  src\App.tsx:457:  }, [game, selectedSquare]);
+  src\App.tsx:458:  const pieceSquares = game.board();
+  src\App.tsx:459:  const moveHistory = useMemo(() => {
+> src\App.tsx:460:    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+  src\App.tsx:461:    catch { return []; }
+> src\App.tsx:462:  }, [boardSession]);
+  src\App.tsx:463:  const highlightedMove = lastMove ?? (moveHistory.length
+  src\App.tsx:464:    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+  src\App.tsx:465:    : null);
+  src\App.tsx:466:  const engineArrow = useMemo(
+  src\App.tsx:467:    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+  src\App.tsx:468:    [engineEnabled, engineScore?.bestMove],
+  src\App.tsx:469:  );
+  src\App.tsx:470:
+  src\App.tsx:471:  useEffect(() => {
+  src\App.tsx:472:    setUserArrows([]);
+  src\App.tsx:473:    setArrowStart(null);
+  src\App.tsx:474:    setArrowHover(null);
+  src\App.tsx:475:    setAnnotationMode(false);
+> src\App.tsx:476:  }, [book?.id, session?.currentFen]);
+  src\App.tsx:477:
+  src\App.tsx:478:  useEffect(() => {
+> src\App.tsx:479:    if (engineEnabled && boardSession) {
+  src\App.tsx:480:      engineRef.current?.analyze(game.fen(), engineDepth);
+  src\App.tsx:481:    }
+> src\App.tsx:482:  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+  src\App.tsx:483:
+  src\App.tsx:484:  function messageOf(cause: unknown): string {
+  src\App.tsx:485:    return cause instanceof Error ? cause.message : String(cause);
+  src\App.tsx:486:  }
+  src\App.tsx:487:
+  src\App.tsx:488:  function toggleEngine() {
+  src\App.tsx:489:    if (engineEnabled) {
+  src\App.tsx:490:      engineRef.current?.dispose();
+  src\App.tsx:526:      if (!current) return current;
+  src\App.tsx:527:      return typeof change === "function" ? change(current) : { ...current, ...change };
+  src\App.tsx:528:    });
+  src\App.tsx:529:  }
+  src\App.tsx:530:
+> src\App.tsx:531:  function patchBoardSession(change: Partial<StudyBoardState>) {
+  src\App.tsx:532:    if (workspaceMode === "opening-explorer") {
+  src\App.tsx:533:      return;
+  src\App.tsx:534:    }
+  src\App.tsx:535:
+  src\App.tsx:536:    if (workspaceMode === "analysis") {
+  src\App.tsx:537:      setAnalysisBoard((current) => ({ ...current, ...change }));
+  src\App.tsx:538:    } else if (workspaceMode === "opening-prep") {
+  src\App.tsx:539:      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+  src\App.tsx:549:        setError("Open a book before entering study mode.");
+  src\App.tsx:550:        return;
+  src\App.tsx:551:      }
+  src\App.tsx:552:      setStudyBoard({
+  src\App.tsx:553:        lineBaseFen: session.lineBaseFen,
+> src\App.tsx:554:        currentFen: session.currentFen,
+> src\App.tsx:555:        moves: [...session.moves],
+  src\App.tsx:556:        moveIndex: session.moveIndex,
+  src\App.tsx:557:        flipped: session.flipped,
+  src\App.tsx:558:        coordinates: session.coordinates,
+  src\App.tsx:559:      });
+  src\App.tsx:560:      setStudyMode(true);
+  src\App.tsx:561:    } else {
+  src\App.tsx:562:      // Preserve the latest Focus Mode board when returning to normal mode.
+  src\App.tsx:563:      if (studyBoard) {
+  src\App.tsx:564:        patchSession({
+  src\App.tsx:565:          lineBaseFen: studyBoard.lineBaseFen,
+> src\App.tsx:566:          currentFen: studyBoard.currentFen,
+> src\App.tsx:567:          moves: [...studyBoard.moves],
+  src\App.tsx:568:          moveIndex: studyBoard.moveIndex,
+  src\App.tsx:569:          flipped: studyBoard.flipped,
+  src\App.tsx:570:          coordinates: studyBoard.coordinates,
+  src\App.tsx:571:        });
+  src\App.tsx:572:      }
+  src\App.tsx:573:      setStudyMode(false);
+  src\App.tsx:574:    }
+  src\App.tsx:575:    setLastMove(null);
+  src\App.tsx:637:  async function deleteBook(item: BookRecord) {
+  src\App.tsx:638:    if (!window.confirm(`Delete "${item.title}" and its saved reading progress from this browser? This cannot be undone.`)) return;
+  src\App.tsx:639:
+  src\App.tsx:640:    try {
+  src\App.tsx:641:      await removeBook(item.id);
+> src\App.tsx:642:      await removeSession(item.id);
+  src\App.tsx:643:
+  src\App.tsx:644:      setBooks((current) => current.filter((entry) => entry.id !== item.id));
+  src\App.tsx:645:      setSessionIndex((current) => {
+  src\App.tsx:646:        const next = { ...current };
+  src\App.tsx:647:        delete next[item.id];
+  src\App.tsx:648:        return next;
+  src\App.tsx:649:      });
+  src\App.tsx:650:
+  src\App.tsx:689:      const next = new Chess(fen);
+  src\App.tsx:690:      setSession({
+  src\App.tsx:691:        ...activeSession,
+  src\App.tsx:692:        originalFen: fen,
+  src\App.tsx:693:        lineBaseFen: fen,
+> src\App.tsx:694:        currentFen: next.fen(),
+> src\App.tsx:695:        moves: [],
+  src\App.tsx:696:        moveIndex: 0,
+  src\App.tsx:697:      });
+  src\App.tsx:698:      setLastMove(null);
+  src\App.tsx:699:      setSelectedSquare(null);
+  src\App.tsx:700:      setUserArrows([]);
+  src\App.tsx:701:      setNotice("Position loaded. Reset Board returns to this diagram position.");
+  src\App.tsx:702:      return true;
+  src\App.tsx:703:    } catch (cause) {
+  src\App.tsx:839:        message: `${currentGame.turn() === "w" ? "Black" : "White"} wins.`,
+  src\App.tsx:840:      });
+  src\App.tsx:841:    } else if (currentGame.isStalemate()) {
+  src\App.tsx:842:      setGameEndOverlay({
+  src\App.tsx:843:        title: "Stalemate",
+> src\App.tsx:844:        message: "The side to move has no legal moves, but its king is not in check. The game is a draw.",
+  src\App.tsx:845:      });
+  src\App.tsx:846:    } else if (currentGame.isDraw()) {
+  src\App.tsx:847:      let message = "The game is drawn.";
+  src\App.tsx:848:      if (currentGame.isThreefoldRepetition()) message = "Draw by threefold repetition.";
+  src\App.tsx:849:      else if (currentGame.isInsufficientMaterial()) message = "Draw by insufficient material.";
+> src\App.tsx:850:      else if (currentGame.isDrawByFiftyMoves()) message = "Draw by the fifty-move rule.";
+  src\App.tsx:851:      else if (currentGame.isDraw()) message = "Draw by a draw rule.";
+  src\App.tsx:852:      setGameEndOverlay({ title: "Draw", message });
+  src\App.tsx:853:    } else {
+  src\App.tsx:854:      setGameEndOverlay(null);
+  src\App.tsx:855:    }
+  src\App.tsx:856:  }
+  src\App.tsx:857:
+  src\App.tsx:858:  function completePromotion(piece: "q" | "r" | "b" | "n") {
+> src\App.tsx:859:    if (!promotionRequest || !boardSession) return;
+> src\App.tsx:860:    const activeBoard = boardSession;
+  src\App.tsx:861:    try {
+> src\App.tsx:862:      const currentGame = new Chess(activeBoard.currentFen);
+  src\App.tsx:863:      const result = currentGame.move({
+  src\App.tsx:864:        from: promotionRequest.from,
+  src\App.tsx:865:        to: promotionRequest.to,
+  src\App.tsx:866:        promotion: piece,
+  src\App.tsx:867:      });
+> src\App.tsx:868:      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+> src\App.tsx:869:      patchBoardSession({
+> src\App.tsx:870:        currentFen: currentGame.fen(),
+> src\App.tsx:871:        moves: nextMoves,
+> src\App.tsx:872:        moveIndex: nextMoves.length,
+  src\App.tsx:873:      });
+  src\App.tsx:874:      updateGameEndOverlay(currentGame);
+  src\App.tsx:875:      setLastMove({ from: promotionRequest.from, to: promotionRequest.to });
+  src\App.tsx:876:      setSelectedSquare(null);
+  src\App.tsx:877:      setPromotionRequest(null);
+  src\App.tsx:878:      setError("");
+  src\App.tsx:879:    } catch {
+  src\App.tsx:880:      setError("Unable to complete pawn promotion.");
+  src\App.tsx:881:      setPromotionRequest(null);
+  src\App.tsx:882:    }
+  src\App.tsx:883:  }
+  src\App.tsx:884:
+  src\App.tsx:885:  function makeMove(from: Square, to: Square) {
+> src\App.tsx:886:    if (!boardSession) return;
+> src\App.tsx:887:    const activeBoard = boardSession;
+  src\App.tsx:888:    try {
+> src\App.tsx:889:      const currentGame = new Chess(activeBoard.currentFen);
+  src\App.tsx:890:      const mover = currentGame.get(from);
+  src\App.tsx:891:      const promote = mover?.type === "p" && (to.endsWith("8") || to.endsWith("1"));
+  src\App.tsx:892:      if (promote) {
+  src\App.tsx:893:        setPromotionRequest({ from, to });
+  src\App.tsx:894:        return;
+  src\App.tsx:895:      }
+  src\App.tsx:896:      const result = currentGame.move({ from, to });
+> src\App.tsx:897:      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+  src\App.tsx:898:      if (workspaceMode === "opening-explorer") {
+> src\App.tsx:899:        const line = nextMoves
+  src\App.tsx:900:          .map((move, index) => index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ${move}` : move)
+  src\App.tsx:901:          .join(" ");
+  src\App.tsx:902:        setOpeningExplorerInput(line);
+> src\App.tsx:903:        setOpeningExplorerPly(nextMoves.length);
+  src\App.tsx:904:      } else {
+> src\App.tsx:905:        patchBoardSession({
+> src\App.tsx:906:          currentFen: currentGame.fen(),
+> src\App.tsx:907:          moves: nextMoves,
+> src\App.tsx:908:          moveIndex: nextMoves.length,
+  src\App.tsx:909:        });
+  src\App.tsx:910:      }
+  src\App.tsx:911:      updateGameEndOverlay(currentGame);
+  src\App.tsx:912:      setLastMove({ from, to });
+  src\App.tsx:913:      setSelectedSquare(null);
+  src\App.tsx:914:      setError("");
+  src\App.tsx:915:    } catch {
+  src\App.tsx:916:      const piece = game.get(to);
+  src\App.tsx:918:      else setSelectedSquare(null);
+  src\App.tsx:919:    }
+  src\App.tsx:920:  }
+  src\App.tsx:921:
+  src\App.tsx:922:  function handleSquareClick(square: Square) {
+> src\App.tsx:923:    // A left-click removes the red highlight from that square.
+  src\App.tsx:924:    setRedSquares([]);
+  src\App.tsx:925:
+  src\App.tsx:926:    if (!annotationMode && (userArrows.length > 0 || arrowStart !== null)) {
+  src\App.tsx:927:      setUserArrows([]);
+  src\App.tsx:928:      setArrowStart(null);
+  src\App.tsx:929:      setArrowHover(null);
+  src\App.tsx:930:      return;
+  src\App.tsx:931:    }
+> src\App.tsx:932:if (!boardSession) return;
+  src\App.tsx:933:    if (annotationMode) {
+  src\App.tsx:934:      if (!arrowStart) {
+  src\App.tsx:935:        setArrowStart(square);
+  src\App.tsx:936:        return;
+  src\App.tsx:937:      }
+  src\App.tsx:938:      if (arrowStart !== square) setUserArrows((arrows) => toggleArrow(arrows, { from: arrowStart, to: square }));
+  src\App.tsx:939:      setArrowStart(null);
+  src\App.tsx:940:      setArrowHover(null);
+  src\App.tsx:957:  const bounds = boardRef.current.getBoundingClientRect();
+  src\App.tsx:958:  const square = boardSquareAtPoint(
+  src\App.tsx:959:    event.clientX,
+  src\App.tsx:960:    event.clientY,
+  src\App.tsx:961:    bounds,
+> src\App.tsx:962:    Boolean(boardSession?.flipped),
+  src\App.tsx:963:  );
+  src\App.tsx:964:
+  src\App.tsx:965:  if (!square) return;
+  src\App.tsx:966:
+  src\App.tsx:967:  // Only suppress the context menu if an arrow is actually drawn.
+  src\App.tsx:968:  suppressBoardContextMenuRef.current = false;
+  src\App.tsx:969:  arrowGestureMovedRef.current = false;
+  src\App.tsx:970:  arrowGestureRef.current = square;
+  src\App.tsx:975:}
+  src\App.tsx:976:
+  src\App.tsx:977:  function boardArrowPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+  src\App.tsx:978:    if (!arrowGestureRef.current || !boardRef.current) return;
+  src\App.tsx:979:    const bounds = boardRef.current.getBoundingClientRect();
+> src\App.tsx:980:    const square = boardSquareAtPoint(event.clientX, event.clientY, bounds, Boolean(boardSession?.flipped));
+  src\App.tsx:981:    if (square && square !== arrowGestureRef.current) arrowGestureMovedRef.current = true;
+  src\App.tsx:982:    setArrowHover(square);
+  src\App.tsx:983:  }
+  src\App.tsx:984:
+  src\App.tsx:985:  function boardArrowPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+  src\App.tsx:986:  const from = arrowGestureRef.current;
+  src\App.tsx:987:
+  src\App.tsx:988:  if (!from || !boardRef.current) return;
+  src\App.tsx:990:  const bounds = boardRef.current.getBoundingClientRect();
+  src\App.tsx:991:  const to = boardSquareAtPoint(
+  src\App.tsx:992:    event.clientX,
+  src\App.tsx:993:    event.clientY,
+  src\App.tsx:994:    bounds,
+> src\App.tsx:995:    Boolean(boardSession?.flipped),
+  src\App.tsx:996:  );
+  src\App.tsx:997:
+  src\App.tsx:998:  if (to && to !== from) {
+  src\App.tsx:999:    setUserArrows((arrows) => toggleArrow(arrows, { from, to }));
+  src\App.tsx:1000:    suppressBoardContextMenuRef.current = true;
+  src\App.tsx:1001:  } else {
+  src\App.tsx:1002:    suppressBoardContextMenuRef.current = false;
+  src\App.tsx:1003:  }
+  src\App.tsx:1012:    arrowGestureRef.current = null;
+  src\App.tsx:1013:    setArrowStart(null);
+  src\App.tsx:1014:    setArrowHover(null);
+  src\App.tsx:1015:  }
+  src\App.tsx:1016:
+> src\App.tsx:1017:  function loadPgnText(source: string) {
+  src\App.tsx:1018:    try {
+> src\App.tsx:1019:      const imported = parsePgn(source);
+  src\App.tsx:1020:      const replay = new Chess(imported.lineBaseFen);
+  src\App.tsx:1021:
+> src\App.tsx:1022:      for (const san of imported.moves) {
+  src\App.tsx:1023:        replay.move(san);
+  src\App.tsx:1024:      }
+  src\App.tsx:1025:
+  src\App.tsx:1026:      const last = replay.history({ verbose: true }).at(-1);
+  src\App.tsx:1027:
+  src\App.tsx:1028:      setAnalysisBoard((current) => ({
+  src\App.tsx:1029:        ...current,
+  src\App.tsx:1030:        lineBaseFen: imported.lineBaseFen,
+> src\App.tsx:1031:        currentFen: imported.finalFen,
+> src\App.tsx:1032:        moves: imported.moves,
+> src\App.tsx:1033:        moveIndex: imported.moves.length,
+  src\App.tsx:1034:      }));
+  src\App.tsx:1035:
+  src\App.tsx:1036:      setWorkspaceMode("analysis");
+  src\App.tsx:1037:      setStudyMode(false);
+  src\App.tsx:1038:      setLastMove(last ? { from: last.from, to: last.to } : null);
+  src\App.tsx:1039:      setSelectedSquare(null);
+  src\App.tsx:1040:
+  src\App.tsx:1041:      const white = imported.headers.White || "White";
+  src\App.tsx:1042:      const black = imported.headers.Black || "Black";
+> src\App.tsx:1043:      setNotice(`PGN loaded: ${white} vs ${black} · ${imported.moves.length} plies.`);
+  src\App.tsx:1044:      setError("");
+  src\App.tsx:1045:    } catch (cause) {
+  src\App.tsx:1046:      setError(`PGN import failed: ${messageOf(cause)}`);
+  src\App.tsx:1047:    }
+  src\App.tsx:1048:  }
+  src\App.tsx:1049:
+  src\App.tsx:1050:  async function importPgnFile(file: File) {
+  src\App.tsx:1051:    try {
+  src\App.tsx:1052:      const source = await file.text();
+> src\App.tsx:1053:      loadPgnText(source);
+  src\App.tsx:1054:    } catch (cause) {
+  src\App.tsx:1055:      setError(`Could not read PGN file: ${messageOf(cause)}`);
+  src\App.tsx:1056:    }
+  src\App.tsx:1057:  }
+  src\App.tsx:1058:
+  src\App.tsx:1059:  function pastePgn() {
+  src\App.tsx:1060:    const source = window.prompt("Paste PGN notation:");
+> src\App.tsx:1061:    if (source !== null) loadPgnText(source);
+  src\App.tsx:1062:  }
+  src\App.tsx:1063:  function jumpToMove(index: number) {
+> src\App.tsx:1064:    if (!boardSession) return;
+  src\App.tsx:1065:    try {
+> src\App.tsx:1066:      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+  src\App.tsx:1067:      const last = next.history({ verbose: true }).at(-1);
+> src\App.tsx:1068:      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+  src\App.tsx:1069:      setLastMove(last ? { from: last.from, to: last.to } : null);
+  src\App.tsx:1070:      setSelectedSquare(null);
+  src\App.tsx:1071:    } catch (cause) {
+  src\App.tsx:1072:      setError(`Could not navigate to move: ${messageOf(cause)}`);
+  src\App.tsx:1073:    }
+  src\App.tsx:1074:  }
+  src\App.tsx:1075:
+  src\App.tsx:1076:  async function copyText(value: string) {
+  src\App.tsx:1361:  function savePosition() {
+  src\App.tsx:1362:    if (!session) return;
+  src\App.tsx:1363:    const position = {
+  src\App.tsx:1364:      id: crypto.randomUUID(),
+  src\App.tsx:1365:      title: `Page ${session.page} position`,
+> src\App.tsx:1366:      fen: session.currentFen,
+  src\App.tsx:1367:      page: session.page,
+  src\App.tsx:1368:      savedAt: Date.now(),
+  src\App.tsx:1369:    };
+  src\App.tsx:1370:    patchSession((current) => ({ ...current, positions: [...current.positions, position] }));
+  src\App.tsx:1371:    setNotice("Position saved to this book.");
+  src\App.tsx:1372:  }
+  src\App.tsx:1373:
+  src\App.tsx:1374:  function resetBoard() {
+  src\App.tsx:1375:    if (workspaceMode === "opening-prep") {
+  src\App.tsx:1376:      const original = new Chess(openingPrepBoard.lineBaseFen);
+> src\App.tsx:1377:      patchBoardSession({
+  src\App.tsx:1378:        lineBaseFen: original.fen(),
+> src\App.tsx:1379:        currentFen: original.fen(),
+> src\App.tsx:1380:        moves: [],
+  src\App.tsx:1381:        moveIndex: 0,
+  src\App.tsx:1382:      });
+  src\App.tsx:1383:    } else if (studyMode) {
+  src\App.tsx:1384:      if (!studyBoard) return;
+  src\App.tsx:1385:      const original = new Chess(studyBoard.lineBaseFen);
+> src\App.tsx:1386:      patchBoardSession({
+  src\App.tsx:1387:        lineBaseFen: original.fen(),
+> src\App.tsx:1388:        currentFen: original.fen(),
+> src\App.tsx:1389:        moves: [],
+  src\App.tsx:1390:        moveIndex: 0,
+  src\App.tsx:1391:      });
+  src\App.tsx:1392:    } else {
+  src\App.tsx:1393:      if (!session) return;
+  src\App.tsx:1394:      const original = new Chess(session.originalFen);
+  src\App.tsx:1395:      patchSession({
+  src\App.tsx:1396:        lineBaseFen: original.fen(),
+> src\App.tsx:1397:        currentFen: original.fen(),
+> src\App.tsx:1398:        moves: [],
+  src\App.tsx:1399:        moveIndex: 0,
+  src\App.tsx:1400:      });
+  src\App.tsx:1401:    }
+  src\App.tsx:1402:    setLastMove(null);
+  src\App.tsx:1403:    setSelectedSquare(null);
+  src\App.tsx:1404:    setPromotionRequest(null);
+  src\App.tsx:1405:    setError("");
+  src\App.tsx:1406:  }
+  src\App.tsx:1468:                    </div>
+  src\App.tsx:1469:                  );
+  src\App.tsx:1470:                })}
+  src\App.tsx:1471:                {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books 
+stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+  src\App.tsx:1472:              </div>
+> src\App.tsx:1473:            <section className="sidebar-moves-panel" aria-label="Move list">
+> src\App.tsx:1474:<div className="moves-panel">
+> src\App.tsx:1475:            <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+  src\App.tsx:1476:              if (!session) return;
+> src\App.tsx:1477:              patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+  src\App.tsx:1478:              setLastMove(null);
+  src\App.tsx:1479:              setNotice("New analysis line started from the current position.");
+  src\App.tsx:1480:            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+  src\App.tsx:1481:            <div className="move-list">
+  src\App.tsx:1482:              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+  src\App.tsx:1483:                <div className="move-pair" key={row}>
+  src\App.tsx:1484:                  <span className="move-number">{row + 1}.</span>
+> src\App.tsx:1485:                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) 
+element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+> src\App.tsx:1486:                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) 
+element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+  src\App.tsx:1487:                </div>
+> src\App.tsx:1488:              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+  src\App.tsx:1489:            </div>
+  src\App.tsx:1490:          </div>
+  src\App.tsx:1491:            </section>
+  src\App.tsx:1492:            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+  src\App.tsx:1493:          </aside>
+  src\App.tsx:1494:        )}
+  src\App.tsx:1495:
+> src\App.tsx:1496:        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+  src\App.tsx:1497:        <section className="board-panel" aria-label="Chessboard analysis">
+  src\App.tsx:1498:          <div className="board-header">
+  src\App.tsx:1499:            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : 
+session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready 
+for a position"}</span></div>
+  src\App.tsx:1500:            <div className="board-header-actions">
+  src\App.tsx:1501:              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+> src\App.tsx:1502:              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip 
+board</span></button>
+  src\App.tsx:1503:            </div>
+  src\App.tsx:1504:          </div>
+  src\App.tsx:1505:          <div className="board-area">
+  src\App.tsx:1506:            <div
+  src\App.tsx:1507:              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+  src\App.tsx:1508:              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+  src\App.tsx:1509:              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+  src\App.tsx:1510:            >
+  src\App.tsx:1511:              <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+  src\App.tsx:1512:              <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+  src\App.tsx:1513:            </div>
+  src\App.tsx:1514:            <div className="board-frame">
+  src\App.tsx:1515:              <div
+> src\App.tsx:1516:                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+  src\App.tsx:1517:                ref={boardRef}
+  src\App.tsx:1518:                onPointerDown={boardArrowPointerDown}
+  src\App.tsx:1519:                onPointerMove={boardArrowPointerMove}
+  src\App.tsx:1520:                onPointerUp={boardArrowPointerUp}
+  src\App.tsx:1521:                onPointerCancel={cancelBoardArrowGesture}
+  src\App.tsx:1522:                onContextMenu={(event) => {
+  src\App.tsx:1523:  event.preventDefault();
+  src\App.tsx:1524:
+  src\App.tsx:1532:
+  src\App.tsx:1533:  const square = boardSquareAtPoint(
+  src\App.tsx:1534:    event.clientX,
+  src\App.tsx:1535:    event.clientY,
+  src\App.tsx:1536:    bounds,
+> src\App.tsx:1537:    Boolean(boardSession?.flipped),
+  src\App.tsx:1538:  );
+  src\App.tsx:1539:  if (!square) return;
+  src\App.tsx:1540:
+  src\App.tsx:1541:  setRedSquares((current) =>
+  src\App.tsx:1542:    current.includes(square)
+  src\App.tsx:1543:      ? current.filter((item) => item !== square)
+  src\App.tsx:1544:      : [...current, square]
+  src\App.tsx:1545:  );
+  src\App.tsx:1546:}}
+  src\App.tsx:1547:              >
+  src\App.tsx:1548:                {Array.from({ length: 64 }, (_, index) => {
+  src\App.tsx:1549:                  const visibleRow = Math.floor(index / 8);
+  src\App.tsx:1550:                  const visibleCol = index % 8;
+> src\App.tsx:1551:                  const fileIndex = boardSession?.flipped ? 7 - visibleCol : visibleCol;
+> src\App.tsx:1552:                  const rankIndex = boardSession?.flipped ? visibleRow : 7 - visibleRow;
+  src\App.tsx:1553:                  const square = squareName(fileIndex, rankIndex);
+  src\App.tsx:1554:                  const piece = pieceSquares[7 - rankIndex]?.[fileIndex];
+  src\App.tsx:1555:                  const legal = legalTargets.has(square);
+  src\App.tsx:1556:                  const isLast = highlightedMove?.from === square || highlightedMove?.to === square;
+  src\App.tsx:1557:                  const light = (fileIndex + rankIndex) % 2 === 1;
+  src\App.tsx:1558:                  return (
+  src\App.tsx:1559:                    <button
+  src\App.tsx:1560:                      key={square}
+  src\App.tsx:1575:                      onDrop={(event) => { event.preventDefault(); const from = event.dataTransfer.getData("text/plain") as Square; if (from) makeMove(from, square); }}
+  src\App.tsx:1576:                      onDragEnd={() => setSelectedSquare(null)}
+  src\App.tsx:1577:                    >
+  src\App.tsx:1578:                      {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><img draggable={false} alt="" 
+src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece.color}${piece.type}.svg`} /></span>}
+  src\App.tsx:1579:                      {legal && <span className={piece ? "legal-capture" : "legal-dot"} />}
+> src\App.tsx:1580:                      {boardSession?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
+> src\App.tsx:1581:                      {boardSession?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
+  src\App.tsx:1582:                    </button>
+  src\App.tsx:1583:                  );
+  src\App.tsx:1584:                })}
+  src\App.tsx:1585:                <svg className="board-arrows" viewBox="0 0 8 8" aria-hidden="true">
+  src\App.tsx:1586:                  {[
+  src\App.tsx:1587:                    ...userArrows.map((arrow) => ({ arrow, kind: "user" as const })),
+  src\App.tsx:1588:                    ...(engineArrow ? [{ arrow: engineArrow, kind: "engine" as const }] : []),
+  src\App.tsx:1589:                    ...(arrowStart && arrowHover && arrowStart !== arrowHover
+  src\App.tsx:1590:                      ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
+  src\App.tsx:1591:                      : []),
+  src\App.tsx:1592:                  ].map(({ arrow, kind }, index) => {
+> src\App.tsx:1593:                    const from = squareCenter(arrow.from, Boolean(boardSession?.flipped));
+> src\App.tsx:1594:                    const to = squareCenter(arrow.to, Boolean(boardSession?.flipped));
+  src\App.tsx:1595:                    const dx = to.x - from.x;
+  src\App.tsx:1596:                    const dy = to.y - from.y;
+  src\App.tsx:1597:                    const length = Math.hypot(dx, dy);
+  src\App.tsx:1598:                    if (length < 0.001) return null;
+  src\App.tsx:1599:
+  src\App.tsx:1600:                    const ux = dx / length;
+  src\App.tsx:1601:                    const uy = dy / length;
+  src\App.tsx:1602:                    const px = -uy;
+  src\App.tsx:1638:              </div>
+  src\App.tsx:1639:            </div>
+  src\App.tsx:1640:          </div>
+  src\App.tsx:1641:          <div className="board-controls">
+  src\App.tsx:1642:            <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+> src\App.tsx:1643:            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+> src\App.tsx:1644:            <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+> src\App.tsx:1645:            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+  src\App.tsx:1646:            <span className="controls-separator" />
+  src\App.tsx:1647:            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+  src\App.tsx:1648:            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+  src\App.tsx:1649:            <button
+  src\App.tsx:1650:              className={annotationMode ? "annotation-active" : ""}
+  src\App.tsx:1651:              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+  src\App.tsx:1652:              aria-pressed={annotationMode}
+  src\App.tsx:1653:              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+  src\App.tsx:1673:          <div className="turn-row">
+  src\App.tsx:1674:            <span>TO MOVE</span>
+  src\App.tsx:1675:            <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+  src\App.tsx:1676:              try {
+  src\App.tsx:1677:                const fen = fenWithTurn(game.fen(), "w");
+> src\App.tsx:1678:                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+  src\App.tsx:1679:                setLastMove(null);
+  src\App.tsx:1680:              } catch (cause) { setError(messageOf(cause)); }
+  src\App.tsx:1681:            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+  src\App.tsx:1682:            <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+  src\App.tsx:1683:              try {
+  src\App.tsx:1684:                const fen = fenWithTurn(game.fen(), "b");
+> src\App.tsx:1685:                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+  src\App.tsx:1686:                setLastMove(null);
+  src\App.tsx:1687:              } catch (cause) { setError(messageOf(cause)); }
+  src\App.tsx:1688:            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+  src\App.tsx:1689:            <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+  src\App.tsx:1690:          </div>
+  src\App.tsx:1691:          <details className="position-editor">
+  src\App.tsx:1692:            <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+  src\App.tsx:1693:            <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button 
+className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+  src\App.tsx:1694:          </details>
+> src\App.tsx:1695:          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+  src\App.tsx:1696:        </section>
+  src\App.tsx:1697:
+  src\App.tsx:1698:        <section className="reader-panel" aria-label="PDF book reader">
+  src\App.tsx:1699:          <div className="opening-explorer-right-workspace">
+  src\App.tsx:1700:          {workspaceMode === "opening-explorer" && (
+  src\App.tsx:1701:            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+  src\App.tsx:1702:              <h3>Opening Explorer</h3>
+  src\App.tsx:1703:              <div className="lichess-connection-controls">
+  src\App.tsx:1735:                  </>
+  src\App.tsx:1736:                )}
+  src\App.tsx:1737:              </div>
+  src\App.tsx:1738:              {lichessStatusError && <p role="status">{lichessStatusError}</p>}
+  src\App.tsx:1739:              <p>Enter a legal opening line in SAN or UCI notation. The board follows the selected move.</p>
+> src\App.tsx:1740:              <label htmlFor="opening-line-input">Opening moves</label>
+  src\App.tsx:1741:              <textarea
+  src\App.tsx:1742:                id="opening-line-input"
+  src\App.tsx:1743:                aria-label="Opening line input"
+  src\App.tsx:1744:                rows={3}
+  src\App.tsx:1745:                value={openingExplorerInput}
+  src\App.tsx:1746:                onChange={(event) => {
+  src\App.tsx:1747:                  setOpeningExplorerInput(event.target.value);
+  src\App.tsx:1748:                  setOpeningExplorerPly(0);
+  src\App.tsx:1750:                placeholder="1. e4 e5 2. Nf3 Nc6"
+  src\App.tsx:1751:              />
+  src\App.tsx:1752:              {openingLine.error && <p role="alert">{openingLine.error}</p>}
+  src\App.tsx:1753:              {!openingLine.error && (
+  src\App.tsx:1754:                <>
+> src\App.tsx:1755:                  <div className="opening-explorer-moves" aria-label="Opening moves">
+  src\App.tsx:1756:                    <button
+  src\App.tsx:1757:                      type="button"
+  src\App.tsx:1758:                      disabled={openingExplorerPly === 0}
+  src\App.tsx:1759:                      onClick={() => setOpeningExplorerPly(0)}
+  src\App.tsx:1760:                    >Start</button>
+  src\App.tsx:1761:                    <button
+  src\App.tsx:1762:                      type="button"
+  src\App.tsx:1763:                      disabled={openingExplorerPly === 0}
+  src\App.tsx:1764:                      onClick={() => setOpeningExplorerPly((ply) => Math.max(0, ply - 1))}
+  src\App.tsx:1765:                    >Previous</button>
+> src\App.tsx:1766:                    <span>Move {openingExplorerPly} / {openingLine.sanMoves.length}</span>
+  src\App.tsx:1767:                    <button
+  src\App.tsx:1768:                      type="button"
+> src\App.tsx:1769:                      disabled={openingExplorerPly >= openingLine.sanMoves.length}
+> src\App.tsx:1770:                      onClick={() => setOpeningExplorerPly((ply) => Math.min(openingLine.sanMoves.length, ply + 1))}
+  src\App.tsx:1771:                    >Next</button>
+  src\App.tsx:1772:                    <button
+  src\App.tsx:1773:                      type="button"
+> src\App.tsx:1774:                      disabled={openingExplorerPly >= openingLine.sanMoves.length}
+> src\App.tsx:1775:                      onClick={() => setOpeningExplorerPly(openingLine.sanMoves.length)}
+  src\App.tsx:1776:                    >End</button>
+  src\App.tsx:1777:                  </div>
+  src\App.tsx:1778:                  <div className="opening-explorer-notation">
+> src\App.tsx:1779:                    {openingLine.sanMoves.length
+> src\App.tsx:1780:                      ? openingLine.sanMoves.map((move, index) => (
+  src\App.tsx:1781:                          <button
+  src\App.tsx:1782:                            type="button"
+  src\App.tsx:1783:                            key={`${index}-${move}`}
+  src\App.tsx:1784:                            className={index < openingExplorerPly ? "opening-move-played" : ""}
+  src\App.tsx:1785:                            onClick={() => setOpeningExplorerPly(index + 1)}
+  src\App.tsx:1786:                          >{index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ` : ""}{move}</button>
+  src\App.tsx:1787:                        ))
+> src\App.tsx:1788:                      : <span>Enter moves to explore a line.</span>}
+  src\App.tsx:1789:                  </div>
+  src\App.tsx:1790:                  <section className="opening-stats" aria-label="Opening statistics" aria-live="polite">
+  src\App.tsx:1791:                    <div className="opening-stats-heading">
+  src\App.tsx:1792:                      <h4>Position statistics</h4>
+  src\App.tsx:1793:                      <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
+  src\App.tsx:1794:                    </div>
+  src\App.tsx:1795:                    {openingStatsStatus === "loading" && <p>Loading game statisticsÃ¢â‚¬Â¦</p>}
+  src\App.tsx:1796:                    {openingStatsStatus === "error" && (
+  src\App.tsx:1816:                          <span>White {openingStats.white.toLocaleString()}</span>
+  src\App.tsx:1817:                          <span>Draws {openingStats.draws.toLocaleString()}</span>
+  src\App.tsx:1818:                          <span>Black {openingStats.black.toLocaleString()}</span>
+  src\App.tsx:1819:                        </div>
+  src\App.tsx:1820:                        <h5>Popular continuations</h5>
+> src\App.tsx:1821:                        {openingStats.moves.length ? (
+> src\App.tsx:1822:                          <div className="opening-stat-moves">
+> src\App.tsx:1823:                            {openingStats.moves.slice(0, 8).map((move) => {
+  src\App.tsx:1824:                              const total = move.white + move.draws + move.black;
+  src\App.tsx:1825:                              return (
+  src\App.tsx:1826:                                <div className="opening-stat-move" key={move.uci}>
+  src\App.tsx:1827:                                  <strong>{move.san}</strong>
+  src\App.tsx:1828:                                  <span>{total.toLocaleString()} games</span>
+  src\App.tsx:1829:                                  {move.opening && <small>{move.opening.name}</small>}
+  src\App.tsx:1830:                                </div>
+  src\App.tsx:1831:                              );
+  src\App.tsx:1843:                    type="button"
+  src\App.tsx:1844:                    className="green-button"
+  src\App.tsx:1845:                    onClick={() => {
+  src\App.tsx:1846:                      setAnalysisBoard({
+  src\App.tsx:1847:                        lineBaseFen: START_FEN,
+> src\App.tsx:1848:                        currentFen: openingPosition.fen,
+> src\App.tsx:1849:                        moves: [...openingPosition.sanMoves],
+> src\App.tsx:1850:                        moveIndex: openingPosition.sanMoves.length,
+  src\App.tsx:1851:                        flipped: false,
+  src\App.tsx:1852:                        coordinates: true,
+  src\App.tsx:1853:                      });
+  src\App.tsx:1854:                      setStudyMode(false);
+  src\App.tsx:1855:                      setWorkspaceMode("analysis");
+  src\App.tsx:1856:                      setNotice("Opening position copied to the independent Analysis Board.");
+  src\App.tsx:1857:                    }}
+  src\App.tsx:1858:                  >Open position in Analysis Board</button>
+
+
+

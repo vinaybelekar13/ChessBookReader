@@ -1,0 +1,229 @@
+﻿@import "tailwindcss/theme" theme(static);
+@import "tailwindcss/utilities";
+
+@config "../../external/chess-game-review/tailwind.config.js";
+@source "./**/*.{js,ts,jsx,tsx}";
+@source "../../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
+@custom-variant dark (&:is(.dark *));
+
+
+/* CHESSBOOK READER - NATIVE GAME REVIEW LAYOUT */
+
+.game-review-root {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: #17181c;
+  color: #f4f4f5;
+}
+
+.game-review-root #App {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  padding: 20px;
+  overflow: visible;
+}
+
+.game-review-root .game-review-layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 642px) minmax(310px, 480px);
+  align-items: start;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 1160px;
+  min-width: 0;
+  min-height: 0;
+  margin-inline: auto;
+}
+
+.game-review-root #Board {
+  width: 100%;
+  max-width: 642px;
+  min-width: 0;
+  flex: none;
+}
+
+.game-review-root #actual-board {
+  width: calc(100% - 42px);
+  max-width: 600px;
+  min-width: 0;
+}
+
+.game-review-root #Controls {
+  width: 100%;
+  max-width: 480px;
+  min-width: 0;
+  height: min(696px, calc(100vh - 150px));
+  max-height: 696px;
+  min-height: 420px;
+  padding: 16px;
+  overflow: auto;
+  flex: none;
+  background: #222329;
+  border: 1px solid #383940;
+  border-radius: 12px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.game-review-root img {
+  max-width: none;
+}
+
+@media (max-width: 1200px) {
+  .game-review-root .game-review-layout {
+    grid-template-columns: minmax(0, 642px);
+    justify-content: center;
+  }
+
+  .game-review-root #Controls {
+    width: 100%;
+    max-width: 642px;
+    height: auto;
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 600px) {
+  .game-review-root #App {
+    padding: 10px;
+  }
+
+  .game-review-root #Controls {
+    min-width: 0;
+    padding: 12px;
+  }
+}
+
+
+/* FINAL GAME REVIEW DIMENSION OVERRIDE */
+
+.game-review-root,
+.game-review-root #App {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: hidden !important;
+}
+
+.game-review-root .game-review-layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 642px) minmax(0, 460px) !important;
+  justify-content: center !important;
+  align-items: start !important;
+  gap: 24px !important;
+  width: 100% !important;
+  max-width: 1150px !important;
+  min-width: 0 !important;
+  margin-inline: auto !important;
+}
+
+.game-review-root #Board {
+  display: flex !important;
+  flex: 0 1 642px !important;
+  width: 100% !important;
+  max-width: 642px !important;
+  min-width: 0 !important;
+  justify-self: end;
+}
+
+.game-review-root #actual-board {
+  position: relative !important;
+  width: calc(100% - 42px) !important;
+  max-width: 600px !important;
+  min-width: 0 !important;
+  aspect-ratio: 1 / 1 !important;
+}
+
+.game-review-root #Controls {
+  display: flex !important;
+  flex: 0 1 460px !important;
+  width: 100% !important;
+  max-width: 460px !important;
+  min-width: 0 !important;
+  height: min(696px, calc(100vh - 150px)) !important;
+  min-height: 420px !important;
+  max-height: 696px !important;
+  justify-self: start;
+  background: #222329 !important;
+  background-color: #222329 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  overflow-x: hidden !important;
+}
+
+@media (max-width: 1200px) {
+  .game-review-root .game-review-layout {
+    grid-template-columns: minmax(0, 642px) !important;
+    justify-content: center !important;
+  }
+
+  .game-review-root #Board,
+  .game-review-root #Controls {
+    width: 100% !important;
+    max-width: 642px !important;
+    justify-self: center;
+  }
+
+  .game-review-root #Controls {
+    height: auto !important;
+    min-height: 420px !important;
+  }
+}
+
+
+/* BOARD INTERNAL SIZE FIX */
+
+/* Keep the board and its internal flex row within the grid column. */
+.game-review-root #Board {
+  width: 100% !important;
+  max-width: 642px !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.game-review-root #Board [id="Board&Bar"] {
+  display: flex !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Keep the evaluation bar separate from the square board. */
+.game-review-root #actual-board {
+  position: relative !important;
+  flex: 1 1 0 !important;
+  width: auto !important;
+  max-width: 600px !important;
+  min-width: 0 !important;
+  aspect-ratio: 1 / 1 !important;
+  overflow: hidden !important;
+}
+
+/* Critical: constrain the board texture to the actual square. */
+.game-review-root #actual-board > img:first-child {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  object-fit: fill !important;
+}
+
+/* Keep all board overlays inside the square. */
+.game-review-root #actual-board > #pieces,
+.game-review-root #actual-board > #coors,
+.game-review-root #actual-board > #highlight,
+.game-review-root #actual-board > #arrows,
+.game-review-root #actual-board > #move-classification-badges,
+.game-review-root #actual-board > #endgame-badges {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+}

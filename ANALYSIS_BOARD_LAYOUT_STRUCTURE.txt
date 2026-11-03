@@ -1,0 +1,297 @@
+ANALYSIS BOARD JSX STRUCTURE
+
+========== analysis-board-active ==========
+
+--- Lines 1429 to 1466 ---
+ 1429:         <div className="brand-name">ChessBook <span>Reader</span></div>
+ 1430:         <div className="top-divider" />
+ 1431:         <div className="current-book" title={book?.title ?? "No book open"}>
+ 1432:           <span className="book-dot" />
+ 1433:           <strong>{book?.title ?? "No book open"}</strong>
+ 1434:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+ 1435:         </div>
+ 1436:         <div className="top-spacer" />
+ 1437:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1438:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+ 1439:       </header>
+ 1440: 
+ 1441:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+ 1442:         {libraryOpen && (
+ 1443:           <aside className="library-panel">
+ 1444:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+ 1445:             <input
+ 1446:               ref={fileInput}
+ 1447:               className="hidden-input"
+ 1448:               type="file"
+ 1449:               accept="application/pdf,.pdf"
+ 1450:               onChange={(event) => void addBook(event.target.files?.[0])}
+ 1451:             />
+ 1452:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+ 1453:             <nav className="library-nav" aria-label="Library sections">
+ 1454:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+ 1455:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+ 1456:               <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+ 1457:               <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+ 1458: 
+ 1459: 
+ 1460: 
+ 1461: </nav>
+ 1462:             <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+ 1463:             <div className="book-list">
+ 1464:                 {visibleBooks.map((item, index) => {
+ 1465:                   const saved = sessionIndex[item.id];
+ 1466:                   const progress = saved?.pageCount ? Math.min(100, Math.round((saved.page / saved.pageCount) * 100)) : 0;
+
+========== className="workspace ==========
+
+========== className="board-panel" ==========
+
+--- Lines 1492 to 1529 ---
+ 1492:                   {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+ 1493:                   {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+ 1494:                 </div>
+ 1495:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+ 1496:             </div>
+ 1497:           </div>
+ 1498:             </section>
+ 1499:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+ 1500:           </aside>
+ 1501:         )}
+ 1502: 
+ 1503:         {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+ 1504:         <section className="board-panel" aria-label="Chessboard analysis">
+ 1505:           <div className="board-header">
+ 1506:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+ 1507:             <div className="board-header-actions">
+ 1508:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+ 1509:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+ 1510:             </div>
+ 1511:           </div>
+ 1512:           <div className="board-area">
+ 1513:             <div
+ 1514:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+ 1515:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+ 1516:               title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+ 1517:             >
+ 1518:               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+ 1519:               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+ 1520:             </div>
+ 1521:             <div className="board-frame">
+ 1522:               <div
+ 1523:                 className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+ 1524:                 ref={boardRef}
+ 1525:                 onPointerDown={boardArrowPointerDown}
+ 1526:                 onPointerMove={boardArrowPointerMove}
+ 1527:                 onPointerUp={boardArrowPointerUp}
+ 1528:                 onPointerCancel={cancelBoardArrowGesture}
+ 1529:                 onContextMenu={(event) => {
+
+========== className="reader-panel" ==========
+
+--- Lines 1693 to 1730 ---
+ 1693:                 setLastMove(null);
+ 1694:               } catch (cause) { setError(messageOf(cause)); }
+ 1695:             }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+ 1696:             <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+ 1697:           </div>
+ 1698:           <details className="position-editor">
+ 1699:             <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+ 1700:             <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+ 1701:           </details>
+ 1702:           <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+ 1703:         </section>
+ 1704: 
+ 1705:         <section className="reader-panel" aria-label="PDF book reader">
+ 1706:           <div className="opening-explorer-right-workspace">
+ 1707:           {workspaceMode === "opening-explorer" && (
+ 1708:             <section className="opening-explorer-panel" aria-label="Opening Explorer">
+ 1709:               <h3>Opening Explorer</h3>
+ 1710:               <div className="lichess-connection-controls">
+ 1711:                 {lichessStatus?.connected ? (
+ 1712:                   <>
+ 1713:                     <span role="status">Lichess connected</span>
+ 1714:                     <button
+ 1715:                       type="button"
+ 1716:                       disabled={lichessActionBusy}
+ 1717:                       onClick={() => {
+ 1718:                         setLichessActionBusy(true);
+ 1719:                         void disconnectLichess()
+ 1720:                           .then(() => {
+ 1721:                             setLichessStatus((current) => current ? { ...current, connected: false } : current);
+ 1722:                             setOpeningStats(null);
+ 1723:                             setOpeningStatsStatus("idle");
+ 1724:                             setNotice("Lichess disconnected.");
+ 1725:                           })
+ 1726:                           .catch(() => setLichessStatusError("Could not disconnect. Check that the backend is running."))
+ 1727:                           .finally(() => setLichessActionBusy(false));
+ 1728:                       }}
+ 1729:                     >{lichessActionBusy ? "DisconnectingÃ¢â‚¬Â¦" : "Disconnect"}</button>
+ 1730:                   </>
+
+========== className="library-panel" ==========
+
+--- Lines 1431 to 1468 ---
+ 1431:         <div className="current-book" title={book?.title ?? "No book open"}>
+ 1432:           <span className="book-dot" />
+ 1433:           <strong>{book?.title ?? "No book open"}</strong>
+ 1434:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+ 1435:         </div>
+ 1436:         <div className="top-spacer" />
+ 1437:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1438:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+ 1439:       </header>
+ 1440: 
+ 1441:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+ 1442:         {libraryOpen && (
+ 1443:           <aside className="library-panel">
+ 1444:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+ 1445:             <input
+ 1446:               ref={fileInput}
+ 1447:               className="hidden-input"
+ 1448:               type="file"
+ 1449:               accept="application/pdf,.pdf"
+ 1450:               onChange={(event) => void addBook(event.target.files?.[0])}
+ 1451:             />
+ 1452:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+ 1453:             <nav className="library-nav" aria-label="Library sections">
+ 1454:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+ 1455:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+ 1456:               <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+ 1457:               <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+ 1458: 
+ 1459: 
+ 1460: 
+ 1461: </nav>
+ 1462:             <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+ 1463:             <div className="book-list">
+ 1464:                 {visibleBooks.map((item, index) => {
+ 1465:                   const saved = sessionIndex[item.id];
+ 1466:                   const progress = saved?.pageCount ? Math.min(100, Math.round((saved.page / saved.pageCount) * 100)) : 0;
+ 1467:                   return (
+ 1468:                     <div key={item.id} className={`book-row ${book?.id === item.id ? "active" : ""}`}>
+
+========== opening-explorer-right-workspace ==========
+
+--- Lines 1694 to 1731 ---
+ 1694:               } catch (cause) { setError(messageOf(cause)); }
+ 1695:             }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+ 1696:             <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+ 1697:           </div>
+ 1698:           <details className="position-editor">
+ 1699:             <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+ 1700:             <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+ 1701:           </details>
+ 1702:           <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+ 1703:         </section>
+ 1704: 
+ 1705:         <section className="reader-panel" aria-label="PDF book reader">
+ 1706:           <div className="opening-explorer-right-workspace">
+ 1707:           {workspaceMode === "opening-explorer" && (
+ 1708:             <section className="opening-explorer-panel" aria-label="Opening Explorer">
+ 1709:               <h3>Opening Explorer</h3>
+ 1710:               <div className="lichess-connection-controls">
+ 1711:                 {lichessStatus?.connected ? (
+ 1712:                   <>
+ 1713:                     <span role="status">Lichess connected</span>
+ 1714:                     <button
+ 1715:                       type="button"
+ 1716:                       disabled={lichessActionBusy}
+ 1717:                       onClick={() => {
+ 1718:                         setLichessActionBusy(true);
+ 1719:                         void disconnectLichess()
+ 1720:                           .then(() => {
+ 1721:                             setLichessStatus((current) => current ? { ...current, connected: false } : current);
+ 1722:                             setOpeningStats(null);
+ 1723:                             setOpeningStatsStatus("idle");
+ 1724:                             setNotice("Lichess disconnected.");
+ 1725:                           })
+ 1726:                           .catch(() => setLichessStatusError("Could not disconnect. Check that the backend is running."))
+ 1727:                           .finally(() => setLichessActionBusy(false));
+ 1728:                       }}
+ 1729:                     >{lichessActionBusy ? "DisconnectingÃ¢â‚¬Â¦" : "Disconnect"}</button>
+ 1730:                   </>
+ 1731:                 ) : (
+
+========== analysis-strip ==========
+
+--- Lines 1948 to 1985 ---
+ 1948:             )}
+ 1949:           </div>
+ 1950:           <div className="reader-footer">
+ 1951:             <div className="diagram-strip"><span className="strip-label">DIAGRAMS</span>{currentCandidates.length ? currentCandidates.map((candidate, index) => <button key={candidate.id} className={candidate.id === session?.selectedDiagramId ? "strip-selected" : ""} onClick={() => selectCandidate(candidate)} aria-label={`Select diagram ${index + 1}`}>{index + 1}</button>) : <span className="muted">None detected on this page</span>}</div>
+ 1952:             {currentDiagram && <div className="crop-actions">
+ 1953:               {cropEditingId === currentDiagram.id && <button onClick={resetSelectedCrop}>Reset crop</button>}
+ 1954:               <button onClick={() => adjustSelectedCrop(currentDiagram)}>{cropEditingId === currentDiagram.id ? "Adjusting?" : "Adjust Crop"}</button>
+ 1955:               <button className="green-button" onClick={() => void openTransfer(currentDiagram)}>Recognize Pieces</button>
+ 1956:               <button onClick={cancelCandidateSelection}>Cancel</button>
+ 1957:             </div>}
+ 1958:             <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+ 1959:           </div>
+ 1960:           <div className="analysis-strip">
+ 1961:             <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+ 1962:             <div className="analysis-divider" />
+ 1963:             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+ 1964:             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+ 1965:             <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+ 1966:             <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+ 1967:             <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+ 1968:           </div>
+ 1969:         </section>
+ 1970:         </>}
+ 1971:       </div>
+ 1972: 
+ 1973:       {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+ 1974:       {transferCandidate && (
+ 1975:         <ManualBoardEditor
+ 1976:           initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+ 1977:           title="Review recognized position"
+ 1978:           subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits."
+ 1979:           confirmLabel="Use on Board"
+ 1980:           cropPreviewUrl={transferPreview}
+ 1981:           recognitionStatus={recognitionStatus}
+ 1982:           recognitionResult={recognitionResult}
+ 1983:           recognitionError={recognitionError}
+ 1984:           onRetryRecognition={() => void openTransfer(transferCandidate)}
+ 1985:           onConfirm={(confirmedFen) => {
+
+========== sidebar-moves-panel ==========
+
+--- Lines 1468 to 1505 ---
+ 1468:                     <div key={item.id} className={`book-row ${book?.id === item.id ? "active" : ""}`}>
+ 1469:                       <button className="book-open" onClick={() => void openBook(item)} aria-label={`Open ${item.title}`}>
+ 1470:                         <div className="book-cover"><span><BookOpenText size={16} aria-hidden="true" /></span><small>{index + 1}</small></div>
+ 1471:                         <span className="book-meta"><strong>{item.title}</strong><small>Page {saved?.page ?? 1}{saved?.pageCount ? ` of ${saved.pageCount}` : ""} ? {readableDate(item.lastOpenedAt)}</small><span className="progress-track"><i style={{ width: `${progress}%` }} /></span></span>
+ 1472:                       </button>
+ 1473:                       <button type="button" className="book-delete-button" title={"Delete " + item.title} aria-label={"Delete " + item.title} onClick={(event) => { event.stopPropagation(); void deleteBook(item); }}>&#215;</button>
+ 1474:                       <details className="book-menu"><summary aria-label={`Options for ${item.title}`}>&#8942;</summary><div className="book-menu-items"><button onClick={() => void renameBook(item)}>Rename</button><button onClick={() => void deleteBook(item)}>Delete book</button></div></details>
+ 1475:                     </div>
+ 1476:                   );
+ 1477:                 })}
+ 1478:                 {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+ 1479:               </div>
+ 1480:             <section className="sidebar-moves-panel" aria-label="Move list">
+ 1481: <div className="moves-panel">
+ 1482:             <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+ 1483:               if (!session) return;
+ 1484:               patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+ 1485:               setLastMove(null);
+ 1486:               setNotice("New analysis line started from the current position.");
+ 1487:             }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+ 1488:             <div className="move-list">
+ 1489:               {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+ 1490:                 <div className="move-pair" key={row}>
+ 1491:                   <span className="move-number">{row + 1}.</span>
+ 1492:                   {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+ 1493:                   {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+ 1494:                 </div>
+ 1495:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+ 1496:             </div>
+ 1497:           </div>
+ 1498:             </section>
+ 1499:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+ 1500:           </aside>
+ 1501:         )}
+ 1502: 
+ 1503:         {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+ 1504:         <section className="board-panel" aria-label="Chessboard analysis">
+ 1505:           <div className="board-header">

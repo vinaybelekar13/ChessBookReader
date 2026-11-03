@@ -1,0 +1,206 @@
+﻿========== STOCKFISH WORKER REFERENCES ==========
+
+src\App.tsx:9:import { parsePgn } from "./pgn-import";
+src\App.tsx:204:  const [engineEnabled, setEngineEnabled] = useState(false);
+src\App.tsx:208:  const [engineDepth, setEngineDepth] = useState(14);
+src\App.tsx:226:  const engineRef = useRef<StockfishEngine | null>(null);
+src\App.tsx:371:    engineRef.current?.dispose();
+src\App.tsx:372:    engineRef.current = null;
+src\App.tsx:467:    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+src\App.tsx:468:    [engineEnabled, engineScore?.bestMove],
+src\App.tsx:479:    if (engineEnabled && boardSession) {
+src\App.tsx:480:      engineRef.current?.analyze(game.fen(), engineDepth);
+src\App.tsx:482:  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+src\App.tsx:489:    if (engineEnabled) {
+src\App.tsx:490:      engineRef.current?.dispose();
+src\App.tsx:491:      engineRef.current = null;
+src\App.tsx:492:      setEngineEnabled(false);
+src\App.tsx:501:      const client = new StockfishEngine(
+src\App.tsx:502:        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+src\App.tsx:507:            setEngineEnabled(false);
+src\App.tsx:509:            engineRef.current?.dispose();
+src\App.tsx:510:            engineRef.current = null;
+src\App.tsx:515:      engineRef.current = client;
+src\App.tsx:516:      setEngineEnabled(true);
+src\App.tsx:520:      setEngineEnabled(false);
+src\App.tsx:714:    if (!engineEnabled) {
+src\App.tsx:717:      engineRef.current?.analyze(fen, engineDepth);
+src\App.tsx:1017:  function loadPgnText(source: string) {
+src\App.tsx:1019:      const imported = parsePgn(source);
+src\App.tsx:1053:      loadPgnText(source);
+src\App.tsx:1061:    if (source !== null) loadPgnText(source);
+src\App.tsx:1956:            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? 
+"Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+src\App.tsx:1957:            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => 
+setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option 
+value={16}>16</option><option value={18}>18</option></select></label>
+src\App.tsx:1960:            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : 
+engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze 
+this position.")}</strong></div>
+src\pgn-import.test.ts:2:import { parsePgn } from "./pgn-import";
+src\pgn-import.test.ts:5:describe("parsePgn", () => {
+src\pgn-import.test.ts:7:    const result = parsePgn(`[Event "Test Game"]
+src\pgn-import.test.ts:22:    const result = parsePgn(`[Event "Custom Position"]
+src\pgn-import.test.ts:33:    expect(() => parsePgn("   ")).toThrow(/Paste or select/i);
+src\pgn-import.test.ts:37:    expect(() => parsePgn(`[Event "Empty Game"]
+src\pgn-import.test.ts:43:    expect(() => parsePgn(`1. e4 ThisIsNotAMove`)).toThrow();
+src\pgn-import.ts:11:export function parsePgn(pgn: string): ImportedPgn {
+src\pgn-import.ts:21:    parsed.loadPgn(source);
+src\stockfish.test.ts:48:    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+src\stockfish.test.ts:71:    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+src\stockfish.ts:52:    this.worker = new Worker(workerUrl);
+
+
+
+========== STOCKFISH SOURCE ==========
+export type EngineStatus = "off" | "loading" | "ready" | "analyzing" | "error";
+export type EngineScore = { kind: "cp" | "mate"; value: number; depth: number; bestMove?: string; pv?: string[] };
+
+type UciRequest = { fen: string; depth: number };
+
+export function parseUciInfo(line: string, sideToMove: "w" | "b"): Omit<EngineScore, "bestMove"> | null {
+  if (!line.startsWith("info ")) return null;
+  const depth = Number(line.match(/\bdepth (\d+)/)?.[1]);
+  const score = line.match(/\bscore (cp|mate) (-?\d+)/);
+  if (!score || !Number.isFinite(depth)) return null;
+  const value = Number(score[2]);
+  const whiteValue = sideToMove === "w" ? value : -value;
+  const kind = score[1] as "cp" | "mate";
+  const orientedValue = kind === "mate" && value === 0
+    ? (sideToMove === "w" ? -1 : 1)
+    : whiteValue;
+  const pv = line.match(/\bpv (.+)$/)?.[1]?.trim().split(/\s+/);
+  return {
+    kind,
+    value: orientedValue,
+    depth,
+    ...(pv?.length ? { pv } : {}),
+  };
+}
+
+export function formatEvaluation(score: EngineScore): string {
+  if (score.kind === "mate") return `#${score.value > 0 ? "+" : ""}${score.value}`;
+  const pawns = score.value / 100;
+  return `${pawns > 0 ? "+" : ""}${pawns.toFixed(2)}`;
+}
+
+export function whiteScoreShare(score: EngineScore): number {
+  if (score.kind === "mate") return score.value > 0 ? 0.96 : 0.04;
+  const bounded = Math.max(-1000, Math.min(1000, score.value));
+  return Math.max(0.04, Math.min(0.96, 1 / (1 + 10 ** (-bounded / 400))));
+}
+
+export class StockfishEngine {
+  private readonly worker: Worker;
+  private ready = false;
+  private searching = false;
+  private awaitingStop = false;
+  private queued: UciRequest | null = null;
+  private currentSide: "w" | "b" = "w";
+  private latestScore: EngineScore | null = null;
+
+  constructor(
+    workerUrl: string,
+    private readonly onStatus: (status: EngineStatus, message?: string) => void,
+    private readonly onScore: (score: EngineScore | null) => void,
+  ) {
+    this.worker = new Worker(workerUrl);
+    this.worker.onmessage = (event: MessageEvent<string>) => this.handleLine(String(event.data));
+    this.worker.onerror = (event) => {
+      this.onStatus("error", event.message || "The Stockfish worker failed to load.");
+      this.dispose();
+    };
+    this.onStatus("loading");
+    this.worker.postMessage("uci");
+  }
+
+  analyze(fen: string, depth: number): void {
+    this.queued = { fen, depth: Math.max(1, Math.min(24, Math.floor(depth))) };
+    this.latestScore = null;
+    this.onScore(null);
+    if (!this.ready) return;
+    if (this.searching) {
+      if (!this.awaitingStop) {
+        this.awaitingStop = true;
+        this.worker.postMessage("stop");
+      }
+      return;
+    }
+    this.startQueuedAnalysis();
+  }
+
+  dispose(): void {
+    this.worker.terminate();
+    this.ready = false;
+    this.searching = false;
+    this.queued = null;
+  }
+
+  private handleLine(line: string): void {
+    if (/^Error:/i.test(line)) {
+      this.onStatus("error", line);
+      this.dispose();
+      return;
+    }
+    if (line === "uciok") {
+      this.worker.postMessage("isready");
+      return;
+    }
+    if (line === "readyok") {
+      this.ready = true;
+      this.onStatus("ready");
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (line.startsWith("info ")) {
+      if (this.awaitingStop) return;
+      const score = parseUciInfo(line, this.currentSide);
+      if (score) {
+        // Use the current principal variation's first move for a live arrow.
+        // Stockfish's final "bestmove" will replace this provisional move.
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+          ...score,
+          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+        };
+        this.onScore(this.latestScore);
+      }
+      return;
+    }
+    const bestMove = line.match(/^bestmove (\S+)/)?.[1];
+    if (!bestMove) return;
+    this.searching = false;
+    if (this.awaitingStop) {
+      this.awaitingStop = false;
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (this.latestScore) {
+      this.latestScore = { ...this.latestScore, bestMove: bestMove === "(none)" ? undefined : bestMove };
+      this.onScore(this.latestScore);
+    }
+    this.onStatus("ready");
+  }
+
+  private startQueuedAnalysis(): void {
+    if (!this.ready || this.searching || !this.queued) return;
+    const request = this.queued;
+    this.queued = null;
+    this.currentSide = request.fen.split(/\s+/)[1] === "b" ? "b" : "w";
+    this.searching = true;
+    this.latestScore = null;
+    this.onStatus("analyzing");
+    this.worker.postMessage(`position fen ${request.fen}`);
+    this.worker.postMessage(`go depth ${request.depth}`);
+  }
+}
+
+========== WORKER FILES ==========
+
+FullName                                                                           Length
+--------                                                                           ------
+D:\chess\BookChess\ChessBookReader\public\stockfish\stockfish-19-lite-single.js     28230
+D:\chess\BookChess\ChessBookReader\public\stockfish\stockfish-19-lite-single.wasm 1845971
+
+
+

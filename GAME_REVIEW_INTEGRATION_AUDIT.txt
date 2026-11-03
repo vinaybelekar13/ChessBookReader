@@ -1,0 +1,1302 @@
+
+========== .\external\chess-game-review\src\stores\useSelectGameStore.ts ==========
+
+import { create } from 'zustand';
+
+import type { ChessComGame, LichessGame } from '../queries/useMonthlyArchives';
+
+export type Site = 'chess.com' | 'lichess';
+
+interface Home {
+  username: undefined;
+  site: undefined;
+  monthLink: undefined;
+  game: undefined;
+}
+
+interface SelectMonth {
+  username: string;
+  site: Site;
+  monthLink: undefined;
+  game: undefined;
+}
+
+interface SelectGame {
+  username: string;
+  site: Site;
+  monthLink: string;
+  game: undefined;
+}
+
+interface Loaded {
+  username: string;
+  site: Site;
+  monthLink: string;
+  game: ChessComGame | LichessGame;
+}
+
+type SelectStages = Home | SelectMonth | SelectGame | Loaded;
+
+type SelectGameStore = SelectStages & {
+  submitUsername: (username: string, site: Site) => void;
+  submitMonth: (monthLink: string) => void;
+  submitGame: (game?: ChessComGame | LichessGame) => void;
+  reset: () => void;
+};
+
+export const useSelectGameStore = create<SelectGameStore>(set => ({
+  username: undefined,
+  site: undefined,
+  monthLink: undefined,
+  game: undefined, // only indicate game loaded through sites, stay undefined if loaded from PGNForm
+  submitUsername: (username: string, site: Site) => set({ username, site }),
+  submitMonth: (monthLink: string) => set({ monthLink }),
+  submitGame: (game?: ChessComGame | LichessGame) => set({ game }),
+  reset: () => set({ username: undefined, site: undefined, monthLink: undefined, game: undefined }),
+}));
+
+========== .\external\chess-game-review\src\stores\useStageStore.ts ==========
+
+import { create } from 'zustand';
+
+export interface StageStore {
+  stage: 'home' | 'select-month' | 'select-game' | 'loaded' | 'reviewing' | 'review-overview' | 'review-moves';
+  setStage: (stage: StageStore['stage']) => void;
+  computed: {
+    isLoaded: boolean;
+    reviewFinished: boolean;
+  };
+}
+export const useStageStore = create<StageStore>((set, get) => ({
+  stage: 'home',
+  setStage: (stage: StageStore['stage']) => set({ stage }),
+  computed: {
+    get isLoaded() {
+      return ['loaded', 'reviewing', 'review-overview', 'review-moves'].includes(get().stage);
+    },
+    get reviewFinished() {
+      return ['review-overview', 'review-moves'].includes(get().stage);
+    },
+  },
+}));
+
+========== .\external\chess-game-review\src\stores\useStockfishOutputStore.ts ==========
+
+import { create } from 'zustand';
+
+import { useStageStore } from './useStageStore';
+
+export interface MoveEval {
+  nodes: number;
+  pv: string;
+  multiPv: number;
+  cp?: number;
+  mate?: number; // cp and mate are mutual exclusive
+}
+export interface StockfishOutputStore {
+  isListening: boolean;
+  fenIndex: number;
+  best3Moves: MoveEval[][]; // in LAN format
+  outputs: string[];
+  saveMove: (moveEval: MoveEval, output: string) => void;
+  listen: () => void;
+  stopListen: (fensLength: number) => void;
+  review: () => void;
+  reset: () => void;
+  mock: (obj: Partial<StockfishOutputStore>) => void;
+}
+export const useStockfishOutputStore = create<StockfishOutputStore>(set => ({
+  isListening: false,
+  fenIndex: 0,
+  best3Moves: [],
+  outputs: [],
+  saveMove: (moveEval: MoveEval, output: string) => set(({ best3Moves, outputs }) => {
+    if (moveEval.multiPv === 1) {
+      return {
+        best3Moves: [...best3Moves, [moveEval]],
+        outputs: [...outputs, output],
+      };
+    }
+    else {
+      const lastSubArr = best3Moves[best3Moves.length - 1];
+      const moddedLastSubArr = [...lastSubArr, moveEval];
+      // replace last subArr with moddedLastSubArr
+      const modded = [...best3Moves];
+      modded.splice(-1, 1, moddedLastSubArr);
+
+      return {
+        best3Moves: modded,
+        outputs: [...outputs, output],
+      };
+    }
+  }),
+  listen: () => set({ isListening: true }),
+  stopListen: (fensLength: number) => set(({ fenIndex }) => ({
+    isListening: false,
+    fenIndex: fenIndex === fensLength - 1 ? fenIndex : fenIndex + 1,
+  })),
+  review: () => set(() => {
+    const setStage = useStageStore.getState().setStage;
+    setStage('reviewing');
+
+    return { best3Moves: [], fenIndex: 0, outputs: [] };
+  }),
+  reset: () => set({ best3Moves: [], fenIndex: 0, outputs: [] }),
+  mock: (obj: Partial<StockfishOutputStore>) => set(state => ({ ...state, ...obj })),
+}));
+
+========== .\external\chess-game-review\src\stores\useManualHighlightStore.ts ==========
+
+import { create } from 'zustand';
+
+import type { Square } from 'chess.js';
+
+interface ManualHighlightStore {
+  squares: Square[];
+  toggleHighlight: (square: Square) => void;
+  resetHighlight: () => void;
+}
+
+export const useManualHighlightStore = create<ManualHighlightStore>(set => ({
+  squares: [],
+  toggleHighlight: (square: Square) => set(({ squares }) => {
+    if (!squares.includes(square)) {
+      return {
+        squares: [...squares, square],
+      };
+    }
+
+    return {
+      squares: squares.filter(s => s !== square),
+    };
+  }),
+  resetHighlight: () => set({ squares: [] }),
+}));
+
+========== .\external\chess-game-review\src\queries\useGameArchives.ts ==========
+
+import { useQuery } from '@tanstack/react-query';
+import dayjs from 'dayjs';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import objectSupport from 'dayjs/plugin/objectSupport';
+
+import { useSelectGameStore } from '../stores/useSelectGameStore';
+import { groupChessComLinksByYear, groupLichessLinksByYear } from '../utils/groupChessComLinksByYear';
+
+dayjs.extend(objectSupport);
+dayjs.extend(isSameOrBefore);
+
+export default function useGameArchives(username: string) {
+  const site = useSelectGameStore(state => state.site)!;
+
+  return useQuery({
+    queryKey: ['gameArchives', username, site],
+    queryFn: async () =>
+      site === 'chess.com' ? fetchChessCom(username) : fetchLichess(username),
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+async function fetchChessCom(username: string) {
+  const res = await fetch(`https://api.chess.com/pub/player/${username}/games/archives`).then(res => res.json()) as { archives: string[] };
+
+  return groupChessComLinksByYear(res.archives.reverse());
+}
+
+async function fetchLichess(username: string) {
+  const createdAt = await fetch(`https://lichess.org/api/user/${username}`)
+    .then(res => res.json())
+    .then(userInfo => userInfo.createdAt as number); // UNIX timestamp
+
+  const now = dayjs();
+  const created = dayjs(createdAt);
+
+  // round down the created date to start of month
+  // .e.g if created at 2016-08-12T14:48:29,
+  // createdMonth is 2016-08-01T00:00:00
+  const createdMonth = dayjs({
+    year: created.year(),
+    month: created.month(),
+    day: 1,
+  });
+
+  // generate UNIX timestamps for all the months inbetween (edge-inclusive)
+  const sinceUntil: { since: number; until: number }[] = [];
+  let currentMonth = createdMonth; // will increase 1 month each while-loop
+
+  while (currentMonth.isSameOrBefore(now)) {
+    const nextMonth = currentMonth.add(1, 'month');
+
+    sinceUntil.unshift({
+      since: currentMonth.valueOf(),
+      until: nextMonth.valueOf(),
+    });
+
+    currentMonth = nextMonth;
+  }
+
+  const monthLinks = sinceUntil.map(({ since, until }) => `https://lichess.org/api/games/user/${username}?pgnInJson=true&clocks=true&literate=true&since=${since}&until=${until}`);
+
+  return groupLichessLinksByYear(monthLinks);
+}
+
+========== .\external\chess-game-review\src\queries\useMonthlyArchives.ts ==========
+
+import { useQuery } from '@tanstack/react-query';
+
+import { useSelectGameStore } from '../stores/useSelectGameStore';
+import readStream from '../utils/nd-json';
+
+interface ChessComPlayer {
+  'rating': number;
+  'result': 'win' | 'checkmated' | 'agreed' | 'repetition' | 'timeout' | 'resigned' | 'stalemate' | 'lose' | 'insufficient' | '50move' | 'abandoned' | 'kingofthehill' | 'threecheck' | 'timevsinsufficient' | 'bughousepartnerlose';
+  '@id': string;
+  'username': string;
+  'uuid': string;
+}
+
+export interface ChessComGame {
+  url: string;
+  pgn: string;
+  time_control: string;
+  end_time: number;
+  rated: boolean;
+  accuracies?: {
+    white: number;
+    black: number;
+  };
+  tcn: string;
+  uuid: string;
+  initial_setup: string;
+  fen: string;
+  time_class: 'daily' | 'rapid' | 'blitz' | 'bullet';
+  rules: 'chess' | 'chess960' | 'bughouse' | 'kingofthehill' | 'threecheck' | 'crazyhouse';
+  white: ChessComPlayer;
+  black: ChessComPlayer;
+}
+
+export default function useMonthlyArchives(monthLink: string) {
+  const site = useSelectGameStore(state => state.site)!;
+
+  return useQuery({
+    queryKey: ['monthlyArchives', monthLink, site],
+    queryFn: async () =>
+      site === 'chess.com' ? fetchChessComGames(monthLink) : fetchLichessGames(monthLink),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+async function fetchChessComGames(monthLink: string) {
+  const res = await fetch(monthLink).then(res => res.json()) as { games: ChessComGame[] };
+  const noVariants = res.games.filter(game => game.rules === 'chess');
+  noVariants.reverse();
+
+  return noVariants;
+}
+
+export interface LichessPlayer {
+  user: {
+    name: string;
+    id: string;
+  };
+  rating: number;
+  ratingDiff: number;
+}
+export interface LichessAI {
+  aiLevel: number;
+}
+export interface LichessGame {
+  clock: {
+    increment: number;
+    initial: number;
+    totalTime: number;
+  };
+  clocks: number[];
+  createdAt: number;
+  daysPerTurn?: number;
+  id: string;
+  lastMoveAt: number;
+  moves: string;
+  perf: string;
+  pgn: string;
+  players: {
+    black: LichessPlayer | LichessAI;
+    white: LichessPlayer | LichessAI;
+  };
+  rated: boolean;
+  source: string;
+  speed: 'ultraBullet' | 'bullet' | 'blitz' | 'rapid' | 'classical' | 'correspondence';
+  status: 'created' | 'started' | 'aborted' | 'mate' | 'resign' | 'stalemate' | 'timeout' | 'draw' | 'outoftime' | 'cheat' | 'noStart' | 'unknownFinish' | 'variantEnd';
+  variant: 'standard' | 'chess960' | 'crazyhouse' | 'antichess' | 'atomic' | 'horde' | 'kingOfTheHill' | 'racingKings' | 'threeCheck' | 'fromPosition';
+  winner: 'white' | 'black' | undefined;
+}
+
+async function fetchLichessGames(monthLink: string) {
+  const games: LichessGame[] = [];
+  const onMessage = (game: LichessGame) => games.push(game);
+
+  await fetch(monthLink, {
+    headers: {
+      Accept: 'application/x-ndjson',
+      Authorization: `Bearer ${import.meta.env.VITE_LICHESS_TOKEN}`,
+    },
+  }).then(readStream(onMessage));
+
+  const noVariants = games.filter(game => game.variant === 'standard');
+
+  return noVariants;
+}
+
+========== .\external\chess-game-review\src\components\controls\Forms.tsx ==========
+
+import { Accordion, AccordionItem } from '@heroui/react';
+
+import useLocalStorage from '../../hooks/useLocalStorage';
+import ChessCom from '../../icons/game-src/ChessCom';
+import Lichess from '../../icons/game-src/Lichess';
+import Pgn from '../../icons/game-src/Pgn';
+import ChessSiteForm from './ChessSiteForm';
+import PGNForm from './PGNForm';
+
+export default function Forms() {
+  const { item: gameInput, set } = useLocalStorage('game-input');
+
+  return (
+    <Accordion
+      defaultExpandedKeys={[gameInput || '']}
+      isCompact
+      onSelectionChange={(keys) => {
+        const selected = Array.from(keys)[0] as string;
+        set('game-input', selected || '');
+      }}
+    >
+      <AccordionItem
+        aria-label="Load from chess.com"
+        key="chess.com"
+        startContent={<ChessCom className="size-4" />}
+        title="chess.com"
+      >
+        <ChessSiteForm site="chess.com" />
+      </AccordionItem>
+      <AccordionItem
+        aria-label="Load from lichess"
+        key="lichess"
+        startContent={<Lichess className="size-4" />}
+        title="lichess"
+      >
+        <ChessSiteForm site="lichess" />
+      </AccordionItem>
+      <AccordionItem
+        aria-label="PGN"
+        key="pgn"
+        startContent={<Pgn className="size-4" />}
+        title="PGN"
+      >
+        <PGNForm />
+      </AccordionItem>
+    </Accordion>
+  );
+}
+
+========== .\external\chess-game-review\src\components\controls\Review.tsx ==========
+
+import { Button, Progress } from '@heroui/react';
+import { useQueryClient } from '@tanstack/react-query';
+import { DEFAULT_POSITION } from 'chess.js';
+import { useCallback, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+
+import useStockfish from '../../queries/useStockfish';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useEvalStore } from '../../stores/useEvalStore';
+import { useStageStore } from '../../stores/useStageStore';
+import { useStockfishOutputStore } from '../../stores/useStockfishOutputStore';
+import cn from '../../utils/cn';
+import Loading from '../Loading';
+import ReviewMoves from './ReviewMoves';
+import ReviewOverview from './ReviewOverview';
+
+const depth = 12;
+
+export default function Review() {
+  const queryClient = useQueryClient();
+  const { data: stockfish, isLoading, isFetching, error } = useStockfish();
+  const currentGame = useBoardStore(state => state.currentGame);
+  const history = currentGame.history({ verbose: true });
+  const fens = [DEFAULT_POSITION, ...history.map(move => move.after)];
+  const populate = useEvalStore(state => state.populate);
+  const resetEval = useEvalStore(state => state.reset);
+  const stage = useStageStore(state => state.stage);
+  const setStage = useStageStore(state => state.setStage);
+
+  const {
+    isListening,
+    fenIndex,
+    best3Moves,
+    saveMove,
+    listen,
+    stopListen,
+    review,
+    reset: resetSfOutput,
+  } = useStockfishOutputStore(useShallow(state => ({
+    isListening: state.isListening,
+    fenIndex: state.fenIndex,
+    best3Moves: state.best3Moves,
+    saveMove: state.saveMove,
+    listen: state.listen,
+    stopListen: state.stopListen,
+    review: state.review,
+    reset: state.reset,
+  })));
+
+  const completePercentage = Math.floor((best3Moves.length / ((currentGame.isCheckmate() || currentGame.isStalemate()) ? fens.length - 1 : fens.length)) * 100); // if checkmate or stalemate, best3Moves has one less item than fens
+
+  const outputListener = useCallback((message: string) => {
+    if (
+      message.includes('info')
+      && message.includes('depth')
+      && !message.includes('currmove')
+      && !message.includes('bound')
+    ) {
+      const depthRegex = /(?<=\sdepth\s)\w+/;
+      const currDepth = Number(message.match(depthRegex)![0]);
+      const nodesRegex = /(?<=nodes\s)\w+/;
+      const nodes = Number(message.match(nodesRegex)![0]);
+      const multiPvRegex = /(?<=multipv\s)\d/;
+      const multiPv = Number(message.match(multiPvRegex)![0]);
+      const pvRegex = /(?<=\spv\s)\w+/;
+      const pv = message.match(pvRegex)![0];
+      // score could be 'cp x' or 'mate y'
+      const cpRegex = /(?<=cp\s)[\d-]+/;
+      const cpMatch = message.match(cpRegex);
+      const cp = cpMatch ? Number(cpMatch) : undefined;
+      const mateRegex = /(?<=mate\s)[\d-]+/;
+      const mateMatch = message.match(mateRegex);
+      const mate = mateMatch ? Number(mateMatch) : undefined;
+
+      if (currDepth === depth) {
+        saveMove({ nodes, pv, multiPv, cp, mate }, message);
+      }
+    }
+
+    if (message.includes('bestmove')) {
+      stopListen(fens.length);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (stockfish) {
+      stockfish.postMessage('setoption name MultiPV value 3');
+      (stockfish as any).addMessageListener(outputListener);
+
+      return () => {
+        stockfish.terminate();
+      };
+    }
+  }, [stockfish]);
+
+  useEffect(() => {
+    return () => {
+      // force recreate Stockfish worker every subsequent mounts
+      queryClient.invalidateQueries({ queryKey: ['stockfish'] });
+      // reset states when leave Review page
+      resetSfOutput();
+      resetEval();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (completePercentage === 100) {
+      populate();
+      setStage('review-overview');
+    }
+  }, [completePercentage]);
+
+  useEffect(() => {
+    /*
+      Instead of sending all the fens to Stockfish at once,
+      we send one fen at a time, listen to its output,
+      and only send the next fen when the previous one is done (when isListening is 'false' again)
+    */
+    if (stockfish && stage === 'reviewing') {
+      if (!isListening) {
+        listen();
+        stockfish.postMessage(`position fen ${fens[fenIndex]}`);
+        stockfish.postMessage(`go depth ${depth}`);
+      }
+    }
+  }, [stockfish, stage, isListening]);
+
+  if (isLoading || isFetching)
+    return <Loading label="Loading Stockfish…" />;
+
+  if (error) {
+    return (
+      <p>
+        Loading Stockfish failed:
+        {' '}
+        <code className="inline-block text-small text-danger-500">
+          {error.message}
+        </code>
+      </p>
+    );
+  }
+
+  return (
+    <div className="h-full" id="Review">
+      {stage === 'loaded'
+        ? (
+            <Button
+              className="h-12 text-medium font-bold text-shadow-xs"
+              color="primary"
+              fullWidth
+              onPress={review}
+              radius="sm"
+            >
+              Generate Review
+            </Button>
+          )
+        : stage === 'reviewing'
+          ? (
+              <Progress
+                aria-label="Reviewing..."
+                classNames={{
+                  value: cn('mx-auto font-bold'),
+                  indicator: `
+                    bg-linear-[-45deg,hsl(var(--heroui-primary-600))_15%,hsl(var(--heroui-primary))_15%,hsl(var(--heroui-primary))_30%,hsl(var(--heroui-primary-600))_30%,hsl(var(--heroui-primary-600))_45%,hsl(var(--heroui-primary))_45%,hsl(var(--heroui-primary))_60%,hsl(var(--heroui-primary-600))_60%,hsl(var(--heroui-primary-600))_75%,hsl(var(--heroui-primary))_75%,hsl(var(--heroui-primary))_90%,hsl(var(--heroui-primary-600))_90%]
+                  `,
+                }}
+                showValueLabel={true}
+                size="lg"
+                value={completePercentage}
+              />
+            )
+          : stage === 'review-overview'
+            ? <ReviewOverview />
+            : stage === 'review-moves'
+              ? <ReviewMoves />
+              : null}
+    </div>
+  );
+}
+
+========== .\external\chess-game-review\src\components\controls\ReviewOverview.tsx ==========
+
+import { Button } from '@heroui/react';
+import { useMemo } from 'react';
+
+import MoveClassification from '../../icons/move-classifications/MoveClassification';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useEvalStore } from '../../stores/useEvalStore';
+import { useStageStore } from '../../stores/useStageStore';
+import capitalize from '../../utils/capitalize';
+import { chooseTextColor } from '../../utils/chooseColorFromClassification';
+import cn from '../../utils/cn';
+import useNames from '../../utils/useNames';
+import EvalGraph from './EvalGraph';
+
+import type { Classification } from '../../utils/classify';
+
+export default function ReviewOverview() {
+  const [wName, bName] = useNames();
+  const currentMoveNum = useBoardStore(state => state.currentMoveNum);
+  const toNextMove = useBoardStore(state => state.toNextMove);
+  const accuracy = useEvalStore(state => state.accuracy);
+  const classHistory = useEvalStore(state => state.classHistory);
+
+  const record = useMemo(() => {
+    // [white, black]
+    const record = {
+      best: [0, 0],
+      excellent: [0, 0],
+      good: [0, 0],
+      book: [0, 0],
+      inaccuracy: [0, 0],
+      mistake: [0, 0],
+      blunder: [0, 0],
+      forced: [0, 0],
+    };
+
+    for (let i = 0; i < classHistory.length; i++) {
+      const cl = classHistory[i];
+
+      if (i % 2 === 0) {
+        record[cl] = [
+          record[cl][0] + 1,
+          record[cl][1],
+        ];
+      }
+      else {
+        record[cl] = [
+          record[cl][0],
+          record[cl][1] + 1,
+        ];
+      }
+    }
+
+    return record;
+  }, [classHistory]);
+
+  const setStage = useStageStore(state => state.setStage);
+
+  return (
+    <div className="flex flex-col gap-4 text-small" id="ReviewOverview">
+      <EvalGraph />
+      <div className="flex flex-col gap-2" id="accuracy">
+        <div className={`
+          grid grid-cols-[100px_1fr_24px_1fr] items-center gap-4
+          *:w-full
+        `}
+        >
+          <p className="text-foreground-500">Players</p>
+          <p className="truncate text-center font-bold">{wName}</p>
+          <span className="invisible text-[1px]">purposefully blank space</span>
+          <p className="truncate text-center font-bold">{bName}</p>
+        </div>
+        <div className="grid grid-cols-[100px_1fr_24px_1fr] items-center gap-4">
+          <p className="text-foreground-500">Accuracy</p>
+          <p className={`
+            inline-block justify-self-center rounded bg-white px-3 py-2 text-lg
+            font-bold text-background
+          `}
+          >
+            {accuracy[0]}
+          </p>
+          <span className="invisible text-[1px]">purposefully blank space</span>
+          <p className={`
+            inline-block justify-self-center rounded bg-default-100 px-3 py-2
+            text-lg font-bold
+          `}
+          >
+            {accuracy[1]}
+          </p>
+        </div>
+      </div>
+      <hr className="border-default-200" />
+      <div className="flex flex-col gap-4">
+        {Object.entries(record).map(([classification, counts], i) => {
+          const cl = classification as Classification;
+          if (cl === 'forced')
+            return null;
+
+          return (
+            <div
+              className="grid grid-cols-[100px_1fr_24px_1fr] items-center gap-4"
+              key={i}
+            >
+              <p className="text-foreground-500">{capitalize(cl)}</p>
+              <p className={cn(
+                'justify-self-center text-base font-bold',
+                chooseTextColor(cl),
+              )}
+              >
+                {counts[0]}
+              </p>
+              <MoveClassification classification={cl} />
+              <p className={cn(
+                'justify-self-center text-base font-bold',
+                chooseTextColor(cl),
+              )}
+              >
+                {counts[1]}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+      <Button
+        className="h-12 text-medium font-bold text-shadow-xs"
+        color="primary"
+        fullWidth
+        onPress={() => {
+          setStage('review-moves');
+          if (currentMoveNum === 0)
+            toNextMove();
+        }}
+        radius="sm"
+      >
+        Start Review
+      </Button>
+    </div>
+  );
+}
+
+========== .\external\chess-game-review\src\components\controls\ReviewMoves.tsx ==========
+
+import { Button } from '@heroui/react';
+import { Icon } from '@iconify/react/dist/iconify.js';
+import { DEFAULT_POSITION } from 'chess.js';
+import { useEffect, useMemo, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+
+import MoveClassification from '../../icons/move-classifications/MoveClassification';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { formatCp, useEvalStore } from '../../stores/useEvalStore';
+import { chooseTextColor } from '../../utils/chooseColorFromClassification';
+import cn from '../../utils/cn';
+import lanToSan from '../../utils/lanToSan';
+import makePair from '../../utils/makePair';
+import EvalGraph from './EvalGraph';
+
+import type { Move } from 'chess.js';
+
+export default function ReviewMoves() {
+  const {
+    currentGame,
+    currentMoveNum,
+    isFlipped,
+  } = useBoardStore(useShallow(state => ({
+    currentGame: state.currentGame,
+    currentMoveNum: state.currentMoveNum,
+    isFlipped: state.isFlipped,
+  })));
+
+  const history = currentGame.history({ verbose: true });
+  const fens = [DEFAULT_POSITION, ...history.map(move => move.after)];
+
+  const {
+    best3MovesWithClass,
+    cps,
+    classHistory,
+    openingNames,
+  } = useEvalStore(useShallow(state => ({
+    best3MovesWithClass: state.best3MovesWithClass,
+    cps: state.cps,
+    classHistory: state.classHistory,
+    openingNames: state.openingNames,
+  })));
+
+  const historyPairs = makePair(history);
+  const currentMove = history[currentMoveNum - 1];
+  const classification = classHistory[currentMoveNum - 1];
+  const advs = cps.map(formatCp);
+  const adv = (advs.length === 0) ? '0.0' : advs[currentMoveNum];
+
+  const whiteHasAdv = useMemo(() => {
+    let whiteHasAdv: boolean;
+
+    if (typeof cps[currentMoveNum] === 'number') {
+      whiteHasAdv = cps[currentMoveNum] >= 0;
+    }
+    else {
+      whiteHasAdv = cps[currentMoveNum].startsWith('+') || cps[currentMoveNum] === '1-0';
+    }
+
+    return whiteHasAdv;
+  }, [currentMoveNum]);
+
+  const result = currentGame.header().Result;
+
+  return (
+    <div className="grid h-full grid-rows-[auto_auto_auto_1fr_80px] gap-3" id="ReviewMoves">
+      <div className="flex flex-col gap-1">
+        {currentMoveNum > 0 && (
+          <p className="flex justify-between gap-2">
+            <span>
+              <MoveClassification
+                classification={classification}
+                className="mr-1 inline-block"
+              />
+              <span className="font-bold">
+                {currentMove.san}
+              </span>
+              {' '}
+              is
+              {' '}
+              {classification === 'book'
+                ? 'a book move'
+                : classification === 'inaccuracy'
+                  ? 'an inaccuracy'
+                  : ['blunder', 'mistake'].includes(classification)
+                      ? `a ${classification}`
+                      : classification}
+            </span>
+            <span
+              className={cn(
+                'rounded-sm px-2 py-1 text-center font-bold',
+                whiteHasAdv ? 'bg-foreground text-background' : 'bg-default-100',
+                adv === '1/2-1/2' ? 'w-20' : 'w-14',
+              )}
+            >
+              {(adv.startsWith('-') || adv.startsWith('+')) ? adv.slice(1) : adv}
+            </span>
+          </p>
+        )}
+        {best3MovesWithClass[currentMoveNum - 1]
+          ?.filter(move => move.pv !== currentMove.lan)
+          .map((move, i) => {
+            let adv;
+            const san = lanToSan(move.pv, currentMoveNum - 1, fens);
+
+            if (san.endsWith('#')) {
+              const moveEval = move.eval as string;
+              adv = moveEval.startsWith('+') ? '1-0' : '0-1';
+            }
+            else {
+              adv = formatCp(move.eval);
+            }
+
+            let whiteHasAdv: boolean;
+
+            if (typeof move.eval === 'number') {
+              whiteHasAdv = move.eval >= 0;
+            }
+            else {
+              whiteHasAdv = move.eval.startsWith('+');
+            }
+
+            return (
+              <div
+                className={`
+                  grid grid-cols-[90px_1fr] items-center justify-items-start
+                  gap-4 text-small
+                `}
+                key={i}
+              >
+                <p className="font-bold">
+                  <MoveClassification
+                    classification={move.classification}
+                    className="mr-1 inline-block size-5"
+                  />
+                  {san}
+                </p>
+                <p
+                  className={cn(
+                    'w-12 rounded-sm px-2 py-1 text-center font-bold',
+                    whiteHasAdv
+                      ? 'bg-foreground text-background'
+                      : `bg-default-100`,
+                  )}
+                >
+                  {(adv.startsWith('-') || adv.startsWith('+')) ? adv.slice(1) : adv}
+                </p>
+              </div>
+            );
+          })}
+      </div>
+      <p className="text-small text-foreground-500">{openingNames[currentMoveNum]}</p>
+      <div className="flex gap-4">
+        <a
+          className={`
+            flex w-fit gap-0 text-tiny text-foreground-500
+            hover:underline
+          `}
+          href={`https://www.chess.com/analysis?fen=${fens[currentMoveNum]}&flip=${isFlipped}`}
+          target="_blank"
+        >
+          <span>chess.com</span>
+          <Icon
+            className="text-small"
+            icon="material-symbols:arrow-outward-rounded"
+          />
+        </a>
+        <a
+          className={`
+            flex w-fit gap-0 text-tiny text-foreground-500
+            hover:underline
+          `}
+          href={`https://lichess.org/analysis/${fens[currentMoveNum]}`}
+          target="_blank"
+        >
+          <span>lichess</span>
+          <Icon
+            className="text-small"
+            icon="material-symbols:arrow-outward-rounded"
+          />
+        </a>
+      </div>
+      <div className="overflow-scroll">
+        <div className="flex flex-col">
+          {historyPairs.map((pair, i) => (
+            <div
+              className={cn(
+                `
+                  grid grid-cols-[40px_90px_90px] items-center
+                  justify-items-start gap-2 pl-2
+                `,
+                i % 2 === 1 && 'bg-default-100/50',
+              )}
+              key={i}
+            >
+              <p className="text-tiny text-foreground-500">
+                {i + 1}
+                .
+              </p>
+              <MoveButton move={pair[0]} pairIndex={i} />
+              {pair[1] && <MoveButton move={pair[1]} pairIndex={i} />}
+            </div>
+          ),
+          )}
+          <p className="p-2 text-tiny font-bold text-foreground-500">{result}</p>
+        </div>
+      </div>
+      <EvalGraph />
+    </div>
+  );
+}
+
+function MoveButton({ pairIndex, move }: { pairIndex: number; move: Move }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const currentMoveNum = useBoardStore(state => state.currentMoveNum);
+  const toMove = useBoardStore(state => state.toMove);
+  const classHistory = useEvalStore(state => state.classHistory);
+  let realIndex = pairIndex * 2 + 1;
+
+  if (move.color === 'b') {
+    realIndex += 1;
+  }
+
+  const classification = classHistory[realIndex - 1];
+
+  useEffect(() => {
+    if (currentMoveNum === realIndex) {
+      if (window.innerWidth >= 1024) {
+        ref.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [currentMoveNum]);
+
+  return (
+    <div className="relative">
+      {['inaccuracy', 'mistake', 'blunder'].includes(classification) && (
+        <MoveClassification
+          classification={classification}
+          className="absolute top-1.5 -left-5 size-5 cursor-pointer"
+          onClick={() => toMove(realIndex)}
+        />
+      )}
+      <Button
+        className={cn(
+          'min-w-0 justify-start rounded-[4px] px-2 font-bold',
+          currentMoveNum === realIndex && 'bg-default-200',
+          chooseTextColor(classification),
+        )}
+        disableAnimation
+        onPress={() => toMove(realIndex)}
+        radius="sm"
+        ref={ref}
+        size="sm"
+        variant="light"
+      >
+        {move.san}
+      </Button>
+    </div>
+  );
+}
+
+========== .\external\chess-game-review\src\components\controls\PGNForm.tsx ==========
+
+import { Button, Card, CardBody, CardFooter, Textarea } from '@heroui/react';
+import { DevTool } from '@hookform/devtools';
+import { Controller, useForm } from 'react-hook-form';
+
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useSelectGameStore } from '../../stores/useSelectGameStore';
+import { useStageStore } from '../../stores/useStageStore';
+import cn from '../../utils/cn';
+
+import type { SubmitHandler } from 'react-hook-form';
+
+interface Inputs {
+  pgn: string;
+}
+
+export default function PGNForm() {
+  const loadGame = useBoardStore(state => state.loadGame);
+  const submitGame = useSelectGameStore(state => state.submitGame);
+  const setStage = useStageStore(state => state.setStage);
+
+  const { handleSubmit, control, setError, formState } = useForm<Inputs>({
+    defaultValues: {
+      pgn: '',
+    },
+  });
+
+  const onSubmit: SubmitHandler<Inputs> = (data) => {
+    try {
+      loadGame(data.pgn);
+      submitGame();
+      setStage('loaded');
+    }
+    catch (error) {
+      const err = error as Error;
+
+      setError('pgn', {
+        type: 'pgn-parsing',
+        message: err.message,
+      });
+    }
+  };
+
+  return (
+    <Card
+      classNames={{
+        base: cn('rounded-small bg-content2'),
+        header: 'text-sm',
+        body: 'p-0',
+        footer: 'p-0 rounded-none',
+      }}
+      fullWidth
+      shadow="none"
+    >
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <CardBody className="p-0 text-small text-default-400">
+          <Controller
+            control={control}
+            name="pgn"
+            render={({ field }) => (
+              <Textarea
+                classNames={{
+                  inputWrapper: 'rounded-none',
+                }}
+                errorMessage={formState.errors.pgn?.message}
+                isInvalid={Boolean(formState.errors.pgn)}
+                label="PGN"
+                maxRows={3}
+                minRows={1}
+                {...field}
+              />
+            )}
+          />
+        </CardBody>
+        <CardFooter>
+          <Button
+            className="font-semibold text-shadow-xs"
+            color="primary"
+            disableAnimation
+            fullWidth
+            isDisabled={!formState.isDirty || !formState.isValid}
+            radius="none"
+            type="submit"
+          >
+            Add Game
+          </Button>
+        </CardFooter>
+        {import.meta.env.PROD || <DevTool control={control} />}
+      </form>
+    </Card>
+  );
+}
+
+========== .\external\chess-game-review\src\components\controls\ChessSiteForm.tsx ==========
+
+import { Button, Input } from '@heroui/react';
+import { DevTool } from '@hookform/devtools';
+import { Controller, useForm } from 'react-hook-form';
+
+import useLocalStorage from '../../hooks/useLocalStorage';
+import { useSelectGameStore } from '../../stores/useSelectGameStore';
+import { useStageStore } from '../../stores/useStageStore';
+
+import type { Site } from '../../stores/useSelectGameStore';
+import type { SubmitHandler } from 'react-hook-form';
+
+interface Inputs {
+  username: string;
+}
+
+export default function ChessSiteForm({ site }: { site: Site }) {
+  const submitUsername = useSelectGameStore(state => state.submitUsername);
+  const setStage = useStageStore(state => state.setStage);
+  const { item: lastUsername, set } = useLocalStorage(`${site}-username`);
+  const { handleSubmit, control, formState, watch } = useForm<Inputs>({ defaultValues: { username: lastUsername || '' } });
+
+  const onSubmit: SubmitHandler<Inputs> = (data) => {
+    submitUsername(data.username, site);
+    set(`${site}-username`, data.username);
+    setStage('select-month');
+  };
+
+  return (
+    <form className="flex gap-1" onSubmit={handleSubmit(onSubmit)}>
+      <Controller
+        control={control}
+        name="username"
+        render={({ field }) => (
+          <Input
+            {...field}
+            label="Username"
+            size="sm"
+          />
+        )}
+      />
+      <Button
+        className="h-12 font-semibold text-shadow-xs"
+        color="primary"
+        isDisabled={watch('username') === '' || !formState.isValid}
+        radius="sm"
+        type="submit"
+      >
+        Submit
+      </Button>
+      {import.meta.env.PROD || <DevTool control={control} />}
+    </form>
+  );
+}
+
+========== .\external\chess-game-review\index.html ==========
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/star.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Game Review</title>
+  </head>
+  <body class="bg-default-50 text-foreground dark">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script src="/stockfish-nnue.wasm/stockfish.js"></script>
+  </body>
+</html>
+
+========== .\external\chess-game-review\tailwind.config.js ==========
+
+/** @type {import('tailwindcss').Config} */
+import { heroui } from '@heroui/react';
+import defaultTheme from 'tailwindcss/defaultTheme';
+
+export default {
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+    './node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}',
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', ...defaultTheme.fontFamily.sans],
+      },
+      screens: {
+        xs: '400px',
+        ...defaultTheme.screens,
+      },
+      colors: {
+        lightGreen: '#ebecd0',
+        darkGreen: '#739552',
+        lightBrown: '#edd6b0',
+        darkBrown: '#b88762',
+        lightIce: '#c5d5dc',
+        darkIce: '#7a9db2',
+        highlight: 'hsl(60 100% 60% / 50%)',
+        best: '#81B64C',
+        excellent: '#81B64C',
+        good: '#95b776',
+        inaccuracy: '#F7C631',
+        mistake: '#FFA459',
+        blunder: '#FA412D',
+        book: '#D5A47D',
+        forced: '#96AF8B',
+        miss: '#FF7769',
+        great: '#749BBF',
+        brilliant: '#26C2A3',
+      },
+    },
+  },
+  darkMode: 'class',
+  plugins: [heroui({
+    themes: {
+      light: {
+        colors: {
+          primary: {
+            DEFAULT: '#81B64C',
+            50: '#EEFAE4',
+            100: '#D7EAC5',
+            200: '#BEDAA2',
+            300: '#A5CB7F',
+            400: '#8CBD5C',
+            500: '#81B64C',
+            600: '#587F33',
+            700: '#3F5B23',
+            800: '#243712',
+            900: '#091400',
+          },
+        },
+      },
+      dark: {
+        colors: {
+          primary: {
+            DEFAULT: '#81B64C',
+            50: '#EEFAE4',
+            100: '#D7EAC5',
+            200: '#BEDAA2',
+            300: '#A5CB7F',
+            400: '#8CBD5C',
+            500: '#81B64C',
+            600: '#587F33',
+            700: '#3F5B23',
+            800: '#243712',
+            900: '#091400',
+          },
+        },
+      },
+    },
+    layout: {
+      radius: {
+        small: '6px',
+        medium: '9px',
+        large: '12px',
+      },
+    },
+  })],
+};
+
+========== STOCKFISH AND PUBLIC ASSETS ==========
+
+
+FullName                                                                                                                
+--------                                                                                                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\gradient.png                                       
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\star.svg                                           
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\_headers                                           
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\boards\brown.png                                   
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\boards\green.png                                   
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\boards\ice.png                                     
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\classic\bb.png                              
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\classic\bk.png                              
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\classic\bn.png                              
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\classic\bp.png                              
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\classic\bq.png                              
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\classic\br.png                              
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\classic\wb.png                              
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\classic\wk.png                              
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\classic\wn.png                              
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\classic\wp.png                              
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\classic\wq.png                              
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\classic\wr.png                              
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\neo\bb.png                                  
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\neo\bk.png                                  
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\neo\bn.png                                  
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\neo\bp.png                                  
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\neo\bq.png                                  
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\neo\br.png                                  
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\neo\wb.png                                  
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\neo\wk.png                                  
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\neo\wn.png                                  
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\neo\wp.png                                  
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\neo\wq.png                                  
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\neo\wr.png                                  
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\ocean\bb.png                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\ocean\bk.png                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\ocean\bn.png                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\ocean\bp.png                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\ocean\bq.png                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\ocean\br.png                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\ocean\wb.png                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\ocean\wk.png                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\ocean\wn.png                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\ocean\wp.png                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\ocean\wq.png                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\pieces\ocean\wr.png                                
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\stockfish-nnue.wasm\AUTHORS                        
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\stockfish-nnue.wasm\Copying.txt                    
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\stockfish-nnue.wasm\package.json                   
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\stockfish-nnue.wasm\stockfish-no-embedded-nnue.wasm
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\stockfish-nnue.wasm\stockfish.js                   
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\stockfish-nnue.wasm\stockfish.wasm                 
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\stockfish-nnue.wasm\stockfish.worker.js            
+D:\chess\BookChess\ChessBookReader\external\chess-game-review\public\stockfish-nnue.wasm\uci.js                         
+
+
+

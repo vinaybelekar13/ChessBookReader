@@ -1,0 +1,548 @@
+========== BACKEND ROUTE FILE ==========
+
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\applications.py
+LineNumber : 896
+Line       :         ] = webhooks or routing.APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\applications.py
+LineNumber : 932
+Line       :         self.router: routing.APIRouter = routing.APIRouter(
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\applications.py
+LineNumber : 1255
+Line       :     def include_router(
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\applications.py
+LineNumber : 1294
+Line       :                 app.include_router(
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\applications.py
+LineNumber : 1335
+Line       :                 app.include_router(
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\applications.py
+LineNumber : 1361
+Line       :                 app.include_router(
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\applications.py
+LineNumber : 1389
+Line       :                 app.include_router(
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\applications.py
+LineNumber : 1444
+Line       :         app.include_router(users_router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\applications.py
+LineNumber : 1447
+Line       :         self.router.include_router(
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 595
+Line       : class APIRouter(routing.Router):
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 610
+Line       :     router = APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 618
+Line       :     app.include_router(router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 1092
+Line       :         router = APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 1101
+Line       :         app.include_router(router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 1122
+Line       :     def include_router(
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 1246
+Line       :         internal_router = APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 1247
+Line       :         users_router = APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 1253
+Line       :         internal_router.include_router(users_router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 1254
+Line       :         app.include_router(internal_router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 1707
+Line       :         router = APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 1713
+Line       :         app.include_router(router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 2089
+Line       :         router = APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 2095
+Line       :         app.include_router(router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 2471
+Line       :         router = APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 2477
+Line       :         app.include_router(router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 2848
+Line       :         router = APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 2854
+Line       :         app.include_router(router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 3225
+Line       :         router = APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 3231
+Line       :         app.include_router(router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 3607
+Line       :         router = APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 3613
+Line       :         app.include_router(router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 3989
+Line       :         router = APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 3995
+Line       :         app.include_router(router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 4371
+Line       :         router = APIRouter()
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\.venv-ocr\Lib\site-packages\fastapi\routing.py
+LineNumber : 4377
+Line       :         app.include_router(router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\app\lichess_oauth.py
+LineNumber : 18
+Line       : router = APIRouter(prefix="/api/lichess", tags=["Lichess OAuth"])
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\app\lichess_oauth.py
+LineNumber : 22
+Line       : LICHESS_EXPLORER = "https://explorer.lichess.ovh/lichess"
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\app\lichess_oauth.py
+LineNumber : 289
+Line       : @router.get("/opening-explorer")
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\app\lichess_oauth.py
+LineNumber : 308
+Line       :     result = _get_json(LICHESS_EXPLORER + "?" + query, session[1]["token"])
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\app\main.py
+LineNumber : 41
+Line       : app.include_router(lichess_oauth_router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-20261026-002326\lichess_oauth.py
+LineNumber : 18
+Line       : router = APIRouter(prefix="/api/lichess", tags=["Lichess OAuth"])
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-20261026-002326\lichess_oauth.py
+LineNumber : 22
+Line       : LICHESS_EXPLORER = "https://explorer.lichess.ovh/lichess"
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-20261026-002326\lichess_oauth.py
+LineNumber : 239
+Line       : @router.get("/opening-explorer")
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-20261026-002326\lichess_oauth.py
+LineNumber : 258
+Line       :     result = _get_json(LICHESS_EXPLORER + "?" + query, session[1]["token"])
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-20261026-002326\main.py
+LineNumber : 22
+Line       : app.include_router(lichess_oauth_router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-final-20261026-002410\lichess_oauth.py
+LineNumber : 18
+Line       : router = APIRouter(prefix="/api/lichess", tags=["Lichess OAuth"])
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-final-20261026-002410\lichess_oauth.py
+LineNumber : 22
+Line       : LICHESS_EXPLORER = "https://explorer.lichess.ovh/lichess"
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-final-20261026-002410\lichess_oauth.py
+LineNumber : 239
+Line       : @router.get("/opening-explorer")
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-final-20261026-002410\lichess_oauth.py
+LineNumber : 258
+Line       :     result = _get_json(LICHESS_EXPLORER + "?" + query, session[1]["token"])
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-final-20261026-002410\main.py
+LineNumber : 22
+Line       : app.include_router(lichess_oauth_router)
+Context    : Microsoft.PowerShell.Commands.MatchInfoContext
+
+
+
+
+
+========== ANALYSIS BOARD JSX INSERTION POINT ==========
+          </svg>
+        </div>
+        <button className="icon-button library-toggle" aria-label="Toggle library" onMouseEnter={() => setLibraryOpen(true)} onClick={() => setLibraryOpen((value) => !value)}>&#9776;</button>
+        <div className="brand-name">ChessBook <span>Reader</span></div>
+        <div className="top-divider" />
+        <div className="current-book" title={book?.title ?? "No book open"}>
+          <span className="book-dot" />
+          <strong>{book?.title ?? "No book open"}</strong>
+          {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+        </div>
+        <div className="top-spacer" />
+        <span className="storage-label"><i /> LOCAL LIBRARY</span>
+        <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+      </header>
+
+      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+        {libraryOpen && (
+          <aside className="library-panel">
+            <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+            <input
+              ref={fileInput}
+              className="hidden-input"
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={(event) => void addBook(event.target.files?.[0])}
+            />
+            <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+            <nav className="library-nav" aria-label="Library sections">
+                            <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+              <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+              <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+              <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+
+
+
+</nav>
+            <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+            <div className="book-list">
+                {visibleBooks.map((item, index) => {
+                  const saved = sessionIndex[item.id];
+                  const progress = saved?.pageCount ? Math.min(100, Math.round((saved.page / saved.pageCount) * 100)) : 0;
+                  return (
+                    <div key={item.id} className={`book-row ${book?.id === item.id ? "active" : ""}`}>
+                      <button className="book-open" onClick={() => void openBook(item)} aria-label={`Open ${item.title}`}>
+                        <div className="book-cover"><span><BookOpenText size={16} aria-hidden="true" /></span><small>{index + 1}</small></div>
+                        <span className="book-meta"><strong>{item.title}</strong><small>Page {saved?.page ?? 1}{saved?.pageCount ? ` of ${saved.pageCount}` : ""} ? {readableDate(item.lastOpenedAt)}</small><span className="progress-track"><i style={{ width: `${progress}%` }} /></span></span>
+                      </button>
+                      <button type="button" className="book-delete-button" title={"Delete " + item.title} aria-label={"Delete " + item.title} onClick={(event) => { event.stopPropagation(); void deleteBook(item); }}>&#215;</button>
+                      <details className="book-menu"><summary aria-label={`Options for ${item.title}`}>&#8942;</summary><div className="book-menu-items"><button onClick={() => void renameBook(item)}>Rename</button><button onClick={() => void deleteBook(item)}>Delete book</button></div></details>
+                    </div>
+                  );
+                })}
+                {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+              </div>
+            <section className="sidebar-moves-panel" aria-label="Move list">
+<div className="moves-panel">
+            <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+              if (!session) return;
+              patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+              setLastMove(null);
+              setNotice("New analysis line started from the current position.");
+            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+            </div>
+          </div>
+            </section>
+            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+          </aside>
+        )}
+
+        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+        <section className="board-panel" aria-label="Chessboard analysis">
+          <div className="board-header">
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div className="board-header-actions">
+              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+            </div>
+          </div>
+                      />
+                    );
+                  })}
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div className="board-controls">
+            <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+            <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+            <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+            <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+            <span className="controls-separator" />
+            <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+            <span className="controls-spacer" />
+            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+            <button title="Paste PGN notation" onClick={pastePgn}><FileCode2 size={15} aria-hidden="true" /> Paste PGN</button>
+            <button title="Import a PGN file" onClick={() => document.getElementById("pgn-import-input")?.click()}><FileCode2 size={15} aria-hidden="true" /> Import PGN</button>
+            <input
+              id="pgn-import-input"
+              type="file"
+              accept=".pgn,text/plain"
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void importPgnFile(file);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          <div className="turn-row">
+            <span>TO MOVE</span>
+            <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "w");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+            <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "b");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+            <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+          </div>
+          <details className="position-editor">
+            <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+            <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+          </details>
+          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+        </section>
+
+        <section className="reader-panel" aria-label="PDF book reader">
+          <div className="opening-explorer-right-workspace">
+          {workspaceMode === "opening-explorer" && (
+            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+              <h3>Opening Explorer</h3>
+              <div className="lichess-connection-controls">
+                {lichessStatus?.connected ? (
+                <div className="page-scroll-hint">Drag over the page to mark a diagram ? {currentCandidates.length} regions</div>
+              </div>
+            )}
+          </div>
+          <div className="reader-footer">
+            <div className="diagram-strip"><span className="strip-label">DIAGRAMS</span>{currentCandidates.length ? currentCandidates.map((candidate, index) => <button key={candidate.id} className={candidate.id === session?.selectedDiagramId ? "strip-selected" : ""} onClick={() => selectCandidate(candidate)} aria-label={`Select diagram ${index + 1}`}>{index + 1}</button>) : <span className="muted">None detected on this page</span>}</div>
+            {currentDiagram && <div className="crop-actions">
+              {cropEditingId === currentDiagram.id && <button onClick={resetSelectedCrop}>Reset crop</button>}
+              <button onClick={() => adjustSelectedCrop(currentDiagram)}>{cropEditingId === currentDiagram.id ? "Adjusting?" : "Adjust Crop"}</button>
+              <button className="green-button" onClick={() => void openTransfer(currentDiagram)}>Recognize Pieces</button>
+              <button onClick={cancelCandidateSelection}>Cancel</button>
+            </div>}
+            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+          </div>
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+
+========== CSS END ==========
+  .gr-live-game-card { padding:12px; }
+  .gr-live-player strong { font-size:11px; }
+  .gr-live-meta { font-size:9px; }
+  .gr-live-move-row { grid-template-columns:38px 1fr 90px 55px; }
+  .gr-live-move-row > span:nth-last-child(2) { display:none; }
+  .gr-live-current-eval { flex-wrap:wrap; }
+}
+
+/* CHESS.COM REVIEW REBUILD - WORKSPACE FOUNDATION */
+.workspace.game-review-active {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace.game-review-active > .game-review-page {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.workspace.game-review-active > .library-panel {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .workspace.game-review-active {
+    grid-template-columns: minmax(0, 1fr) !important;
+    overflow: auto;
+  }
+
+  .workspace.game-review-active > .game-review-page {
+    height: auto;
+    min-height: 100%;
+  }
+}
+/* END CHESS.COM REVIEW WORKSPACE FOUNDATION */
+
+/* ChessBook Reader - animated knight brand mark */
+.brand-mark {
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
+}
+
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  z-index: -1;
+  background: radial-gradient(circle, rgba(139, 195, 74, 0.25), transparent 65%);
+  animation: chessbook-brand-glow 3.6s ease-in-out infinite;
+}
+
+.brand-mark-icon {
+  width: 23px;
+  height: 23px;
+  fill: var(--green-primary);
+  stroke: var(--green-primary);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  overflow: visible;
+  animation: chessbook-knight-float 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 3px rgba(139, 195, 74, 0.28));
+}
+
+.brand-mark-icon path:nth-child(2),
+.brand-mark-icon path:nth-child(4) {
+  fill: none;
+  stroke: #d9f2b7;
+  stroke-width: 1.5;
+}
+
+.brand-mark-icon circle {
+  fill: #eaffd4;
+  stroke: none;
+}
+
+@keyframes chessbook-knight-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(-3deg); }
+}
+
+@keyframes chessbook-brand-glow {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark::after,
+  .brand-mark-icon {
+    animation: none !important;
+  }
+}

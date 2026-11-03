@@ -1,0 +1,772 @@
+﻿=== ALL EXTERNAL SOURCE IMPORTS ===
+
+--- src\components\board\Arrow.tsx ---
+import getArrow from '../../utils/getArrow';
+import tableToPoints from '../../utils/tableToPoints';
+import type { Square } from 'chess.js';
+
+--- src\components\board\Arrows.tsx ---
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useEvalStore } from '../../stores/useEvalStore';
+import { useManualHighlightStore } from '../../stores/useManualHighlightStore';
+import { useStageStore } from '../../stores/useStageStore';
+import getArrow from '../../utils/getArrow';
+import Arrow from './Arrow';
+import type { Square } from 'chess.js';
+
+--- src\components\board\Board.tsx ---
+import { useEffect } from 'react';
+import { mountStoreDevtool } from 'simple-zustand-devtools';
+import { useShallow } from 'zustand/react/shallow';
+import useSoundFx from '../../hooks/useSoundFx';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useEvalStore } from '../../stores/useEvalStore';
+import { useManualHighlightStore } from '../../stores/useManualHighlightStore';
+import { useSelectGameStore } from '../../stores/useSelectGameStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
+import { useStageStore } from '../../stores/useStageStore';
+import { useStockfishOutputStore } from '../../stores/useStockfishOutputStore';
+import Arrows from './Arrows';
+import Coors from './Coors';
+import EndgameBadges from './EndgameBadges';
+import EvalBar from './EvalBar';
+import Highlight from './Highlight';
+import MoveClassificationBadges from './MoveClassificationBadges';
+import Pieces from './Pieces';
+import PlayerBadge from './PlayerBadge';
+
+--- src\components\board\CapturedGroup.tsx ---
+import { nanoid } from 'nanoid';
+import type { Capturable } from '../../utils/getCaptured';
+import type { Color } from 'chess.js';
+
+--- src\components\board\Coors.tsx ---
+import { SQUARES } from 'chess.js';
+import { Chess, type Square } from 'chess.js';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
+import cn from '../../utils/cn';
+import translatePiece from '../../utils/translatePiece';
+
+--- src\components\board\EndgameBadges.tsx ---
+import useEndgameBadges from '../../hooks/useEndgameBadges';
+import useKingSquares from '../../hooks/useKingSquares';
+import useResult from '../../hooks/useResult';
+import { useBoardStore } from '../../stores/useBoardStore';
+import translatePiece from '../../utils/translatePiece';
+
+--- src\components\board\EvalBar.tsx ---
+import { motion } from 'framer-motion';
+import { useMemo } from 'react';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { formatCp, useEvalStore } from '../../stores/useEvalStore';
+import cn from '../../utils/cn';
+
+--- src\components\board\Highlight.tsx ---
+import { useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useEvalStore } from '../../stores/useEvalStore';
+import { useManualHighlightStore } from '../../stores/useManualHighlightStore';
+import { chooseHighlightColor } from '../../utils/chooseColorFromClassification';
+import cn from '../../utils/cn';
+import translatePiece from '../../utils/translatePiece';
+
+--- src\components\board\MoveClassificationBadges.tsx ---
+import { useShallow } from 'zustand/react/shallow';
+import MoveClassification from '../../icons/move-classifications/MoveClassification';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useEvalStore } from '../../stores/useEvalStore';
+import badgeStyle from '../../utils/badgeStyle';
+import translatePiece from '../../utils/translatePiece';
+
+--- src\components\board\Pieces.tsx ---
+import { Chess } from 'chess.js';
+import { motion } from 'framer-motion';
+import { useShallow } from 'zustand/react/shallow';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
+import translatePiece from '../../utils/translatePiece';
+import type { Color, PieceSymbol, Square } from 'chess.js';
+
+--- src\components\board\PlayerBadge.tsx ---
+import { Icon } from '@iconify/react/dist/iconify.js';
+import { Chess } from 'chess.js';
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import { useMemo } from 'react';
+import useLoser from '../../hooks/useLoser';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useSelectGameStore } from '../../stores/useSelectGameStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
+import cn from '../../utils/cn';
+import { dailyIncrementRegex, mainTimeRegex } from '../../utils/formatTimeControl';
+import formatTimestamp from '../../utils/formatTimestamp';
+import getCaptured from '../../utils/getCaptured';
+import getDiff from '../../utils/getDiff';
+import isChessCom from '../../utils/isChessCom';
+import useNames from '../../utils/useNames';
+import CapturedGroup from './CapturedGroup';
+import type { Capturable } from '../../utils/getCaptured';
+import type { Color } from 'chess.js';
+
+--- src\components\controls\ChessSiteForm.tsx ---
+import { Button, Input } from '@heroui/react';
+import { DevTool } from '@hookform/devtools';
+import { Controller, useForm } from 'react-hook-form';
+import useLocalStorage from '../../hooks/useLocalStorage';
+import { useSelectGameStore } from '../../stores/useSelectGameStore';
+import { useStageStore } from '../../stores/useStageStore';
+import type { Site } from '../../stores/useSelectGameStore';
+import type { SubmitHandler } from 'react-hook-form';
+
+--- src\components\controls\Controls.tsx ---
+import { Helmet } from '@dr.pogodin/react-helmet';
+import { Button } from '@heroui/react';
+import { Icon } from '@iconify/react/dist/iconify.js';
+import { createPortal } from 'react-dom';
+import { useMediaQuery } from 'react-responsive';
+import { useShallow } from 'zustand/react/shallow';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useSelectGameStore } from '../../stores/useSelectGameStore';
+import { useStageStore } from '../../stores/useStageStore';
+import cn from '../../utils/cn';
+import useNames from '../../utils/useNames';
+import Forms from './Forms';
+import GameNav from './GameNav';
+import Games from './Games';
+import Months from './Months';
+import Review from './Review';
+
+--- src\components\controls\EvalGraph.tsx ---
+import { curveMonotoneX } from '@visx/curve';
+import { localPoint } from '@visx/event';
+import ParentSize from '@visx/responsive/lib/components/ParentSize';
+import { scaleLinear, scaleThreshold } from '@visx/scale';
+import { AreaClosed, Bar, Line } from '@visx/shape';
+import { TooltipWithBounds, defaultStyles, withTooltip } from '@visx/tooltip';
+import { bisector } from '@visx/vendor/d3-array';
+import { useCallback, useMemo } from 'react';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { formatCp, useEvalStore } from '../../stores/useEvalStore';
+import { useStageStore } from '../../stores/useStageStore';
+import { chooseFillColor, chooseStrokeColor } from '../../utils/chooseColorFromClassification';
+import type { WithTooltipProvidedProps } from '@visx/tooltip/lib/enhancers/withTooltip';
+
+--- src\components\controls\Forms.tsx ---
+import { Accordion, AccordionItem } from '@heroui/react';
+import useLocalStorage from '../../hooks/useLocalStorage';
+import ChessCom from '../../icons/game-src/ChessCom';
+import Lichess from '../../icons/game-src/Lichess';
+import Pgn from '../../icons/game-src/Pgn';
+import ChessSiteForm from './ChessSiteForm';
+import PGNForm from './PGNForm';
+
+--- src\components\controls\Game.tsx ---
+import { Card, CardBody } from '@heroui/react';
+import Result from '../../icons/result/Result';
+import TimeClass from '../../icons/time-class/TimeClass';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useSelectGameStore } from '../../stores/useSelectGameStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
+import { useStageStore } from '../../stores/useStageStore';
+import cn from '../../utils/cn';
+import convertLichessTimeClass from '../../utils/convertLichessTimeClass';
+import { formatChessComTimeControl, formatLichessTimeControl } from '../../utils/formatTimeControl';
+import getChessComResult from '../../utils/getChessComResult';
+import getLichessResult from '../../utils/getLichessResult';
+import isChessCom from '../../utils/isChessCom';
+import isChessComBotGame from '../../utils/isChessComBotGame';
+import isLichessAI from '../../utils/isLichessAI';
+import isLichessBotGame from '../../utils/isLichessBotGame';
+import type { ChessComGame, LichessAI, LichessGame, LichessPlayer } from '../../queries/useMonthlyArchives';
+
+--- src\components\controls\GameNav.tsx ---
+import { Button } from '@heroui/react';
+import { Icon } from '@iconify/react/dist/iconify.js';
+import { useHotkeys } from 'react-hotkeys-hook';
+import { useMediaQuery } from 'react-responsive';
+import { useShallow } from 'zustand/react/shallow';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useSelectGameStore } from '../../stores/useSelectGameStore';
+import { useStageStore } from '../../stores/useStageStore';
+import Settings from './Settings';
+
+--- src\components\controls\Games.tsx ---
+import { Accordion, AccordionItem, Button, Input, Select, SelectItem } from '@heroui/react';
+import { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import Result from '../../icons/result/Result';
+import TimeClass from '../../icons/time-class/TimeClass';
+import useMonthlyArchives from '../../queries/useMonthlyArchives';
+import { useSelectGameStore } from '../../stores/useSelectGameStore';
+import capitalize from '../../utils/capitalize';
+import convertLichessTimeClass from '../../utils/convertLichessTimeClass';
+import getChessComResult from '../../utils/getChessComResult';
+import getLichessResult from '../../utils/getLichessResult';
+import isChessCom from '../../utils/isChessCom';
+import isChessComBotGame from '../../utils/isChessComBotGame';
+import isLichessAI from '../../utils/isLichessAI';
+import isLichessBotGame from '../../utils/isLichessBotGame';
+import Loading from '../Loading';
+import Game from './Game';
+import type { TimeClassType } from '../../icons/time-class/TimeClass';
+import type { Color } from 'chess.js';
+import type { SubmitHandler } from 'react-hook-form';
+
+--- src\components\controls\Months.tsx ---
+import { Button } from '@heroui/react';
+import dayjs from 'dayjs';
+import objectSupport from 'dayjs/plugin/objectSupport';
+import { nanoid } from 'nanoid';
+import useGameArchives from '../../queries/useGameArchives';
+import { useSelectGameStore } from '../../stores/useSelectGameStore';
+import { useStageStore } from '../../stores/useStageStore';
+import cn from '../../utils/cn';
+import { getUnitFromLichessLink } from '../../utils/groupChessComLinksByYear';
+import Loading from '../Loading';
+
+--- src\components\controls\PGNForm.tsx ---
+import { Button, Card, CardBody, CardFooter, Textarea } from '@heroui/react';
+import { DevTool } from '@hookform/devtools';
+import { Controller, useForm } from 'react-hook-form';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useSelectGameStore } from '../../stores/useSelectGameStore';
+import { useStageStore } from '../../stores/useStageStore';
+import cn from '../../utils/cn';
+import type { SubmitHandler } from 'react-hook-form';
+
+--- src\components\controls\Review.tsx ---
+import { Button, Progress } from '@heroui/react';
+import { useQueryClient } from '@tanstack/react-query';
+import { DEFAULT_POSITION } from 'chess.js';
+import { useCallback, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import useStockfish from '../../queries/useStockfish';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useEvalStore } from '../../stores/useEvalStore';
+import { useStageStore } from '../../stores/useStageStore';
+import { useStockfishOutputStore } from '../../stores/useStockfishOutputStore';
+import cn from '../../utils/cn';
+import Loading from '../Loading';
+import ReviewMoves from './ReviewMoves';
+import ReviewOverview from './ReviewOverview';
+
+--- src\components\controls\ReviewMoves.tsx ---
+import { Button } from '@heroui/react';
+import { Icon } from '@iconify/react/dist/iconify.js';
+import { DEFAULT_POSITION } from 'chess.js';
+import { useEffect, useMemo, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import MoveClassification from '../../icons/move-classifications/MoveClassification';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { formatCp, useEvalStore } from '../../stores/useEvalStore';
+import { chooseTextColor } from '../../utils/chooseColorFromClassification';
+import cn from '../../utils/cn';
+import lanToSan from '../../utils/lanToSan';
+import makePair from '../../utils/makePair';
+import EvalGraph from './EvalGraph';
+import type { Move } from 'chess.js';
+
+--- src\components\controls\ReviewOverview.tsx ---
+import { Button } from '@heroui/react';
+import { useMemo } from 'react';
+import MoveClassification from '../../icons/move-classifications/MoveClassification';
+import { useBoardStore } from '../../stores/useBoardStore';
+import { useEvalStore } from '../../stores/useEvalStore';
+import { useStageStore } from '../../stores/useStageStore';
+import capitalize from '../../utils/capitalize';
+import { chooseTextColor } from '../../utils/chooseColorFromClassification';
+import cn from '../../utils/cn';
+import useNames from '../../utils/useNames';
+import EvalGraph from './EvalGraph';
+import type { Classification } from '../../utils/classify';
+
+--- src\components\controls\Settings.tsx ---
+import { Button, Popover, PopoverContent, PopoverTrigger, Select, SelectItem, Switch } from '@heroui/react';
+import { Icon } from '@iconify/react/dist/iconify.js';
+import { useState } from 'react';
+import { useSettingsStore } from '../../stores/useSettingsStore';
+import capitalize from '../../utils/capitalize';
+import type { Board, Pieces } from '../../stores/useSettingsStore';
+
+--- src\components\Loading.tsx ---
+import { CircularProgress } from '@heroui/react';
+
+--- src\hooks\useEndgameBadges.tsx ---
+import Badge from '../icons/endgame-badges/Badge';
+import badgeStyle from '../utils/badgeStyle';
+import useLoser from './useLoser';
+import useResult from './useResult';
+import type { BlackBadge, WhiteBadge } from '../utils/endgameBadges';
+
+--- src\hooks\useKingSquares.ts ---
+import { useBoardStore } from '../stores/useBoardStore';
+
+--- src\hooks\useLoser.ts ---
+import { useBoardStore } from '../stores/useBoardStore';
+import useResult from './useResult';
+import type { Color } from 'chess.js';
+
+--- src\hooks\useResult.ts ---
+import { useBoardStore } from '../stores/useBoardStore';
+import { useStageStore } from '../stores/useStageStore';
+
+--- src\hooks\useSoundFx.ts ---
+import { Chess } from 'chess.js';
+import { useEffect } from 'react';
+import useSound from 'use-sound';
+import { useShallow } from 'zustand/react/shallow';
+import capture from '../sounds/capture.mp3';
+import castle from '../sounds/castle.mp3';
+import moveCheck from '../sounds/move-check.mp3';
+import moveSelf from '../sounds/move-self.mp3';
+import promote from '../sounds/promote.mp3';
+import { useBoardStore } from '../stores/useBoardStore';
+import type { Move } from 'chess.js';
+
+--- src\icons\endgame-badges\Abandoned.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\endgame-badges\Badge.tsx ---
+import Abandoned from './Abandoned';
+import CheckmateBlack from './CheckmateBlack';
+import CheckmateWhite from './CheckmateWhite';
+import DrawBlack from './DrawBlack';
+import DrawWhite from './DrawWhite';
+import ResignBlack from './ResignBlack';
+import ResignWhite from './ResignWhite';
+import TimeoutBlack from './TimeoutBlack';
+import TimeoutWhite from './TimeoutWhite';
+import Winner from './Winner';
+import type { BadgeType } from '../../utils/endgameBadges';
+import type { SVGProps } from 'react';
+
+--- src\icons\endgame-badges\CheckmateBlack.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\endgame-badges\CheckmateWhite.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\endgame-badges\DrawBlack.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\endgame-badges\DrawWhite.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\endgame-badges\ResignBlack.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\endgame-badges\ResignWhite.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\endgame-badges\TimeoutBlack.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\endgame-badges\TimeoutWhite.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\endgame-badges\Winner.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\game-src\ChessCom.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\game-src\Lichess.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\game-src\Pgn.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\move-classifications\Best.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\move-classifications\Blunder.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\move-classifications\Book.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\move-classifications\Brilliant.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\move-classifications\Excellent.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\move-classifications\Forced.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\move-classifications\Good.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\move-classifications\Great.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\move-classifications\Inaccuracy.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\move-classifications\Miss.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\move-classifications\Mistake.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\move-classifications\MoveClassification.tsx ---
+import Best from './Best';
+import Blunder from './Blunder';
+import Book from './Book';
+import Excellent from './Excellent';
+import Forced from './Forced';
+import Good from './Good';
+import Inaccuracy from './Inaccuracy';
+import Mistake from './Mistake';
+import type { Classification } from '../../utils/classify';
+import type { SVGProps } from 'react';
+
+--- src\icons\result\Draw.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\result\Lose.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\result\Result.tsx ---
+import Draw from './Draw';
+import Lose from './Lose';
+import Win from './Win';
+import type { SVGProps } from 'react';
+
+--- src\icons\result\Win.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\time-class\Blitz.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\time-class\Bot.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\time-class\Bullet.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\time-class\Daily.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\time-class\Rapid.tsx ---
+import type { SVGProps } from 'react';
+
+--- src\icons\time-class\TimeClass.tsx ---
+import Blitz from './Blitz';
+import Bot from './Bot';
+import Bullet from './Bullet';
+import Daily from './Daily';
+import Rapid from './Rapid';
+import type { SVGProps } from 'react';
+
+--- src\queries\useGameArchives.ts ---
+import { useQuery } from '@tanstack/react-query';
+import dayjs from 'dayjs';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import objectSupport from 'dayjs/plugin/objectSupport';
+import { useSelectGameStore } from '../stores/useSelectGameStore';
+import { groupChessComLinksByYear, groupLichessLinksByYear } from '../utils/groupChessComLinksByYear';
+
+--- src\queries\useMonthlyArchives.ts ---
+import { useQuery } from '@tanstack/react-query';
+import { useSelectGameStore } from '../stores/useSelectGameStore';
+import readStream from '../utils/nd-json';
+
+--- src\queries\useStockfish.ts ---
+import { useQuery } from '@tanstack/react-query';
+
+--- src\stores\useBoardStore.ts ---
+import { Chess } from 'chess.js';
+import { create } from 'zustand';
+
+--- src\stores\useEvalStore.ts ---
+import { DEFAULT_POSITION } from 'chess.js';
+import { create } from 'zustand';
+import openings from '../openings.tsv';
+import classify from '../utils/classify';
+import { useBoardStore } from './useBoardStore';
+import { type MoveEval, useStockfishOutputStore } from './useStockfishOutputStore';
+import type { Classification } from '../utils/classify';
+import type { Chess, Move } from 'chess.js';
+
+--- src\stores\useManualHighlightStore.ts ---
+import { create } from 'zustand';
+import type { Square } from 'chess.js';
+
+--- src\stores\useSelectGameStore.ts ---
+import { create } from 'zustand';
+import type { ChessComGame, LichessGame } from '../queries/useMonthlyArchives';
+
+--- src\stores\useSettingsStore.ts ---
+import { create } from 'zustand';
+import useLocalStorage from '../hooks/useLocalStorage';
+
+--- src\stores\useStageStore.ts ---
+import { create } from 'zustand';
+
+--- src\stores\useStockfishOutputStore.ts ---
+import { create } from 'zustand';
+import { useStageStore } from './useStageStore';
+
+--- src\test\setup.ts ---
+import { MotionGlobalConfig } from 'framer-motion';
+import { beforeAll } from 'vitest';
+import '@testing-library/jest-dom/vitest';
+
+--- src\utils\chooseColorFromClassification.ts ---
+import type { Classification } from './classify';
+
+--- src\utils\classify.ts ---
+import { Chess, DEFAULT_POSITION, type Move } from 'chess.js';
+import openings from '../openings.tsv';
+import lanToSan from './lanToSan';
+import type { MoveEvalMerged, MoveEvalWithClass } from '../stores/useEvalStore';
+import type { MoveEval } from '../stores/useStockfishOutputStore';
+
+--- src\utils\cn.ts ---
+import clsx from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import type { ClassValue } from 'clsx';
+
+--- src\utils\convertLichessTimeClass.ts ---
+import type { LichessGame } from '../queries/useMonthlyArchives';
+
+--- src\utils\formatTimeControl.ts ---
+import dayjs from 'dayjs';
+import type { ChessComGame, LichessGame } from '../queries/useMonthlyArchives'; // ES 2015
+
+--- src\utils\getArrow.ts ---
+import type { Square } from 'chess.js';
+
+--- src\utils\getCaptured.ts ---
+import type { Color, Move } from 'chess.js';
+
+--- src\utils\getChessComResult.ts ---
+import type { ChessComGame } from '../queries/useMonthlyArchives';
+
+--- src\utils\getDiff.ts ---
+import type { Capturable, Material } from './getCaptured';
+import type { Color, PieceSymbol, Square } from 'chess.js';
+
+--- src\utils\getLichessResult.ts ---
+import isLichessAI from './isLichessAI';
+import type { LichessGame } from '../queries/useMonthlyArchives';
+
+--- src\utils\groupChessComLinksByYear.ts ---
+import dayjs from 'dayjs';
+
+--- src\utils\isChessCom.ts ---
+import type { ChessComGame, LichessGame } from '../queries/useMonthlyArchives';
+
+--- src\utils\isChessComBotGame.ts ---
+import type { ChessComGame } from '../queries/useMonthlyArchives';
+
+--- src\utils\isLichessAI.ts ---
+import type { LichessAI, LichessPlayer } from '../queries/useMonthlyArchives';
+
+--- src\utils\isLichessBotGame.ts ---
+import isLichessAI from './isLichessAI';
+import type { LichessGame } from '../queries/useMonthlyArchives';
+
+--- src\utils\lanToSan.ts ---
+import { Chess } from 'chess.js';
+
+--- src\utils\translatePiece.ts ---
+import type { Square } from 'chess.js';
+
+--- src\utils\useNames.ts ---
+import { useBoardStore } from '../stores/useBoardStore';
+
+--- src\App.tsx ---
+import { Button } from '@heroui/react';
+import { useEffect } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import Board from './components/board/Board';
+import Controls from './components/controls/Controls';
+
+--- src\hero.ts ---
+import { heroui } from '@heroui/react';
+
+--- src\main.test.tsx ---
+import { test } from 'vitest';
+
+--- src\main.tsx ---
+import { HelmetProvider } from '@dr.pogodin/react-helmet';
+import { HeroUIProvider } from '@heroui/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
+
+--- src\useMockState.ts ---
+import { useEffect } from 'react';
+import { useBoardStore } from './stores/useBoardStore';
+import { useEvalStore } from './stores/useEvalStore';
+import { useSelectGameStore } from './stores/useSelectGameStore';
+import { useStageStore } from './stores/useStageStore';
+import { useStockfishOutputStore } from './stores/useStockfishOutputStore';
+import type { StockfishOutputStore } from './stores/useStockfishOutputStore';
+
+=== STOCKFISH SCRIPT HEADER ===
+
+var Stockfish = (function() {
+  var _scriptDir = typeof document !== 'undefined' && document.currentScript ? document.currentScript.src : undefined;
+  if (typeof __filename !== 'undefined') _scriptDir = _scriptDir || __filename;
+  return (
+function(Stockfish) {
+  Stockfish = Stockfish || {};
+
+
+function e(){h.buffer!=m&&q(h.buffer);return aa}function v(){h.buffer!=m&&q(h.buffer);return ba}function w(){h.buffer!=m&&q(h.buffer);return ca}function x(){h.buffer!=m&&q(h.buffer);return da}function ea(){h.buffer!=m&&q(h.buffer);return fa}null;var A;A||(A=typeof Stockfish !== 'undefined' ? Stockfish : {});var ha,ia;A.ready=new Promise(function(a,b){ha=a;ia=b});A.postCustomMessage=a=>{for(let b of B.Sa)b.postMessage({cmd:"custom",userData:a})};
+class ja{constructor(){this.Ya=null;this.Ta=[]}async get(){return 0<this.Ta.length?this.Ta.shift():await new Promise(a=>this.Ya=a)}put(a){this.Ya?(this.Ya(a),this.Ya=null):this.Ta.push(a)}}A.queue=new ja;A.onCustomMessage=a=>{A.queue.put(a)};A.postMessage=A.postCustomMessage;const ka=[];A.addMessageListener=a=>{ka.push(a)};A.removeMessageListener=a=>{a=ka.indexOf(a);0<=a&&ka.splice(a,1)};A.print=A.printErr=a=>{if(0===ka.length)console.log(a);else for(let b of ka)b(a)};A.terminate=()=>{B.bc()};
+var la={},C;for(C in A)A.hasOwnProperty(C)&&(la[C]=A[C]);var ma=[],na="./this.program";function oa(a,b){throw b;}var pa="object"===typeof window,E="function"===typeof importScripts,F="object"===typeof process&&"object"===typeof process.versions&&"string"===typeof process.versions.node,G=A.ENVIRONMENT_IS_PTHREAD||!1,H="";function qa(a){return A.locateFile?A.locateFile(a,H):H+a}var ra,sa,ta,K,L;
+if(F){H=E?require("path").dirname(H)+"/":__dirname+"/";ra=function(a,b){K||(K=require("fs"));L||(L=require("path"));a=L.normalize(a);return K.readFileSync(a,b?null:"utf8")};ta=function(a){a=ra(a,!0);a.buffer||(a=new Uint8Array(a));assert(a.buffer);return a};sa=function(a,b,c){K||(K=require("fs"));L||(L=require("path"));a=L.normalize(a);K.readFile(a,function(d,f){d?c(d):b(f.buffer)})};1<process.argv.length&&(na=process.argv[1].replace(/\\/g,"/"));ma=process.argv.slice(2);process.on("uncaughtException",
+function(a){if(!(a instanceof ua))throw a;});process.on("unhandledRejection",M);oa=function(a,b){if(va())throw process.exitCode=a,b;process.exit(a)};A.inspect=function(){return"[Emscripten Module object]"};var wa;try{wa=require("worker_threads")}catch(a){throw console.error('The "worker_threads" module is not supported in this node.js build - perhaps a newer version is needed?'),a;}global.Worker=wa.Worker}else if(pa||E)E?H=self.location.href:"undefined"!==typeof document&&document.currentScript&&
+(H=document.currentScript.src),_scriptDir&&(H=_scriptDir),0!==H.indexOf("blob:")?H=H.substr(0,H.lastIndexOf("/")+1):H="",F?(ra=function(a,b){K||(K=require("fs"));L||(L=require("path"));a=L.normalize(a);return K.readFileSync(a,b?null:"utf8")},ta=function(a){a=ra(a,!0);a.buffer||(a=new Uint8Array(a));assert(a.buffer);return a},sa=function(a,b,c){K||(K=require("fs"));L||(L=require("path"));a=L.normalize(a);K.readFile(a,function(d,f){d?c(d):b(f.buffer)})}):(ra=function(a){var b=new XMLHttpRequest;b.open("GET",
+a,!1);b.send(null);return b.responseText},E&&(ta=function(a){var b=new XMLHttpRequest;b.open("GET",a,!1);b.responseType="arraybuffer";b.send(null);return new Uint8Array(b.response)}),sa=function(a,b,c){var d=new XMLHttpRequest;d.open("GET",a,!0);d.responseType="arraybuffer";d.onload=function(){200==d.status||0==d.status&&d.response?b(d.response):c()};d.onerror=c;d.send(null)});F&&"undefined"===typeof performance&&(global.performance=require("perf_hooks").performance);
+var xa=A.print||console.log.bind(console),N=A.printErr||console.warn.bind(console);for(C in la)la.hasOwnProperty(C)&&(A[C]=la[C]);la=null;A.arguments&&(ma=A.arguments);A.thisProgram&&(na=A.thisProgram);A.quit&&(oa=A.quit);var ya,za;A.wasmBinary&&(za=A.wasmBinary);var noExitRuntime=A.noExitRuntime||!0;"object"!==typeof WebAssembly&&M("no native wasm support detected");var h,Aa,Ba=!1,Ca;function assert(a,b){a||M("Assertion failed: "+b)}
+function Da(a){var b=new TextDecoder(a);this.decode=function(c){c.buffer instanceof SharedArrayBuffer&&(c=new Uint8Array(c));return b.decode.call(b,c)}}var Ea="undefined"!==typeof TextDecoder?new Da("utf8"):void 0;
+function Fa(a,b,c){var d=b+c;for(c=b;a[c]&&!(c>=d);)++c;if(16<c-b&&a.subarray&&Ea)return Ea.decode(a.subarray(b,c));for(d="";b<c;){var f=a[b++];if(f&128){var g=a[b++]&63;if(192==(f&224))d+=String.fromCharCode((f&31)<<6|g);else{var k=a[b++]&63;f=224==(f&240)?(f&15)<<12|g<<6|k:(f&7)<<18|g<<12|k<<6|a[b++]&63;65536>f?d+=String.fromCharCode(f):(f-=65536,d+=String.fromCharCode(55296|f>>10,56320|f&1023))}}else d+=String.fromCharCode(f)}return d}function O(a){return a?Fa(v(),a,void 0):""}
+function Ga(a,b,c,d){if(!(0<d))return 0;var f=c;d=c+d-1;for(var g=0;g<a.length;++g){var k=a.charCodeAt(g);if(55296<=k&&57343>=k){var p=a.charCodeAt(++g);k=65536+((k&1023)<<10)|p&1023}if(127>=k){if(c>=d)break;b[c++]=k}else{if(2047>=k){if(c+1>=d)break;b[c++]=192|k>>6}else{if(65535>=k){if(c+2>=d)break;b[c++]=224|k>>12}else{if(c+3>=d)break;b[c++]=240|k>>18;b[c++]=128|k>>12&63}b[c++]=128|k>>6&63}b[c++]=128|k&63}}b[c]=0;return c-f}
+function Ha(a){for(var b=0,c=0;c<a.length;++c){var d=a.charCodeAt(c);55296<=d&&57343>=d&&(d=65536+((d&1023)<<10)|a.charCodeAt(++c)&1023);127>=d?++b:b=2047>=d?b+2:65535>=d?b+3:b+4}return b}"undefined"!==typeof TextDecoder&&new Da("utf-16le");function Ia(a){var b=Ha(a)+1,c=Ja(b);Ga(a,e(),c,b);return c}function Ka(a,b){e().set(a,b)}var m,aa,ba,La,ca,da,fa;G&&(m=A.buffer);
+function q(a){m=a;A.HEAP8=aa=new Int8Array(a);A.HEAP16=La=new Int16Array(a);A.HEAP32=ca=new Int32Array(a);A.HEAPU8=ba=new Uint8Array(a);A.HEAPU16=new Uint16Array(a);A.HEAPU32=da=new Uint32Array(a);A.HEAPF32=new Float32Array(a);A.HEAPF64=fa=new Float64Array(a)}var Ma=A.INITIAL_MEMORY||134217728;
+if(G)h=A.wasmMemory,m=A.buffer;else if(A.wasmMemory)h=A.wasmMemory;else if(h=new WebAssembly.Memory({initial:Ma/65536,maximum:32768,shared:!0}),!(h.buffer instanceof SharedArrayBuffer))throw N("requested a shared WebAssembly.Memory but the returned buffer is not a SharedArrayBuffer, indicating that while the browser has SharedArrayBuffer it does not have WebAssembly threads support - you may need to set a flag"),F&&console.log("(on node you may need: --experimental-wasm-threads --experimental-wasm-bulk-memory and also use a recent version)"),
+Error("bad memory");h&&(m=h.buffer);Ma=m.byteLength;q(m);var Na=[],Oa=[],Pa=[],Qa=[],Ra=0;function va(){return noExitRuntime||0<Ra}function Sa(){G||(A.noFSInit||P.nb.Rb||P.nb(),P.xc=!1,Ta(Oa))}function Ua(){var a=A.preRun.shift();Na.unshift(a)}var Va=0,Wa=null,Xa=null;function Ya(){Va++;A.monitorRunDependencies&&A.monitorRunDependencies(Va)}function Za(){Va--;A.monitorRunDependencies&&A.monitorRunDependencies(Va);if(0==Va&&(null!==Wa&&(clearInterval(Wa),Wa=null),Xa)){var a=Xa;Xa=null;a()}}
+A.preloadedImages={};A.preloadedAudios={};function M(a){if(A.onAbort)A.onAbort(a);assert(!G);N(a);Ba=!0;Ca=1;a=new WebAssembly.RuntimeError("abort("+a+"). Build with -s ASSERTIONS=1 for more info.");ia(a);throw a;}function $a(){return Q.startsWith("data:application/octet-stream;base64,")}var Q;Q="stockfish.wasm";$a()||(Q=qa(Q));function ab(){var a=Q;try{if(a==Q&&za)return new Uint8Array(za);if(ta)return ta(a);throw"both async and sync fetching of the wasm failed";}catch(b){M(b)}}
+function bb(){return za||!pa&&!E||"function"!==typeof fetch?Promise.resolve().then(function(){return ab()}):fetch(Q,{credentials:"same-origin"}).then(function(a){if(!a.ok)throw"failed to load wasm binary file at '"+Q+"'";return a.arrayBuffer()}).catch(function(){return ab()})}var R,T,cb={12066091:function(){throw"Canceled!";}};
+function Ta(a){for(;0<a.length;){var b=a.shift();if("function"==typeof b)b(A);else{var c=b.rc;"number"===typeof c?void 0===b.mb?dynCall_v.call(null,c):dynCall_vi.apply(null,[c,b.mb]):c(void 0===b.mb?null:b.mb)}}}
+function db(a,b){if(0>=a||a>e().length||a&1||0>b)return-28;if(0==b)return 0;2147483647<=b&&(b=Infinity);var c=Atomics.load(w(),eb>>2),d=0;if(c==a&&Atomics.compareExchange(w(),eb>>2,c,0)==c&&(--b,d=1,0>=b))return 1;a=Atomics.notify(w(),a>>2,b);if(0<=a)return a+d;throw"Atomics.notify returned an unexpected value "+a;}A._emscripten_futex_wake=db;
+function fb(a){if(G)throw"Internal Error! cleanupThread() can only ever be called from main application thread!";if(!a)throw"Internal Error! Null pthread_ptr in cleanupThread!";var b=B.Ja[a];b&&(w()[a+12>>2]=0,B.Bb(b.worker))}
+var B={Wa:[],Sa:[],dc:[],Zd:function(){},ed:function(){for(var a=U(228),b=0;57>b;++b)x()[a/4+b]=0;w()[a+12>>2]=a;b=a+152;w()[b>>2]=b;var c=U(512);for(b=0;128>b;++b)x()[c/4+b]=0;Atomics.store(x(),a+100>>2,c);Atomics.store(x(),a+40>>2,a);gb(a,!E,1);hb(a)},gd:function(){B.receiveObjectTransfer=B.yd;B.threadInit=B.Gd;B.threadCancel=B.Fd;B.threadExit=B.Ec;B.setExitStatus=B.Cd},Ja:{},cc:[],Bc:function(){for(;0<B.cc.length;)B.cc.pop()();ib()},Cc:function(a,b){Atomics.store(x(),a+56>>2,1);Atomics.store(x(),
+a+60>>2,0);B.Bc();Atomics.store(x(),a+4>>2,b);Atomics.store(x(),a+0>>2,1);db(a+0,2147483647);gb(0,0,0)},Cd:function(a){Ca=a},Ec:function(a){var b=jb();b&&(B.Cc(b,a),G&&postMessage({cmd:"exit"}))},Fd:function(){B.Cc(jb(),-1);postMessage({cmd:"cancelDone"})},bc:function(){for(var a in B.Ja){var b=B.Ja[a];b&&b.worker&&B.Bb(b.worker)}B.Ja={};for(a=0;a<B.Wa.length;++a){var c=B.Wa[a];c.terminate()}B.Wa=[];for(a=0;a<B.Sa.length;++a)c=B.Sa[a],b=c.Ia,B.Mb(b),c.terminate();B.Sa=[]},Mb:function(a){if(a){if(a.Pa){var b=
+w()[a.Pa+100>>2];w()[a.Pa+100>>2]=0;kb(b);kb(a.Pa)}a.Pa=0;a.Ib&&a.cb&&kb(a.cb);a.cb=0;a.worker&&(a.worker.Ia=null)}},Bb:function(a){B.Ad(function(){delete B.Ja[a.Ia.Pa];B.Wa.push(a);B.Sa.splice(B.Sa.indexOf(a),1);B.Mb(a.Ia);a.Ia=void 0})},Ad:function(a){w()[lb>>2]=0;try{a()}finally{w()[lb>>2]=1}},yd:function(){},Gd:function(){for(var a in B.dc)B.dc[a]()},ld:function(a,b){a.onmessage=function(c){var d=c.data,f=d.cmd;a.Ia&&(B.Xc=a.Ia.Pa);if(d.targetThread&&d.targetThread!=jb()){var g=B.Ja[d.ke];g?g.worker.postMessage(c.data,
+d.transferList):N('Internal error! Worker sent a message "'+f+'" to target pthread '+d.targetThread+", but that thread no longer exists!")}else if("processQueuedMainThreadWork"===f)mb();else if("spawnThread"===f)nb(c.data);else if("cleanupThread"===f)fb(d.thread);else if("killThread"===f){c=d.thread;if(G)throw"Internal Error! killThread() can only ever be called from main application thread!";if(!c)throw"Internal Error! Null pthread_ptr in killThread!";w()[c+12>>2]=0;d=B.Ja[c];delete B.Ja[c];d.worker.terminate();
+B.Mb(d);B.Sa.splice(B.Sa.indexOf(d.worker),1);d.worker.Ia=void 0}else if("cancelThread"===f){c=d.thread;if(G)throw"Internal Error! cancelThread() can only ever be called from main application thread!";if(!c)throw"Internal Error! Null pthread_ptr in cancelThread!";B.Ja[c].worker.postMessage({cmd:"cancel"})}else if("loaded"===f)a.loaded=!0,b&&b(a),a.rb&&(a.rb(),delete a.rb);else if("print"===f)xa("Thread "+d.threadId+": "+d.text);else if("printErr"===f)N("Thread "+d.threadId+": "+d.text);else if("alert"===
+f)alert("Thread "+d.threadId+": "+d.text);else if("exit"===f)a.Ia&&Atomics.load(x(),a.Ia.Pa+64>>2)&&B.Bb(a);else if("exitProcess"===f)try{ob(d.returnCode)}catch(k){if(k instanceof ua)return;throw k;}else"cancelDone"===f?B.Bb(a):"objectTransfer"!==f&&("setimmediate"===c.data.target?a.postMessage(c.data):N("worker sent an unknown command "+f));B.Xc=void 0};a.onerror=function(c){N("pthread sent an error! "+c.filename+":"+c.lineno+": "+c.message)};F&&(a.on("message",function(c){a.onmessage({data:c})}),
+
+=== STOCKFISH PACKAGE METADATA ===
+{
+  "name": "stockfish-nnue.wasm",
+  "version": "1.0.0-1946a675.smolnet",
+  "description": "WebAssembly port of Stockfish with NNUE support, optimized via WASM SIMD",
+  "author": "Hiroshi Ogawa",
+  "license": "GPL-3.0",
+  "homepage": "https://github.com/hi-ogawa/Stockfish",
+  "files": [
+    "AUTHORS",
+    "Copying.txt",
+    "stockfish.js",
+    "stockfish.wasm",
+    "stockfish-no-embedded-nnue.wasm",
+    "stockfish.worker.js",
+    "uci.js"
+  ]
+}
+
+=== GAME REVIEW CSS REFERENCES ===
+src\components\board\Arrows.tsx:218: className="absolute aspect-square w-full"
+src\components\board\Board.tsx:64: <div className="flex h-fit w-full max-w-[642px] flex-col gap-2" id="Board">
+src\components\board\Board.tsx:67: className={`
+src\components\board\Board.tsx:74: <div className="relative aspect-square w-[calc(100%-42px)]" id="actual-board">
+src\components\board\Board.tsx:77: className="absolute rounded"
+src\components\board\CapturedGroup.tsx:16: className="inline-block size-[18px] object-cover"
+src\components\board\CapturedGroup.tsx:19: style={{
+src\components\board\Coors.tsx:33: className={cn(
+src\components\board\Coors.tsx:48: className={cn(
+src\components\board\Coors.tsx:64: className="absolute size-[12.5%]"
+src\components\board\Coors.tsx:65: style={{ transform: `translate(${x}%, ${y}%)` }}
+src\components\board\Coors.tsx:82: <div className="absolute aspect-square w-full" id="coors">
+src\components\board\EndgameBadges.tsx:22: <div className="pointer-events-none absolute size-full text-background" id="endgame-badges">
+src\components\board\EndgameBadges.tsx:24: className="absolute size-[12.5%]"
+src\components\board\EndgameBadges.tsx:25: style={{ transform: `translate(${wx + 80}%, ${wy - 17.5}%)` }}
+src\components\board\EndgameBadges.tsx:30: className="absolute size-[12.5%]"
+src\components\board\EndgameBadges.tsx:31: style={{ transform: `translate(${bx + 80}%, ${by - 17.5}%)` }}
+src\components\board\EvalBar.tsx:81: <p className="-my-1">-</p>
+src\components\board\EvalBar.tsx:95: <div className={cn(
+src\components\board\EvalBar.tsx:106: className="bg-foreground"
+src\components\board\EvalBar.tsx:111: <span className={cn(
+src\components\board\Highlight.tsx:30: className="absolute size-[12.5%]"
+src\components\board\Highlight.tsx:32: style={{
+src\components\board\Highlight.tsx:53: className={cn('absolute size-[12.5%]', chooseHighlightColor(classification))}
+src\components\board\Highlight.tsx:54: style={{ transform: `translate(${xFrom}%, ${yFrom}%)` }}
+src\components\board\Highlight.tsx:57: className={cn('absolute size-[12.5%]', chooseHighlightColor(classification))}
+src\components\board\Highlight.tsx:58: style={{ transform: `translate(${xTo}%, ${yTo}%)` }}
+src\components\board\Highlight.tsx:65: <div className="absolute size-full" id="highlight">
+src\components\board\MoveClassificationBadges.tsx:30: <div className="pointer-events-none absolute size-full" id="move-classification-badges">
+src\components\board\MoveClassificationBadges.tsx:32: className="absolute size-[12.5%]"
+src\components\board\MoveClassificationBadges.tsx:33: style={{ transform: `translate(${x + 80}%, ${y - 17.5}%)` }}
+src\components\board\MoveClassificationBadges.tsx:37: style={badgeStyle}
+src\components\board\Pieces.tsx:84: className="absolute w-[12.5%] select-none"
+src\components\board\Pieces.tsx:100: <div className="absolute aspect-square w-full" id="pieces">
+src\components\board\PlayerBadge.tsx:169: <div className={`
+src\components\board\PlayerBadge.tsx:174: <div className="flex items-start gap-2">
+src\components\board\PlayerBadge.tsx:176: className={cn(`
+src\components\board\PlayerBadge.tsx:183: <div className="flex items-center gap-1">
+src\components\board\PlayerBadge.tsx:185: <span className="rounded-sm bg-red-900 px-0.5 text-xs font-bold">
+src\components\board\PlayerBadge.tsx:189: <span className="text-sm">{name}</span>
+src\components\board\PlayerBadge.tsx:191: <span className="ml-1 text-xs font-bold text-foreground-500">
+src\components\board\PlayerBadge.tsx:196: <div className="flex min-h-5 flex-wrap leading-none">
+src\components\board\PlayerBadge.tsx:205: {diff > 0 && <span className="ml-1 text-sm text-foreground-500">{`+${diff}`}</span>}
+src\components\board\PlayerBadge.tsx:211: className={cn(
+src\components\board\PlayerBadge.tsx:224: <span className="ml-auto">{timeLeft}</span>
+src\components\controls\ChessSiteForm.tsx:29: <form className="flex gap-1" onSubmit={handleSubmit(onSubmit)}>
+src\components\controls\ChessSiteForm.tsx:42: className="h-12 font-semibold text-shadow-xs"
+src\components\controls\Controls.tsx:74: className={`
+src\components\controls\Controls.tsx:90: <div className="grid grid-cols-[40px_1fr_40px] gap-1">
+src\components\controls\Controls.tsx:93: className={cn('text-2xl', stage === 'home' && 'invisible')}
+src\components\controls\Controls.tsx:103: className={cn('flex w-full items-center justify-center font-bold', stage === 'home' && `
+src\components\controls\Controls.tsx:110: <img alt="" className="mr-1 size-5" src="/star.svg" />
+src\components\controls\Controls.tsx:117: <div className={`
+src\components\controls\EvalGraph.tsx:120: className="overflow-hidden rounded-md"
+src\components\controls\EvalGraph.tsx:132: className="fill-default-100"
+src\components\controls\EvalGraph.tsx:140: <line className="stroke-default-500/50" id="x-axis" strokeWidth={2} x1="0" x2={width} y1="40" y2="40" />
+src\components\controls\EvalGraph.tsx:142: className="cursor-pointer"
+src\components\controls\EvalGraph.tsx:158: className="stroke-default-500/25"
+src\components\controls\EvalGraph.tsx:165: className={chooseFillColor(classHistory[tooltipData.i - 1])}
+src\components\controls\EvalGraph.tsx:179: className={chooseFillColor(classification)}
+src\components\controls\EvalGraph.tsx:194: className={chooseStrokeColor(classHistory[currentMoveNum - 1])}
+src\components\controls\EvalGraph.tsx:201: className={chooseFillColor(classHistory[currentMoveNum - 1])}
+src\components\controls\EvalGraph.tsx:214: style={{
+src\components\controls\EvalGraph.tsx:235: <ParentSize style={{ width: 'auto', height: 'auto' }}>
+src\components\controls\Forms.tsx:25: startContent={<ChessCom className="size-4" />}
+src\components\controls\Forms.tsx:33: startContent={<Lichess className="size-4" />}
+src\components\controls\Forms.tsx:41: startContent={<Pgn className="size-4" />}
+src\components\controls\Game.tsx:83: <div className="flex w-10 min-w-10 flex-col items-center gap-1" id="time-control">
+src\components\controls\Game.tsx:84: <TimeClass className="size-5" timeClass={timeClass} />
+src\components\controls\Game.tsx:85: <span className="text-xs text-nowrap text-foreground-500">
+src\components\controls\Game.tsx:89: <div className="flex min-w-0 flex-col gap-0.5" id="players-info">
+src\components\controls\Game.tsx:90: <div className="flex items-center gap-2">
+src\components\controls\Game.tsx:91: <span className="truncate">{wName}</span>
+src\components\controls\Game.tsx:93: <span className="text-xs leading-4 font-bold text-foreground-500">
+src\components\controls\Game.tsx:98: <div className="flex items-center gap-2">
+src\components\controls\Game.tsx:99: <span className="truncate">{bName}</span>
+src\components\controls\Game.tsx:101: <span className="text-xs leading-4 font-bold text-foreground-500">
+src\components\controls\Game.tsx:107: <div className={`
+src\components\controls\Game.tsx:111: <span className="text-default-500">{totalMoves}</span>
+src\components\controls\Game.tsx:112: <Result className="size-5" result={result} />
+src\components\controls\GameNav.tsx:99: className={`
+src\components\controls\GameNav.tsx:109: <div className="flex gap-1">
+src\components\controls\GameNav.tsx:112: className="grow text-3xl"
+src\components\controls\GameNav.tsx:125: className="grow text-3xl"
+src\components\controls\GameNav.tsx:138: className="grow text-3xl"
+src\components\controls\GameNav.tsx:159: className="grow text-3xl"
+src\components\controls\GameNav.tsx:179: <div className="flex gap-1" id="minor-buttons">
+src\components\controls\GameNav.tsx:182: className="text-2xl"
+src\components\controls\GameNav.tsx:190: className="transition-transform"
+src\components\controls\GameNav.tsx:192: style={{
+src\components\controls\Games.tsx:121: <div className="flex max-h-full flex-col gap-2 overflow-y-scroll" id="Games">
+src\components\controls\Games.tsx:123: className="mb-0 rounded-small"
+src\components\controls\Games.tsx:137: className="flex flex-col gap-2"
+src\components\controls\Games.tsx:151: <div className="flex gap-2">
+src\components\controls\Games.tsx:166: startContent={<Result className="size-5" result={result as 'win' | 'lose' | 'draw'} />}
+src\components\controls\Games.tsx:205: startContent={<TimeClass className="size-5" timeClass={tc as TimeClassType} />}
+src\components\controls\Games.tsx:214: <div className="flex justify-end gap-2">
+src\components\controls\Games.tsx:216: className="text-shadow-xs"
+src\components\controls\Games.tsx:240: <div className="min-h-0 overflow-y-scroll">
+src\components\controls\Games.tsx:245: : <p className="text-center text-sm">No games found.</p>

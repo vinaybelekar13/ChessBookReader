@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CoordinateTraining from "./CoordinateTraining";
 import {
   Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
@@ -65,7 +65,8 @@ function formatUciPv(fen: string, pv: string[]): string {
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-import { GameReview } from "./GameReview";
+import LichessAnalysisBoard from "./components/LichessAnalysis";
+import GameReviewWorkspace from "./game-review/GameReviewWorkspace";
 
 type LibraryTab = "all" | "recent";
 type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "game-review";
@@ -372,11 +373,22 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
     engineRef.current = null;
   }, []);
 
-  const sortedBooks = useMemo(() => [...books].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt), [books]);
+
+  const sortedBooks = useMemo(
+    () => [...books].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt),
+    [books],
+  );
+
   const visibleBooks = useMemo(() => {
     const needle = bookSearch.trim().toLowerCase();
     return sortedBooks.filter((item) => {
-      const matchesTab = true;
+      const saved = sessionIndex[item.id];
+      const matchesTab =
+        libraryTab === "all" ||
+        libraryTab === "recent" ||
+        (libraryTab === "bookmarks" && (saved?.bookmarks.length ?? 0) > 0) ||
+        (libraryTab === "positions" && (saved?.positions.length ?? 0) > 0) ||
+        (libraryTab === "progress" && (saved?.page ?? 1) > 1);
       return matchesTab && item.title.toLowerCase().includes(needle);
     });
   }, [bookSearch, libraryTab, sessionIndex, sortedBooks]);
@@ -385,13 +397,14 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
     () => parseOpeningLine(openingExplorerInput),
     [openingExplorerInput],
   );
+
   const openingPosition = useMemo(
     () => openingPositionAt(openingExplorerInput, openingExplorerPly),
     [openingExplorerInput, openingExplorerPly],
   );
-
   useEffect(() => {
     if (workspaceMode !== "opening-explorer") return;
+
     if (!lichessStatus?.connected) {
       setOpeningStats(null);
       setOpeningStatsStatus("idle");
@@ -425,7 +438,6 @@ const scanAbortControllerRef = useRef<AbortController | null>(null);
       controller.abort();
     };
   }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
-
   const boardSession: StudyBoardState | null =
     workspaceMode === "analysis"
       ? analysisBoard
@@ -1040,7 +1052,7 @@ if (!boardSession) return;
 
       const white = imported.headers.White || "White";
       const black = imported.headers.Black || "Black";
-      setNotice(`PGN loaded: ${white} vs ${black} · ${imported.moves.length} plies.`);
+      setNotice(`PGN loaded: ${white} vs ${black} Ãƒâ€šÃ‚Â· ${imported.moves.length} plies.`);
       setError("");
     } catch (cause) {
       setError(`PGN import failed: ${messageOf(cause)}`);
@@ -1417,14 +1429,25 @@ if (
   return (
     <main className={`app-shell ${studyMode ? "study-focus-mode" : ""}`}>
       <header className="topbar">
-        <div className="brand-mark">&#9822;</div>
-        <button className="icon-button library-toggle" aria-label="Toggle library" onClick={() => setLibraryOpen((value) => !value)}>&#9776;</button>
+        <div className="brand-mark" aria-label="ChessBook Reader logo">
+          <svg className="brand-mark-icon" viewBox="0 0 40 40" role="img" aria-hidden="true">
+            <path d="M10 31h23l-2.2-4.2-4.5-2.1 2.4-5.2-2.2-7.1-5.1-4.8-1.8 5.2-5.3 2.1-3.1 5.8 2.8 4.1-4 6.2Z" />
+            <path d="M18.1 13.2 13 8.5l.7 7.2M25.5 14.4l3.2-3.2" />
+            <circle cx="23.8" cy="15.8" r="1.15" />
+            <path d="M8 33h25" />
+          </svg>
+        </div>
+        <button className="icon-button library-toggle" aria-label="Toggle library" aria-expanded={libraryOpen} aria-controls="library-navigation" onClick={() => setLibraryOpen((value) => !value)}>&#9776;</button>
         <div className="brand-name">ChessBook <span>Reader</span></div>
         <div className="top-divider" />
-        <div className="current-book" title={book?.title ?? "No book open"}>
+        <div className="current-book" title={workspaceMode === "game-review" ? "Game Review" : (book?.title ?? "No book open")}>
           <span className="book-dot" />
-          <strong>{book?.title ?? "No book open"}</strong>
-          {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+          <strong>{workspaceMode === "game-review" ? "Game Review" : (book?.title ?? "No book open")}</strong>
+          {workspaceMode === "game-review" ? (
+            <span className="muted">Game Analysis & Review</span>
+          ) : book ? (
+            <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>
+          ) : null}
         </div>
         <div className="top-spacer" />
         <span className="storage-label"><i /> LOCAL LIBRARY</span>
@@ -1433,7 +1456,7 @@ if (
 
       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
         {libraryOpen && (
-          <aside className="library-panel">
+          <aside className="library-panel" id="library-navigation">
             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
             <input
               ref={fileInput}
@@ -1446,8 +1469,17 @@ if (
             <nav className="library-nav" aria-label="Library sections">
                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
-              <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
-              <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+              <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} /> 
+              <LibraryNavItem
+                active={workspaceMode === "game-review"}
+                icon={Crown}
+                label="Game Review"
+                onClick={() => {
+                  setWorkspaceMode("game-review");
+                  setStudyMode(false);
+                  setLibraryTab("all");
+                }}
+              />
 
 
 
@@ -1493,10 +1525,16 @@ if (
           </aside>
         )}
 
-        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+        {workspaceMode === "game-review" ? (
+          <GameReviewWorkspace onExit={() => setWorkspaceMode("library")} />
+        ) : workspaceMode === "analysis" ? (
+          <LichessAnalysisBoard showSiteHeader={false} stockfishWorkerPath={`${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`} />
+        ) : workspaceMode === "coordinate-training" ? (
+          <CoordinateTraining />
+        ) : <>
         <section className="board-panel" aria-label="Chessboard analysis">
           <div className="board-header">
-            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
             <div className="board-header-actions">
               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
@@ -1689,10 +1727,11 @@ if (
             <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
           </div>
           <details className="position-editor">
-            <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+            <summary>Board position ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· enter FEN to correct selected diagram</summary>
             <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
           </details>
           <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+
         </section>
 
         <section className="reader-panel" aria-label="PDF book reader">
@@ -1719,7 +1758,7 @@ if (
                           .catch(() => setLichessStatusError("Could not disconnect. Check that the backend is running."))
                           .finally(() => setLichessActionBusy(false));
                       }}
-                    >{lichessActionBusy ? "DisconnectingÃ¢â‚¬Â¦" : "Disconnect"}</button>
+                    >{lichessActionBusy ? "DisconnectingÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦" : "Disconnect"}</button>
                   </>
                 ) : (
                   <>
@@ -1792,7 +1831,7 @@ if (
                       <h4>Position statistics</h4>
                       <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
                     </div>
-                    {openingStatsStatus === "loading" && <p>Loading game statisticsÃ¢â‚¬Â¦</p>}
+                    {openingStatsStatus === "loading" && <p>Loading game statisticsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦</p>}
                     {openingStatsStatus === "error" && (
                       <p role="status">Statistics are currently unavailable. Check your connection or try again later. The board remains usable.</p>
                     )}
@@ -1800,7 +1839,7 @@ if (
                       <>
                         {openingStats.opening && (
                           <p className="opening-stats-name">
-                            {openingStats.opening.eco ? `${openingStats.opening.eco} Ã‚Â· ` : ""}
+                            {openingStats.opening.eco ? `${openingStats.opening.eco} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ` : ""}
                             {openingStats.opening.name}
                           </p>
                         )}
@@ -1879,7 +1918,7 @@ if (
             <label>PAGE <input aria-label="Current page" type="number" min="1" max={session?.pageCount || 1} value={session?.page ?? 1} disabled={!pdf} onChange={(event) => goToPage(Number(event.target.value))} /> <span>of {session?.pageCount || "?"}</span></label>
             <button aria-label="Next page" disabled={!pdf || (session?.page ?? 1) >= (session?.pageCount ?? 1)} onClick={() => changePage(1)}>&#8250;</button>
             <span className="nav-separator" />
-            <button className={`scan-button ${detecting ? "scan-active" : ""}`} disabled={!pdf || rendering} onClick={() => void detectBoards()}>{detecting ? "&#8211;ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  Stop scan" : "Detect boards"}</button>
+            <button className={`scan-button ${detecting ? "scan-active" : ""}`} disabled={!pdf || rendering} onClick={() => void detectBoards()}>{detecting ? "&#8211;ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  Stop scan" : "Detect boards"}</button>
             <button
               type="button"
               className="clear-scan-button"
@@ -1951,13 +1990,13 @@ if (
             <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
           </div>
           <div className="analysis-strip">
-            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦" : "Ready ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· White-positive scores"}</span></div></div>
             <div className="analysis-divider" />
             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
-            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
-            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
-            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+            <div className="analysis-result"><span>Evaluation ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
           </div>
         </section>
         </>}
@@ -2003,7 +2042,7 @@ if (
         <div className="game-end-backdrop">
           <section className="game-end-dialog" role="dialog" aria-modal="true" aria-labelledby="game-end-title">
             <div className="game-end-icon" aria-hidden="true">
-              {gameEndOverlay.title === "Checkmate" ? "Ã¢â„¢â€" : gameEndOverlay.title === "Stalemate" ? "Ã‚Â½" : "Ã‚Â½"}
+              {gameEndOverlay.title === "Checkmate" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â" : gameEndOverlay.title === "Stalemate" ? "ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½" : "ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½"}
             </div>
             <h2 id="game-end-title">{gameEndOverlay.title}</h2>
             <p>{gameEndOverlay.message}</p>
@@ -2020,10 +2059,10 @@ if (
             <h2 id="promotion-title">Promote pawn</h2>
             <p>Choose a piece to complete your move.</p>
             <div className="promotion-choices">
-              <button type="button" onClick={() => completePromotion("q")} aria-label="Promote to queen"><span>Ã¢â„¢â€¢</span><small>Queen</small></button>
-              <button type="button" onClick={() => completePromotion("r")} aria-label="Promote to rook"><span>Ã¢â„¢â€“</span><small>Rook</small></button>
-              <button type="button" onClick={() => completePromotion("b")} aria-label="Promote to bishop"><span>Ã¢â„¢â€”</span><small>Bishop</small></button>
-              <button type="button" onClick={() => completePromotion("n")} aria-label="Promote to knight"><span>Ã¢â„¢Ëœ</span><small>Knight</small></button>
+              <button type="button" onClick={() => completePromotion("q")} aria-label="Promote to queen"><span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢</span><small>Queen</small></button>
+              <button type="button" onClick={() => completePromotion("r")} aria-label="Promote to rook"><span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span><small>Rook</small></button>
+              <button type="button" onClick={() => completePromotion("b")} aria-label="Promote to bishop"><span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span><small>Bishop</small></button>
+              <button type="button" onClick={() => completePromotion("n")} aria-label="Promote to knight"><span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“</span><small>Knight</small></button>
             </div>
             <button className="promotion-cancel" type="button" onClick={() => setPromotionRequest(null)}>Cancel</button>
           </section>

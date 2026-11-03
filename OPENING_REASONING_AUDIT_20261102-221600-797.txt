@@ -1,0 +1,655 @@
+﻿
+============================================================
+FILE: src\components\LichessAnalysis\openingWikiData.ts
+============================================================
+
+import type { OpeningExplorerData, WikiBookEntry } from "./types";
+
+/**
+ * Built-in WikiBook theory database indexed by SAN move prefix.
+ * Contains the exact text shown in the attached Lichess screenshot for `1. e4`.
+ */
+export const WIKIBOOK_BY_LINE: Record<string, WikiBookEntry> = {
+  "": {
+    eco: "A00",
+    title: "Starting Position · Standard Chess",
+    paragraphs: [
+      "White has twenty legal first moves. The most popular and theoretically significant openings begin with **1. e4** (King's Pawn Opening) or **1. d4** (Queen's Pawn Opening), immediately staking a claim in the center and freeing diagonals for piece development.",
+      "Flank openings such as **1. c4** (English Opening) and **1. Nf3** (Zukertort Opening) control central squares from a distance and often transpose into main-line systems.",
+    ],
+  },
+  "e4": {
+    eco: "B00",
+    title: "1. e4 · King's Pawn opening",
+    quote: {
+      text: "Best by test.",
+      author: "Bobby Fischer",
+    },
+    paragraphs: [
+      "1. e4, the **King's Pawn Opening**, is the most popular first move at all levels of the game. 1. e4 opens lines to develop the queen and the king's bishop. It also fights for control of the centre.",
+      "1. e4 directly controls d5 and f5, which may or may not be relevant later because Black, if they wanted to, could just take those squares away again by playing 1...e6. If White wants to develop some pieces, the most important square they control by playing 1. e4 is, in fact, the e4 square itself: as long as there's a white pawn on e4, there can't be a black pawn on e4, which means White's g1-knight can be developed to f3 without fear of getting kicked away by a pawn and losing a tempo.",
+      "Black has several ways to respond. The main idea is to find a way to prevent White from achieving or maintaining a two-pawn centre with both e4 and d4. They may try to:",
+      "• Play **1...c5** (the Sicilian Defence), fighting for d4 from the flank without symmetry.",
+      "• Play **1...e5** (Open Game), directly mirroring White's stake in the center.",
+      "• Play **1...e6** (French Defence) or **1...c6** (Caro-Kann Defence) to prepare ...d5 on the second move.",
+    ],
+  },
+  "e4 e5": {
+    eco: "C20",
+    title: "1. e4 e5 · King's Pawn Game",
+    paragraphs: [
+      "By playing **1...e5**, Black directly challenges White's claim to the center and prevents White from immediately establishing an uncontested d4-e4 pawn duo.",
+      "Both sides have opened diagonals for their queens and kingside bishops. White most commonly continues with **2. Nf3**, attacking the e5-pawn while developing a kingside piece toward castling.",
+    ],
+  },
+  "e4 c5": {
+    eco: "B20",
+    title: "1. e4 c5 · Sicilian Defence",
+    paragraphs: [
+      "The **Sicilian Defence** is the most popular and highest-scoring response to **1. e4** at master level. Black immediately fights for the d4 square from the c-file, creating an asymmetrical position rich in tactical and strategic counterplay.",
+      "White's main continuation is **2. Nf3** followed by **3. d4** (the Open Sicilian), trading Black's c-pawn for White's d-pawn.",
+    ],
+  },
+  "e4 e5 Nf3": {
+    eco: "C40",
+    title: "1. e4 e5 2. Nf3 · King's Knight Opening",
+    paragraphs: [
+      "**2. Nf3** develops the knight to its most natural square, attacks Black's e5-pawn, and prepares kingside castling.",
+      "Black normally defends the pawn with **2...Nc6**, leading toward the Ruy Lopez (3. Bb5), Italian Game (3. Bc4), or Scotch Game (3. d4), or counter-attacks White's pawn with **2...Nf6** (Petrov's Defence).",
+    ],
+  },
+  "e4 e5 Nf3 Nc6": {
+    eco: "C44",
+    title: "1. e4 e5 2. Nf3 Nc6 · King's Knight Opening: Normal Variation",
+    paragraphs: [
+      "**2...Nc6** defends the e5-pawn and develops Black's queenside knight toward the center. White now chooses between **3. Bb5** (Ruy Lopez), **3. Bc4** (Italian Game), **3. d4** (Scotch Game), or **3. Nc3** (Three Knights / Four Knights).",
+    ],
+  },
+  "e4 e5 Nf3 Nc6 Bb5": {
+    eco: "C60",
+    title: "1. e4 e5 2. Nf3 Nc6 3. Bb5 · Ruy Lopez",
+    paragraphs: [
+      "The **Ruy Lopez** (or Spanish Game) is one of the oldest and most deeply analyzed openings in chess. By pinning or pressuring the knight that defends e5, White builds long-term central pressure while clearing the kingside for castling.",
+    ],
+  },
+  "d4": {
+    eco: "A40",
+    title: "1. d4 · Queen's Pawn Game",
+    paragraphs: [
+      "**1. d4** occupies the center with the queen's pawn, which is already protected by the queen on d1. It opens the c1-h6 diagonal for the dark-squared bishop and typically leads to strategic, closed or semi-closed battles.",
+    ],
+  },
+};
+
+export function lookupWikiBook(sanMoves: string[]): WikiBookEntry {
+  for (let len = sanMoves.length; len >= 0; len--) {
+    const key = sanMoves.slice(0, len).join(" ");
+    if (WIKIBOOK_BY_LINE[key]) {
+      return WIKIBOOK_BY_LINE[key];
+    }
+  }
+  const moveListStr = sanMoves
+    .map((m, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${m}` : m))
+    .join(" ");
+  return {
+    eco: "B00",
+    title: `${moveListStr || "Custom Position"} · Opening Theory`,
+    paragraphs: [
+      "The position has left the primary introductory WikiBook overview or entered a specific middlegame continuation.",
+      "Use the Stockfish 19 NNUE engine lines on the right or toggle the Opening Explorer (book icon in the bottom toolbar) to inspect master game frequencies and continuations.",
+    ],
+  };
+}
+
+const BUILTIN_EXPLORER_BY_LINE: Record<string, OpeningExplorerData> = {
+  "": {
+    opening: { eco: "A00", name: "Starting Position" },
+    white: 980420,
+    draws: 1210500,
+    black: 745110,
+    source: "builtin-master-book",
+    moves: [
+      { uci: "e2e4", san: "e4", white: 465120, draws: 540200, black: 355100, averageRating: 2465 },
+      { uci: "d2d4", san: "d4", white: 368400, draws: 482100, black: 268900, averageRating: 2478 },
+      { uci: "g1f3", san: "Nf3", white: 82100, draws: 112400, black: 64200, averageRating: 2482 },
+      { uci: "c2c4", san: "c4", white: 64800, draws: 75800, black: 56910, averageRating: 2475 },
+    ],
+  },
+  "e4": {
+    opening: { eco: "B00", name: "King's Pawn Opening" },
+    white: 465120,
+    draws: 540200,
+    black: 355100,
+    source: "builtin-master-book",
+    moves: [
+      { uci: "c7c5", san: "c5", white: 198400, draws: 245100, black: 172300, averageRating: 2479 },
+      { uci: "e7e5", san: "e5", white: 118200, draws: 148900, black: 82400, averageRating: 2468 },
+      { uci: "e7e6", san: "e6", white: 68400, draws: 69200, black: 44100, averageRating: 2454 },
+      { uci: "c7c6", san: "c6", white: 44100, draws: 49800, black: 31200, averageRating: 2461 },
+    ],
+  },
+  "e4 e5": {
+    opening: { eco: "C20", name: "King's Pawn Game" },
+    white: 118200,
+    draws: 148900,
+    black: 82400,
+    source: "builtin-master-book",
+    moves: [
+      { uci: "g1f3", san: "Nf3", white: 104500, draws: 136200, black: 73100, averageRating: 2472 },
+      { uci: "b1c3", san: "Nc3", white: 6400, draws: 5900, black: 4300, averageRating: 2435 },
+      { uci: "f1c4", san: "Bc4", white: 4200, draws: 3800, black: 2900, averageRating: 2421 },
+    ],
+  },
+};
+
+export async function fetchLichessOpeningStats(
+  fen: string,
+  sanMoves: string[],
+  signal?: AbortSignal
+): Promise<OpeningExplorerData> {
+  try {
+    const url = `https://explorer.lichess.ovh/masters?fen=${encodeURIComponent(fen)}&moves=8`;
+    const res = await fetch(url, { signal });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        opening: data.opening ?? null,
+        white: data.white ?? 0,
+        draws: data.draws ?? 0,
+        black: data.black ?? 0,
+        moves: (data.moves ?? []).map((m: Record<string, unknown>) => ({
+          uci: String(m.uci ?? ""),
+          san: String(m.san ?? ""),
+          white: Number(m.white ?? 0),
+          draws: Number(m.draws ?? 0),
+          black: Number(m.black ?? 0),
+          averageRating: Number(m.averageRating ?? 2450),
+        })),
+        source: "lichess-api",
+      };
+    }
+  } catch {
+    // Fallback to built-in master book when offline or rate-limited
+  }
+
+  const key = sanMoves.join(" ");
+  return (
+    BUILTIN_EXPLORER_BY_LINE[key] ?? {
+      opening: {
+        eco: lookupWikiBook(sanMoves).eco,
+        name: lookupWikiBook(sanMoves).title.split("·").pop()?.trim() ?? "Custom Line",
+      },
+      white: 1240,
+      draws: 1580,
+      black: 980,
+      source: "builtin-master-book",
+      moves: [],
+    }
+  );
+}
+
+============================================================
+FILE: src\components\LichessAnalysis\WikiBookPanel.tsx
+============================================================
+
+import React, { useMemo, useState } from "react";
+import { ChevronUp, ChevronDown, Search } from "lucide-react";
+import type { ChessVariant, WikiBookEntry } from "./types";
+import {
+  searchOpenings,
+  type EcoGroup,
+  type OpeningRecord,
+} from "./openingDatabase";
+
+interface WikiBookPanelProps {
+  variant: ChessVariant;
+  onVariantChange: (v: ChessVariant) => void;
+  wikiEntry: WikiBookEntry;
+  identifiedOpening: OpeningRecord | null;
+  onSelectOpening: (opening: OpeningRecord) => void;
+}
+
+const VARIANTS: ChessVariant[] = [
+  "Standard",
+  "Chess960",
+  "King of the Hill",
+  "Three-check",
+  "Antichess",
+  "Atomic",
+  "Horde",
+  "Racing Kings",
+  "Crazyhouse",
+];
+
+const ECO_GROUPS: EcoGroup[] = ["ALL", "A", "B", "C", "D", "E"];
+
+function renderFormattedParagraph(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+
+  return parts.map((part, idx) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={idx}>{part.slice(2, -2)}</strong>;
+    }
+
+    return <React.Fragment key={idx}>{part}</React.Fragment>;
+  });
+}
+
+export const WikiBookPanel: React.FC<WikiBookPanelProps> = ({
+  variant,
+  onVariantChange,
+  wikiEntry,
+  identifiedOpening,
+  onSelectOpening,
+}) => {
+  const [wikiOpen, setWikiOpen] = useState(true);
+  const [catalogueOpen, setCatalogueOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [ecoGroup, setEcoGroup] = useState<EcoGroup>("ALL");
+
+  const results = useMemo(
+    () => searchOpenings(query, ecoGroup, 40),
+    [query, ecoGroup]
+  );
+
+  return (
+    <aside className="li-left-column" aria-label="Variant and WikiBook opening panel">
+      <div className="li-variant-selector-wrap">
+        <span className="li-variant-crown" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="#9e9e9e">
+            <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z" />
+          </svg>
+        </span>
+
+        <select
+          aria-label="Chess variant"
+          className="li-variant-select"
+          value={variant}
+          onChange={(e) => onVariantChange(e.target.value as ChessVariant)}
+        >
+          {VARIANTS.map((v) => (
+            <option key={v} value={v}>{v}</option>
+          ))}
+        </select>
+
+        <span className="li-variant-caret" aria-hidden="true">⌄</span>
+      </div>
+
+      <div className="li-wikibook-wrapper">
+        <div className="li-wikibook-tab-row">
+          <button
+            type="button"
+            className="li-wikibook-tab-btn"
+            onClick={() => setWikiOpen((o) => !o)}
+            aria-expanded={wikiOpen}
+          >
+            <span>WikiBook</span>
+            {wikiOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </button>
+        </div>
+
+        {wikiOpen && (
+          <div className="li-wikibook-card">
+            <div className="li-wikibook-scroll">
+              {identifiedOpening ? (
+                <section className="li-opening-recognition">
+                  <div className="li-opening-recognition-label">
+                    DATABASE RECOGNITION
+                  </div>
+                  <h2 className="li-wikibook-title">
+                    {identifiedOpening.name}
+                  </h2>
+                  <div className="li-opening-eco">
+                    ECO: {identifiedOpening.eco}
+                  </div>
+                  <p className="li-wikibook-paragraph">
+                    Matched opening line: {identifiedOpening.pgn}
+                  </p>
+                </section>
+              ) : (
+                <section className="li-opening-recognition">
+                  <div className="li-opening-recognition-label">
+                    DATABASE RECOGNITION
+                  </div>
+                  <h2 className="li-wikibook-title">
+                    {wikiEntry.title}
+                  </h2>
+                  <p className="li-wikibook-paragraph">
+                    No completed opening line from the database matches the
+                    moves played so far.
+                  </p>
+                </section>
+              )}
+
+              {wikiEntry.quote && (
+                <div className="li-wikibook-quote">
+                  <div>{wikiEntry.quote.text}</div>
+                  <div>{wikiEntry.quote.author}</div>
+                </div>
+              )}
+
+              {(!identifiedOpening || wikiEntry.eco === identifiedOpening.eco) ? (
+                wikiEntry.paragraphs.map((p, i) => (
+                  <p key={i} className="li-wikibook-paragraph">
+                    {renderFormattedParagraph(p)}
+                  </p>
+                ))
+              ) : (
+                <section className="li-opening-position-info">
+                  <p className="li-wikibook-paragraph">
+                    This position is recognised as {identifiedOpening.name}
+                    ({identifiedOpening.eco}).
+                  </p>
+                  <p className="li-wikibook-paragraph">
+                    Opening identification is based on the resulting board
+                    position. Different move orders can reach the same
+                    position, a concept known as transposition.
+                  </p>
+                  <p className="li-wikibook-paragraph">
+                    Explore the master-game database to study continuations
+                    and the historical results of this position.
+                  </p>
+                </section>
+              )}
+
+              <div className="li-opening-catalogue">
+                <button
+                  type="button"
+                  className="li-opening-catalogue-toggle"
+                  onClick={() => setCatalogueOpen((open) => !open)}
+                  aria-expanded={catalogueOpen}
+                >
+                  <span>Opening Database (3,865)</span>
+                  {catalogueOpen ? (
+                    <ChevronUp size={15} />
+                  ) : (
+                    <ChevronDown size={15} />
+                  )}
+                </button>
+
+                {catalogueOpen && (
+                  <div className="li-opening-catalogue-content">
+                    <div className="li-opening-search">
+                      <Search size={15} />
+                      <input
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Search name, ECO or moves..."
+                        aria-label="Search opening database"
+                      />
+                    </div>
+
+                    <div className="li-opening-eco-filters" aria-label="Filter by ECO group">
+                      {ECO_GROUPS.map((group) => (
+                        <button
+                          type="button"
+                          key={group}
+                          className={ecoGroup === group ? "active" : ""}
+                          onClick={() => setEcoGroup(group)}
+                        >
+                          {group}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="li-opening-results">
+                      <div className="li-opening-result-count">
+                        Showing {results.length} results (maximum 40)
+                      </div>
+
+                      {results.length === 0 ? (
+                        <p className="li-wikibook-paragraph">
+                          No matching openings found.
+                        </p>
+                      ) : (
+                        results.map((opening) => (
+                          <button
+                            type="button"
+                            className="li-opening-result"
+                            key={`${opening.eco}-${opening.name}-${opening.pgn}`}
+                            onClick={() => onSelectOpening(opening)}
+                            title={`Load ${opening.name} on the board`}
+                          >
+                            <span className="li-opening-result-eco">
+                              {opening.eco}
+                            </span>
+                            <span className="li-opening-result-name">
+                              {opening.name}
+                              <small>{opening.pgn}</small>
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+};
+
+
+============================================================
+FILE: src\components\LichessAnalysis\types.ts
+============================================================
+
+import type { Square } from "chess.js";
+
+export type ChessVariant =
+  | "Standard"
+  | "Chess960"
+  | "King of the Hill"
+  | "Three-check"
+  | "Antichess"
+  | "Atomic"
+  | "Horde"
+  | "Racing Kings"
+  | "Crazyhouse";
+
+export type ArrowBrush = "engine" | "threat" | "green" | "red" | "blue" | "yellow";
+
+export interface BoardArrowShape {
+  from: Square;
+  to: Square;
+  brush: ArrowBrush;
+}
+
+export interface BoardCircleShape {
+  square: Square;
+  brush: ArrowBrush;
+}
+
+export interface EngineEvaluation {
+  cp: number | null;      // Centipawns from White's perspective (+20 = +0.2)
+  mate: number | null;    // Mate in N from White's perspective
+  depth: number;
+  maxDepth: number;
+  knodes: number;
+  bestMoveUci: string;    // e.g. "e7e5"
+  threatMoveUci?: string;
+  pvUci: string[];        // e.g. ["e7e5", "g1f3", "b8c6", "f1b5", "g8f6", "e1g1"]
+  pvSan: string[];        // e.g. ["e5", "Nf3", "Nc6", "Bb5", "Nf6", "O-O"]
+  isCloud: boolean;
+  multiPvLines?: {
+    multipv: number;
+    cp: number | null;
+    mate: number | null;
+    pvSan: string[];
+    pvUci: string[];
+  }[];
+}
+
+export interface MoveNode {
+  ply: number;
+  moveNumber: number;
+  color: "w" | "b";
+  san: string;
+  uci: string;
+  from: Square;
+  to: Square;
+  fen: string;
+  evalFormatted?: string; // e.g. "+0.2"
+  evalCp?: number | null;
+}
+
+export interface WikiBookEntry {
+  eco: string;
+  title: string;          // e.g. "1. e4 Â· King's Pawn opening"
+  quote?: {
+    text: string;
+    author: string;
+  };
+  paragraphs: string[];
+  plans?: string[];
+}
+
+export interface OpeningExplorerMoveStat {
+  uci: string;
+  san: string;
+  white: number;
+  draws: number;
+  black: number;
+  averageRating: number;
+}
+
+export interface OpeningExplorerData {
+  opening: { eco: string; name: string } | null;
+  white: number;
+  draws: number;
+  black: number;
+  moves: OpeningExplorerMoveStat[];
+  source: "lichess-api" | "builtin-master-book";
+}
+
+============================================================
+FILE: src\components\LichessAnalysis\openingDatabase.ts
+============================================================
+
+import { Chess } from "chess.js";
+import rawOpenings from "./openings.json";
+
+export interface OpeningRecord {
+  eco: string;
+  name: string;
+  pgn: string;
+  sanMoves: string[];
+}
+
+interface RawOpening {
+  eco: string;
+  name: string;
+  pgn: string;
+}
+
+const parsedOpenings: OpeningRecord[] = [];
+
+for (const record of rawOpenings as RawOpening[]) {
+  try {
+    const chess = new Chess();
+    chess.loadPgn(record.pgn);
+
+    const sanMoves = chess.history();
+
+    if (sanMoves.length === 0) continue;
+
+    parsedOpenings.push({
+      eco: record.eco,
+      name: record.name,
+      pgn: record.pgn,
+      sanMoves,
+    });
+  } catch {
+    // Ignore malformed database entries.
+  }
+}
+
+export const OPENING_DATABASE: OpeningRecord[] = parsedOpenings;
+
+export type EcoGroup = "ALL" | "A" | "B" | "C" | "D" | "E";
+
+function positionKey(fen: string): string {
+  // Ignore half-move and full-move counters.
+  return fen.split(/\s+/).slice(0, 4).join(" ");
+}
+
+const openingsByPosition = new Map<string, OpeningRecord[]>();
+
+for (const opening of OPENING_DATABASE) {
+  try {
+    const chess = new Chess();
+    chess.loadPgn(opening.pgn);
+
+    const key = positionKey(chess.fen());
+    const existing = openingsByPosition.get(key) ?? [];
+
+    existing.push(opening);
+    openingsByPosition.set(key, existing);
+  } catch {
+    // Ignore invalid records.
+  }
+}
+
+// Prefer the shortest identifying line for duplicate positions.
+for (const records of openingsByPosition.values()) {
+  records.sort((a, b) => a.sanMoves.length - b.sanMoves.length);
+}
+
+export function identifyOpening(
+  playedMoves: string[]
+): OpeningRecord | null {
+  try {
+    const chess = new Chess();
+    const positions: string[] = [positionKey(chess.fen())];
+
+    for (const san of playedMoves) {
+      chess.move(san);
+      positions.push(positionKey(chess.fen()));
+    }
+
+    // Search backwards: the latest named position is the deepest match.
+    for (let i = positions.length - 1; i >= 1; i--) {
+      const matches = openingsByPosition.get(positions[i]);
+
+      if (matches?.length) {
+        return matches[0];
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function searchOpenings(
+  query: string,
+  group: EcoGroup = "ALL",
+  limit = 40
+): OpeningRecord[] {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  return OPENING_DATABASE
+    .filter((opening) => {
+      const groupMatches =
+        group === "ALL" || opening.eco.startsWith(group);
+
+      if (!groupMatches) return false;
+      if (!normalizedQuery) return true;
+
+      return (
+        opening.name.toLowerCase().includes(normalizedQuery) ||
+        opening.eco.toLowerCase().includes(normalizedQuery) ||
+        opening.pgn.toLowerCase().includes(normalizedQuery)
+      );
+    })
+    .sort(
+      (a, b) =>
+        a.eco.localeCompare(b.eco) ||
+        a.name.localeCompare(b.name)
+    )
+    .slice(0, limit);
+}

@@ -1,0 +1,212 @@
+===== APP: OLD ENGINE EFFECT AND CLEANUP =====
+ 516:   const highlightedMove = lastMove ?? (moveHistory.length
+ 517:     ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+ 518:     : null);
+ 519:   const engineArrow = useMemo(
+ 520:     () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+ 521:     [engineEnabled, engineScore?.bestMove],
+ 522:   );
+ 523: 
+ 524:   useEffect(() => {
+ 525:     setUserArrows([]);
+ 526:     setArrowStart(null);
+ 527:     setArrowHover(null);
+ 528:     setAnnotationMode(false);
+ 529:   }, [book?.id, session?.currentFen]);
+ 530: 
+ 531:   useEffect(() => {
+ 532:     if (engineEnabled && boardSession) {
+ 533:       engineRef.current?.analyze(game.fen(), engineDepth);
+ 534:     }
+ 535:   }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+ 536: 
+ 537:   function messageOf(cause: unknown): string {
+ 538:     return cause instanceof Error ? cause.message : String(cause);
+ 539:   }
+ 540: 
+ 541:   function toggleEngine() {
+ 542:     if (engineEnabled) {
+ 543:       engineRef.current?.dispose();
+ 544:       engineRef.current = null;
+ 545:       setEngineEnabled(false);
+ 546:       setEngineStatus("off");
+ 547:       setEngineScore(null);
+ 548:       setEngineMessage("");
+ 549:       return;
+ 550:     }
+ 551:     try {
+ 552:       setEngineScore(null);
+ 553:       setEngineMessage("");
+ 554:       const client = new StockfishEngine(
+ 555:         `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+ 556:         (status, message) => {
+ 557:           setEngineStatus(status);
+ 558:           if (status === "error") {
+ 559:             setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+ 560:             setEngineEnabled(false);
+ 561:             setEngineScore(null);
+ 562:             engineRef.current?.dispose();
+ 563:             engineRef.current = null;
+ 564:           }
+ 565:         },
+ 566:         setEngineScore,
+ 567:       );
+ 568:       engineRef.current = client;
+ 569:       setEngineEnabled(true);
+ 570:     } catch (cause) {
+ 571:       setEngineStatus("error");
+ 572:       setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+ 573:       setEngineEnabled(false);
+ 574:     }
+ 575:   }
+ 576: 
+ 577:   function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+ 578:     setSession((current) => {
+ 579:       if (!current) return current;
+ 580:       return typeof change === "function" ? change(current) : { ...current, ...change };
+
+===== APP: ENGINE INITIALIZATION / UNMOUNT CLEANUP =====
+Line 178: return () => controller.abort();
+          }
+        });
+    }, []);
+  
+  
+
+Line 262: return () => { cancelled = true; };
+      }
+      void initialize();
+    }, []);
+  
+    useEffect(() => {
+
+Line 307: return () => {
+        }
+      });
+        cancelled = true;
+        if (loadingTask) void loadingTask.destroy();
+      };
+
+Line 336: return () => {
+        }
+      });
+        cancelled = true;
+        renderTaskRef.current?.cancel();
+      };
+
+Line 370: return () => window.removeEventListener("keydown", onKey);
+      }
+      window.addEventListener("keydown", onKey);
+    });
+  
+    useEffect(() => () => {
+
+Line 374: engineRef.current?.dispose();
+  
+    useEffect(() => () => {
+      engineRef.current = null;
+    }, []);
+  
+
+Line 375: engineRef.current = null;
+    useEffect(() => () => {
+      engineRef.current?.dispose();
+    }, []);
+  
+    const sortedBooks = useMemo(() => [...books].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt), [books]);
+
+Line 426: return () => {
+      }, 500);
+  
+        window.clearTimeout(timer);
+        controller.abort();
+      };
+
+Line 476: return () => {
+      }, 400);
+  
+        window.clearTimeout(timer);
+        controller.abort();
+      };
+
+Line 533: engineRef.current?.analyze(game.fen(), engineDepth);
+    useEffect(() => {
+      if (engineEnabled && boardSession) {
+      }
+    }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+  
+
+Line 543: engineRef.current?.dispose();
+    function toggleEngine() {
+      if (engineEnabled) {
+        engineRef.current = null;
+        setEngineEnabled(false);
+        setEngineStatus("off");
+
+Line 544: engineRef.current = null;
+      if (engineEnabled) {
+        engineRef.current?.dispose();
+        setEngineEnabled(false);
+        setEngineStatus("off");
+        setEngineScore(null);
+
+Line 562: engineRef.current?.dispose();
+              setEngineEnabled(false);
+              setEngineScore(null);
+              engineRef.current = null;
+            }
+          },
+
+Line 563: engineRef.current = null;
+              setEngineScore(null);
+              engineRef.current?.dispose();
+            }
+          },
+          setEngineScore,
+
+Line 568: engineRef.current = client;
+          setEngineScore,
+        );
+        setEngineEnabled(true);
+      } catch (cause) {
+        setEngineStatus("error");
+
+Line 770: engineRef.current?.analyze(fen, engineDepth);
+        toggleEngine();
+      } else {
+      }
+      setNotice("Manual position loaded. Stockfish analysis started.");
+      return true;
+
+
+===== CSS: EXISTING ANALYSIS WORKSPACE RULES =====
+6936: 
+6937: /* ANALYSIS BOARD NO-BOOK LAYOUT */
+6938: /* Keep the library available, but give the Analysis Board the remaining workspace. */
+6939: .workspace.analysis-board-active:not(.library-collapsed) {
+6940:   grid-template-columns: 220px minmax(0, 1fr) !important;
+6941: }
+6942: .workspace.analysis-board-active.library-collapsed {
+6943:   grid-template-columns: minmax(0, 1fr) !important;
+6944: }
+6945: .workspace.analysis-board-active > .reader-panel {
+6946:   display: none !important;
+6947: }
+6948: .workspace.analysis-board-active > .board-panel {
+6949:   display: flex;
+6950:   min-width: 0;
+6951:   width: 100%;
+6952:   max-width: none;
+6953: }
+6954: @media (max-width: 900px) {
+6955:   .workspace.analysis-board-active:not(.library-collapsed),
+6956:   .workspace.analysis-board-active.library-collapsed {
+6957:     grid-template-columns: minmax(0, 1fr) !important;
+6958:   }
+6959: }
+6960: 
+6961: /* Keep chess square base colors stable on hover and focus. */
+6962: button.square.light-square:hover,
+6963: button.square.light-square:focus,
+6964: button.square.light-square:focus-visible {
+6965:   background: var(--board-light);

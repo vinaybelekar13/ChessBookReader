@@ -1,0 +1,318 @@
+
+Line Pattern                Text                                                                             
+---- -------                ----                                                                             
+  27 board-panel            .board-panel,                                                                    
+  34 board-panel            .board-panel {                                                                   
+  39 board-area             .board-area {                                                                    
+  50 board-frame            .board-frame {                                                                   
+  76 reader-footer          .reader-footer,                                                                  
+  77 analysis-strip         .analysis-strip {                                                                
+  89 board-panel            .board-panel {                                                                   
+  94 board-frame            .board-frame {                                                                   
+ 109 board-panel            .board-panel {                                                                   
+ 113 board-frame            .board-frame {                                                                   
+ 752 board-panel            .board-panel {                                                                   
+ 853 board-area             .board-area {                                                                    
+ 889 board-frame            .board-frame {                                                                   
+1587 reader-footer          .reader-footer {                                                                 
+1658 analysis-strip         .analysis-strip {                                                                
+1956 board-container        .manual-board-container {                                                        
+2411 board-panel            .board-panel .board-controls,                                                    
+2412 board-panel            .board-panel .move-controls,                                                     
+2413 board-panel            .board-panel .turn-row {                                                         
+2417 board-panel            .board-panel .board-controls {                                                   
+2424 board-panel            .board-panel .board-controls button,                                             
+2425 board-panel            .board-panel .move-controls button,                                              
+2426 board-panel            .board-panel .turn-row button {                                                  
+2441 board-panel            .board-panel .board-controls button:hover,                                       
+2442 board-panel            .board-panel .move-controls button:hover,                                        
+2443 board-panel            .board-panel .turn-row button:hover {                                            
+2450 board-panel            .board-panel .board-controls button:active,                                      
+2451 board-panel            .board-panel .move-controls button:active,                                       
+2452 board-panel            .board-panel .turn-row button:active {                                           
+2457 board-panel            .board-panel .board-controls button:focus-visible,                               
+2458 board-panel            .board-panel .move-controls button:focus-visible,                                
+2459 board-panel            .board-panel .turn-row button:focus-visible {                                    
+2464 board-panel            .board-panel .board-controls button:disabled,                                    
+2465 board-panel            .board-panel .move-controls button:disabled,                                     
+2466 board-panel            .board-panel .turn-row button:disabled {                                         
+2473 board-panel            .board-panel .board-controls .setup-position-button,                             
+2474 board-panel            .board-panel .turn-row .save-position {                                          
+2480 board-panel            .board-panel .board-controls .setup-position-button:hover,                       
+2481 board-panel            .board-panel .turn-row .save-position:hover {                                    
+2486 board-panel            .board-panel .board-controls .annotation-active,                                 
+2487 board-panel            .board-panel .turn-row .turn-active {                                            
+2494 board-panel            .board-panel .turn-row {                                                         
+2505 board-panel            .board-panel .turn-row > span {                                                  
+2512 board-panel            .board-panel .turn-row button {                                                  
+2516 board-panel            .board-panel .turn-row .save-position {                                          
+2520 board-panel            .board-panel .board-controls .controls-spacer {                                  
+2524 board-panel            .board-panel .position-editor {                                                  
+2531 board-panel            .board-panel .position-editor summary {                                          
+2537 board-panel            .board-panel .position-editor[open] summary {                                    
+2543 board-panel            .board-panel .board-controls {                                                   
+2547 board-panel            .board-panel .board-controls button,                                             
+2548 board-panel            .board-panel .move-controls button,                                              
+2549 board-panel            .board-panel .turn-row button {                                                  
+2555 board-panel            .board-panel .turn-row {                                                         
+2561 board-panel            .board-panel {                                                                   
+2567 board-area             .board-area {                                                                    
+2576 board-frame            .board-frame {                                                                   
+2712 board-area             .board-area {                                                                    
+2716 board-frame            .board-frame {                                                                   
+2746 board-panel            .board-panel,                                                                    
+2752 board-panel            .board-panel {                                                                   
+2779 board-area             .board-area {                                                                    
+2788 board-frame            .board-frame {                                                                   
+2971 board-panel            .board-panel {                                                                   
+2985 board-frame            .board-frame {                                                                   
+3030 board-panel            .board-panel {                                                                   
+3035 board-area             .board-area {                                                                    
+3044 board-frame            .board-frame {                                                                   
+3060 board-panel            .board-panel .board-controls .controls-separator,                                
+3061 board-panel            .board-panel .board-controls .controls-spacer {                                  
+3065 board-panel            .board-panel .board-controls button {                                            
+3083 board-panel            .board-panel .board-controls button.setup-position-button {                      
+3087 board-panel            .board-panel .turn-row {                                                         
+3099 board-panel            .board-panel .turn-row > span {                                                  
+3104 board-panel            .board-panel .turn-row button {                                                  
+3117 board-panel            .board-panel .position-editor,                                                   
+3118 board-panel            .board-panel .fen-entry,                                                         
+3119 board-panel            .board-panel .moves-panel,                                                       
+3120 board-panel            .board-panel .moves-heading,                                                     
+3121 board-panel            .board-panel .move-list,                                                         
+3122 board-panel            .board-panel .board-fen {                                                        
+3129 board-panel            .board-panel .fen-entry {                                                        
+3135 board-panel            .board-panel .fen-entry input {                                                  
+3142 board-panel            .board-panel .fen-entry button {                                                 
+3148 board-panel            .board-panel .board-controls {                                                   
+3152 board-panel            .board-panel .turn-row {                                                         
+3158 board-panel            .board-panel .board-controls {                                                   
+3162 board-panel            .board-panel .board-controls button.setup-position-button {                      
+3166 board-panel            .board-panel {                                                                   
+3172 board-area             .board-area {                                                                    
+3179 board-frame            .board-frame {                                                                   
+3209 board-panel            .board-panel { padding-inline: 10px; }                                           
+3210 board-frame            .board-frame { width: min(100%, 46vh, 390px); }                                  
+3222 board-panel            .board-panel {                                                                   
+3248 board-area             .board-area {                                                                    
+3256 board-frame            .board-frame {                                                                   
+3292 board-frame            .board-frame {                                                                   
+3302 board-frame            .board-frame {                                                                   
+3322 board-panel            .board-panel {                                                                   
+3331 board-panel            .board-panel > .section-kicker {                                                 
+3371 board-area             .board-area {                                                                    
+3381 board-frame            .board-frame {                                                                   
+3443 analysis-strip         .analysis-strip {                                                                
+3451 board-panel            .board-panel {                                                                   
+3456 board-frame            .board-frame {                                                                   
+3492 board-frame            .board-frame {                                                                   
+3528 board-panel            .board-panel .board-header {                                                     
+3539 board-panel            .board-panel .board-header > * {                                                 
+3543 board-panel            .board-panel .board-header-actions {                                             
+3555 board-panel            .board-panel .board-header-actions button {                                      
+3564 board-panel            .board-panel .board-header > button {                                            
+3678 board-panel            .board-panel {                                                                   
+3686 board-panel            .board-panel .section-kicker {                                                   
+3692 board-panel            .board-panel .board-header {                                                     
+3698 board-panel            .board-panel .board-header-actions {                                             
+3702 board-panel            .board-panel .board-header-actions button {                                      
+3708 board-area             .board-panel .board-area {                                                       
+3713 board-frame            .board-panel .board-frame {                                                      
+3719 board-panel            .board-panel .board-controls {                                                   
+3729 board-panel            .board-panel .board-controls button {                                            
+3740 board-panel            .board-panel .turn-row {                                                         
+3748 board-panel            .board-panel .turn-row button {                                                  
+3755 board-panel            .board-panel .position-editor {                                                  
+3759 board-panel            .board-panel .fen-entry {                                                        
+3763 board-panel            .board-panel .fen-entry input,                                                   
+3764 board-panel            .board-panel .fen-entry button {                                                 
+3770 board-panel            .board-panel .board-fen {                                                        
+3776 board-panel            .board-panel .moves-panel {                                                      
+3781 board-frame            .board-panel .board-frame {                                                      
+3785 board-panel            .board-panel .board-controls button,                                             
+3786 board-panel            .board-panel .turn-row button {                                                  
+3794 board-frame            .board-panel .board-frame {                                                      
+3801 board-panel            .board-panel {                                                                   
+3809 board-panel            .board-panel .board-header {                                                     
+3814 board-area             .board-panel .board-area {                                                       
+3818 board-frame            .board-panel .board-frame {                                                      
+3823 board-panel            .board-panel .board-controls {                                                   
+3833 board-panel            .board-panel .board-controls button {                                            
+3843 board-panel            .board-panel .turn-row {                                                         
+3852 board-panel            .board-panel .turn-row > * {                                                     
+3856 board-panel            .board-panel .turn-row button {                                                  
+3866 board-panel            .board-panel .board-fen {                                                        
+3920 board-frame            .board-panel .board-frame {                                                      
+3924 board-panel            .board-panel .board-controls button {                                            
+3931 board-frame            .board-panel .board-frame {                                                      
+3935 board-panel            .board-panel .board-controls button {                                            
+3978 board-panel            .board-panel .turn-row {                                                         
+3986 board-panel            .board-panel .turn-row button {                                                  
+3994 board-panel            .board-panel .board-fen {                                                        
+4001 board-panel            .board-panel {                                                                   
+4007 board-panel            .board-panel .section-kicker {                                                   
+4013 board-panel            .board-panel .board-header {                                                     
+4018 board-frame            .board-panel .board-frame {                                                      
+4023 board-panel            .board-panel .board-controls {                                                   
+4028 board-panel            .board-panel .board-controls button {                                            
+4036 board-frame            .board-panel .board-frame {                                                      
+4042 board-frame            .board-panel .board-frame {                                                      
+4046 board-panel            .board-panel .board-controls button {                                            
+4054 board-panel            .board-panel .board-controls {                                                   
+4060 board-panel            .board-panel .board-controls button {                                            
+4065 board-panel            .board-panel .turn-row {                                                         
+4072 board-panel            .board-panel .board-controls:has(button[title="FEN"]) {                          
+4076 board-panel            .board-panel .board-controls button[title="FEN"],                                
+4077 board-panel            .board-panel .board-controls button[title="PGN"] {                               
+4081 board-panel            .board-panel .turn-row {                                                         
+4092 board-panel            .board-panel .turn-row button {                                                  
+4101 board-panel            .board-panel .turn-row > * {                                                     
+4301 board-panel            .board-panel .section-eyebrow,                                                   
+4302 board-panel            .board-panel .panel-eyebrow,                                                     
+4303 board-panel            .board-panel .position-analysis-label,                                           
+4304 board-panel            .board-panel .engine-status,                                                     
+4305 board-panel            .board-panel .engine-status-row {                                                
+4310 board-panel            .board-panel .board-header,                                                      
+4311 board-panel            .board-panel .analysis-header {                                                  
+4318 board-panel            .board-panel [class*="engine-status"],                                           
+4319 board-panel            .board-panel [class*="engine-indicator"],                                        
+4320 board-panel            .board-panel [class*="engine-state"],                                            
+4321 board-panel            .board-panel [class*="engine-label"],                                            
+4322 board-panel            .board-panel [class*="engine-badge"] {                                           
+4327 board-panel            .board-panel .engine-off,                                                        
+4328 board-panel            .board-panel .engine-on,                                                         
+4329 board-panel            .board-panel .engine-status-text {                                               
+4334 analysis-strip         .analysis-strip {                                                                
+4358 analysis-strip         .analysis-strip > * {                                                            
+4503 analysis-strip         .analysis-strip {                                                                
+4529 analysis-strip         .analysis-strip {                                                                
+4543 analysis-strip         .analysis-strip {                                                                
+4558 analysis-strip         .analysis-strip > * {                                                            
+4613 analysis-strip         .analysis-strip button {                                                         
+4691 analysis-strip         .analysis-strip {                                                                
+4712 analysis-strip         .analysis-strip button {                                                         
+4719 analysis-strip         .analysis-strip {                                                                
+4728 analysis-strip         .analysis-strip .engine-toggle {                                                 
+4758 analysis-strip         .analysis-strip {                                                                
+4771 analysis-strip         .analysis-strip > .analysis-divider {                                            
+4775 analysis-strip         .analysis-strip > * {                                                            
+4782 analysis-strip         .analysis-strip .analysis-name {                                                 
+4790 analysis-strip         .analysis-strip .stockfish-mark {                                                
+4796 analysis-strip         .analysis-strip .analysis-name > div {                                           
+4802 analysis-strip         .analysis-strip .analysis-name strong,                                           
+4803 analysis-strip         .analysis-strip .analysis-name span {                                            
+4811 analysis-strip         .analysis-strip .analysis-name strong {                                          
+4816 analysis-strip         .analysis-strip .analysis-name span {                                            
+4821 analysis-strip         .analysis-strip .engine-toggle {                                                 
+4832 analysis-strip         .analysis-strip .depth-control {                                                 
+4842 analysis-strip         .analysis-strip .depth-control select {                                          
+4849 analysis-strip         .analysis-strip .analysis-result {                                               
+4858 analysis-strip         .analysis-strip .analysis-result span {                                          
+4865 analysis-strip         .analysis-strip .analysis-result strong {                                        
+4873 analysis-strip         .analysis-strip .analysis-pv {                                                   
+4884 analysis-strip         .analysis-strip .analysis-pv span {                                              
+4890 analysis-strip         .analysis-strip .analysis-pv strong {                                            
+4901 analysis-strip         .analysis-strip {                                                                
+4907 analysis-strip         .analysis-strip .analysis-name strong {                                          
+4911 analysis-strip         .analysis-strip .analysis-name span,                                             
+4912 analysis-strip         .analysis-strip .analysis-result span {                                          
+4916 analysis-strip         .analysis-strip .analysis-pv {                                                   
+4920 analysis-strip         .analysis-strip .analysis-pv strong {                                            
+4926 analysis-strip         .analysis-strip {                                                                
+4931 analysis-strip         .analysis-strip .analysis-name {                                                 
+4935 analysis-strip         .analysis-strip .engine-toggle {                                                 
+4940 analysis-strip         .analysis-strip .depth-control {                                                 
+4944 analysis-strip         .analysis-strip .analysis-pv {                                                   
+5081 board-area             .board-panel .board-area {                                                       
+5088 board-frame            .board-panel .board-frame {                                                      
+5097 board-panel            .board-panel .chessboard {                                                       
+5105 board-panel            .board-panel .chessboard > .board-arrows {                                       
+5116 board-panel            .board-panel .chessboard > .square {                                             
+5122 board-frame            .board-panel .board-frame {                                                      
+5126 board-panel            .board-panel .board-controls {                                                   
+5131 board-panel            .board-panel .board-controls button {                                            
+5140 board-panel            .board-panel .chessboard > .square.red-highlight::after {                        
+5151 board-panel            .board-panel button,                                                             
+5353 board-panel            .board-panel {                                                                   
+5359 board-panel            .board-panel .board-controls {                                                   
+5368 board-panel            .board-panel .board-controls button {                                            
+5377 board-panel            .board-panel .turn-row {                                                         
+5384 board-panel            .board-panel .turn-row > *,                                                      
+5385 board-panel            .board-panel .turn-row button {                                                  
+5392 board-panel            .board-panel .board-controls {                                                   
+5396 board-panel            .board-panel .board-controls button.setup-position-button {                      
+5423 board-panel            .workspace > .board-panel,                                                       
+5463 board-panel            .workspace > .board-panel {                                                      
+5468 board-area             .workspace .board-area {                                                         
+5477 board-frame            .workspace .board-frame {                                                        
+5512 board-frame            .workspace .board-frame {                                                        
+5529 board-panel            .workspace > .board-panel {                                                      
+5533 board-frame            .workspace .board-frame {                                                        
+5583 analysis-strip         .analysis-strip .stockfish-mark {                                                
+5606 board-panel            .board-panel .turn-row button {                                                  
+5613 board-panel            .board-panel .turn-row button svg {                                              
+5622 analysis-strip         .analysis-strip .analysis-name .stockfish-mark,                                  
+5634 analysis-strip         .analysis-strip .analysis-name .stockfish-mark > svg,                            
+5647 board-panel            .board-panel .board-controls button,                                             
+5648 board-panel            .board-panel .turn-row button {                                                  
+5655 board-panel            .board-panel .board-controls button > svg,                                       
+5656 board-panel            .board-panel .turn-row button > svg {                                            
+5665 board-panel            .board-panel .board-controls button.setup-position-button > svg {                
+5715 board-panel            .board-panel .board-header {                                                     
+5735 board-panel            .board-panel .board-header > div:first-child {                                   
+5742 board-panel            .board-panel .board-header > div:first-child strong {                            
+5750 board-panel            .board-panel .board-header > div:first-child span {                              
+5756 board-panel            .board-panel .board-header > div:last-child {                                    
+5764 board-panel            .board-panel .board-header .flip-board-button {                                  
+5773 board-panel            .board-panel .board-header .flip-board-button:hover {                            
+5779 board-panel            .board-panel .board-header {                                                     
+5784 board-panel            .board-panel .board-header > div:first-child strong {                            
+5788 board-panel            .board-panel .board-header .flip-board-button {                                  
+5794 board-panel            .board-panel .board-header {                                                     
+5816 board-panel            .board-panel .board-header::before {                                             
+5826 board-panel            .board-panel .board-header > div:first-child {                                   
+5835 board-panel            .board-panel .board-header .analysis-title-text {                                
+5847 board-panel            .board-panel .board-header .analysis-title-text svg {                            
+5852 board-panel            .board-panel .board-header > div:first-child > span {                            
+5858 board-panel            .board-panel .board-header > div:last-child {                                    
+5866 board-panel            .board-panel .board-header .flip-board-button {                                  
+5883 board-panel            .board-panel .board-header .flip-board-button:hover {                            
+5888 board-panel            .board-panel .board-header .flip-board-button:active {                           
+5892 board-panel            .board-panel .board-header .flip-board-button svg {                              
+5899 board-panel            .board-panel .board-header {                                                     
+5904 board-panel            .board-panel .board-header .analysis-title-text {                                
+5909 board-panel            .board-panel .board-header .flip-board-button {                                  
+6501 board-panel            .app-shell.study-focus-mode .workspace > .board-panel,                           
+6508 board-panel            .app-shell.study-focus-mode .board-panel {                                       
+6564 board-panel            .app-shell.study-focus-mode .workspace > .board-panel,                           
+6579 board-frame            .app-shell.study-focus-mode .board-panel .board-frame {                          
+6591 board-panel            .app-shell.study-focus-mode .workspace > .board-panel,                           
+6724 board-panel            .workspace.opening-explorer-active > .board-panel {                              
+6750 board-panel            .workspace.opening-explorer-active > .board-panel {                              
+6939 analysis-board-active  .workspace.analysis-board-active:not(.library-collapsed) {                       
+6942 analysis-board-active  .workspace.analysis-board-active.library-collapsed {                             
+6945 analysis-board-active  .workspace.analysis-board-active > .reader-panel {                               
+6948 board-panel            .workspace.analysis-board-active > .board-panel {                                
+6955 analysis-board-active  .workspace.analysis-board-active:not(.library-collapsed),                        
+6956 analysis-board-active  .workspace.analysis-board-active.library-collapsed {                             
+7318 board-frame            .gr-board-frame {                                                                
+7793 analysis-opening-stats .workspace.analysis-board-active .analysis-opening-stats {                       
+7804 analysis-opening-stats .workspace.analysis-board-active .analysis-opening-stats a {                     
+7808 analysis-opening-stats .workspace.analysis-board-active .analysis-opening-stats .opening-stats-heading {
+7812 analysis-opening-stats .workspace.analysis-board-active .analysis-opening-stats .opening-stat-move {    
+7816 analysis-opening-stats .workspace.analysis-board-active .analysis-opening-stats .muted {                
+7821 analysis-opening-stats .workspace.analysis-board-active .analysis-opening-stats {                       
+7885 board-panel            .workspace.analysis-board-active > .board-panel {                                
+7895 board-panel            .workspace.analysis-board-active > .board-panel > .board-header {                
+7901 board-area             .workspace.analysis-board-active > .board-panel > .board-area {                  
+7908 board-panel            .workspace.analysis-board-active > .board-panel > .analysis-strip {              
+7920 reader-footer          .workspace.analysis-board-active > .board-panel > .reader-footer {               
+7927 board-panel            .workspace.analysis-board-active > .board-panel {                                
+7931 board-panel            .workspace.analysis-board-active > .board-panel > .board-header {                
+7936 board-area             .workspace.analysis-board-active > .board-panel > .board-area {                  
+7941 board-panel            .workspace.analysis-board-active > .board-panel > .analysis-strip {              
+7946 reader-footer          .workspace.analysis-board-active > .board-panel > .reader-footer {               
+
+
+

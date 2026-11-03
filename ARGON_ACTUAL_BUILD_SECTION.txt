@@ -1,0 +1,100 @@
+          <details className="position-editor">
+            <summary>Board position Ãƒâ€šÃ‚Â· enter FEN to correct selected diagram</summary>
+            <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+          </details>
+          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+
+          {false && (
+            <section className="analysis-opening-stats opening-stats" aria-label="Analysis Board opening statistics" aria-live="polite">
+              <div className="opening-stats-heading">
+                <h4>Opening statistics</h4>
+                <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
+              </div>
+
+              {analysisOpeningUciMoves === null && (
+                <p>Opening statistics are available for lines starting from the standard chess position. This board uses a custom starting position.</p>
+              )}
+              {analysisOpeningUciMoves !== null && analysisOpeningStatsStatus === "loading" && (
+                <p>Loading game statisticsâ€¦</p>
+              )}
+              {analysisOpeningUciMoves !== null && analysisOpeningStatsStatus === "error" && (
+                <p role="status">Statistics are currently unavailable. The Analysis Board remains usable.</p>
+              )}
+              {analysisOpeningUciMoves !== null && analysisOpeningStatsStatus === "ready" && analysisOpeningStats && (
+                <>
+                  {analysisOpeningStats.opening && (
+                    <p className="opening-stats-name">
+                      {analysisOpeningStats.opening.eco ? `${analysisOpeningStats.opening.eco} Â· ` : ""}
+                      {analysisOpeningStats.opening.name}
+                    </p>
+                  )}
+                  <strong className="opening-stats-total">
+                    {analysisOpeningStats.total.toLocaleString()} games in this dataset
+                  </strong>
+                  <div className="opening-result-bar" aria-label="White wins, draws and Black wins">
+                    <span className="opening-result-white" style={{ width: `${analysisOpeningStats.total ? analysisOpeningStats.white / analysisOpeningStats.total * 100 : 0}%` }} />
+                    <span className="opening-result-draw" style={{ width: `${analysisOpeningStats.total ? analysisOpeningStats.draws / analysisOpeningStats.total * 100 : 0}%` }} />
+                    <span className="opening-result-black" style={{ width: `${analysisOpeningStats.total ? analysisOpeningStats.black / analysisOpeningStats.total * 100 : 0}%` }} />
+                  </div>
+                  <div className="opening-result-legend">
+                    <span>White {analysisOpeningStats.white.toLocaleString()}</span>
+                    <span>Draws {analysisOpeningStats.draws.toLocaleString()}</span>
+                    <span>Black {analysisOpeningStats.black.toLocaleString()}</span>
+                  </div>
+                  <h5>Popular continuations</h5>
+                  {analysisOpeningStats.moves.length ? (
+                    <div className="opening-stat-moves">
+                      {analysisOpeningStats.moves.slice(0, 8).map((move) => (
+                        <div className="opening-stat-move" key={move.uci}>
+                          <strong>{move.san}</strong>
+                          <span>{(move.white + move.draws + move.black).toLocaleString()} games</span>
+                          {move.opening && <small>{move.opening.name}</small>}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>No continuation data was returned for this position.</p>
+                  )}
+                  <p className="muted">Counts reflect Lichess's indexed dataset, not all chess games.</p>
+                </>
+              )}
+            </section>
+          )}
+          {false && (
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "Ready Ãƒâ€šÃ‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ãƒâ€šÃ‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+          )}
+        </section>
+
+        <section className="reader-panel" aria-label="PDF book reader">
+          <div className="opening-explorer-right-workspace">
+          {workspaceMode === "opening-explorer" && (
+            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+              <h3>Opening Explorer</h3>
+              <div className="lichess-connection-controls">
+                {lichessStatus?.connected ? (
+                  <>
+                    <span role="status">Lichess connected</span>
+                    <button
+                      type="button"
+                      disabled={lichessActionBusy}
+                      onClick={() => {
+                        setLichessActionBusy(true);
+                        void disconnectLichess()
+                          .then(() => {
+                            setLichessStatus((current) => current ? { ...current, connected: false } : current);
+                            setOpeningStats(null);
+                            setOpeningStatsStatus("idle");
+                            setNotice("Lichess disconnected.");
+                          })
+                          .catch(() => setLichessStatusError("Could not disconnect. Check that the backend is running."))
+                          .finally(() => setLichessActionBusy(false));
+                      }}
+                    >{lichessActionBusy ? "DisconnectingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "Disconnect"}</button>

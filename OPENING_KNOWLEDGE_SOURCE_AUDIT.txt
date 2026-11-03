@@ -1,0 +1,1342 @@
+OPENING KNOWLEDGE SOURCE AUDIT
+
+========== .\src\opening-explorer-api.ts ==========
+export type OpeningExplorerMove = {
+  uci: string;
+  san: string;
+  white: number;
+  draws: number;
+  black: number;
+  opening?: { eco?: string; name: string } | null;
+};
+
+export type OpeningExplorerStats = {
+  white: number;
+  draws: number;
+  black: number;
+  total: number;
+  moves: OpeningExplorerMove[];
+  opening?: { eco?: string; name: string } | null;
+};
+
+function count(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : 0;
+}
+
+function opening(value: unknown): OpeningExplorerStats["opening"] {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  if (typeof item.name !== "string") return null;
+  return {
+    name: item.name,
+    ...(typeof item.eco === "string" ? { eco: item.eco } : {}),
+  };
+}
+
+export async function fetchOpeningExplorerStats(
+  uciMoves: string[],
+  signal?: AbortSignal,
+): Promise<OpeningExplorerStats> {
+  const query = new URLSearchParams();
+  query.set("variant", "standard");
+  query.set("moves", "8");
+  if (uciMoves.length) query.set("play", uciMoves.join(","));
+
+  const response = await fetch(
+    `/api/lichess/opening-explorer?${query.toString()}`,
+    {
+      method: "GET",
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+      signal,
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Opening Explorer request failed (${response.status}).`);
+  }
+
+  const raw: unknown = await response.json();
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Opening Explorer returned an invalid response.");
+  }
+
+  const data = raw as Record<string, unknown>;
+  const white = count(data.white);
+  const draws = count(data.draws);
+  const black = count(data.black);
+
+  const moves: OpeningExplorerMove[] = Array.isArray(data.moves)
+    ? data.moves.flatMap((entry): OpeningExplorerMove[] => {
+        if (!entry || typeof entry !== "object") return [];
+        const item = entry as Record<string, unknown>;
+        if (typeof item.uci !== "string" || typeof item.san !== "string") return [];
+        return [{
+          uci: item.uci,
+          san: item.san,
+          white: count(item.white),
+          draws: count(item.draws),
+          black: count(item.black),
+          opening: opening(item.opening),
+        }];
+      })
+    : [];
+
+  return {
+    white,
+    draws,
+    black,
+    total: white + draws + black,
+    moves,
+    opening: opening(data.opening),
+  };
+}
+
+export type LichessConnectionStatus = {
+  connected: boolean;
+  configured: boolean;
+};
+
+export async function getLichessConnectionStatus(
+  signal?: AbortSignal,
+): Promise<LichessConnectionStatus> {
+  const response = await fetch("/api/lichess/status", {
+    method: "GET",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`Connection status request failed (${response.status}).`);
+  }
+  const value: unknown = await response.json();
+  if (!value || typeof value !== "object") {
+    throw new Error("Invalid connection status response.");
+  }
+  const status = value as Record<string, unknown>;
+  return {
+    connected: status.connected === true,
+    configured: status.configured === true,
+  };
+}
+
+export async function disconnectLichess(): Promise<void> {
+  const response = await fetch("/api/lichess/disconnect", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error(`Disconnect request failed (${response.status}).`);
+  }
+}
+
+========== .\src\opening-explorer.ts ==========
+import { Chess, type Square } from "chess.js";
+
+export type OpeningLineResult = {
+  fen: string;
+  sanMoves: string[];
+  uciMoves: string[];
+  error: string | null;
+};
+
+export function parseOpeningLine(input: string): OpeningLineResult {
+  const chess = new Chess();
+  const sanMoves: string[] = [];
+  const uciMoves: string[] = [];
+
+  const tokens = input
+    .replace(/\{[^}]*\}/g, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\d+\.(\.\.)?/g, " ")
+    .replace(/\$\d+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((token) => !["1-0", "0-1", "1/2-1/2", "*"].includes(token));
+
+  for (const token of tokens) {
+    try {
+      const uci = token.match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
+      const move = uci
+        ? chess.move({
+            from: uci[1].toLowerCase() as Square,
+            to: uci[2].toLowerCase() as Square,
+            promotion: uci[3]?.toLowerCase(),
+          })
+        : chess.move(token);
+
+      sanMoves.push(move.san);
+      uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+    } catch {
+      return {
+        fen: chess.fen(),
+        sanMoves,
+        uciMoves,
+        error: `Invalid or illegal move: ${token}`,
+      };
+    }
+  }
+
+  return { fen: chess.fen(), sanMoves, uciMoves, error: null };
+}
+
+export function openingPositionAt(input: string, ply: number): OpeningLineResult {
+  const parsed = parseOpeningLine(input);
+  if (parsed.error) return parsed;
+
+  const limit = Math.max(0, Math.min(parsed.sanMoves.length, Math.floor(ply)));
+  const chess = new Chess();
+  const sanMoves: string[] = [];
+  const uciMoves: string[] = [];
+
+  for (let i = 0; i < limit; i++) {
+    const move = chess.move(parsed.sanMoves[i]);
+    sanMoves.push(move.san);
+    uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+  }
+
+  return { fen: chess.fen(), sanMoves, uciMoves, error: null };
+}
+
+========== .\package.json ==========
+{
+  "name": "chessbook-reader",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^5.0.4"
+  }
+}
+
+========== APP POSITION AND MOVE LOGIC ==========
+
+  src\App.tsx:421:    }, 500);
+  src\App.tsx:422:
+  src\App.tsx:423:    return () => {
+  src\App.tsx:424:      window.clearTimeout(timer);
+  src\App.tsx:425:      controller.abort();
+  src\App.tsx:426:    };
+  src\App.tsx:427:  }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+  src\App.tsx:428:
+> src\App.tsx:429:  const boardSession: StudyBoardState | null =
+  src\App.tsx:430:    workspaceMode === "analysis"
+  src\App.tsx:431:      ? analysisBoard
+  src\App.tsx:432:      : workspaceMode === "opening-prep"
+  src\App.tsx:433:        ? openingPrepBoard
+  src\App.tsx:434:        : workspaceMode === "opening-explorer"
+  src\App.tsx:435:          ? {
+  src\App.tsx:436:              lineBaseFen: START_FEN,
+  src\App.tsx:437:              currentFen: openingPosition.fen,
+  src\App.tsx:438:              moves: openingPosition.sanMoves,
+  src\App.tsx:439:              moveIndex: openingPosition.sanMoves.length,
+  src\App.tsx:440:              flipped: false,
+  src\App.tsx:441:              coordinates: true,
+  src\App.tsx:442:            }
+  src\App.tsx:443:          : studyMode
+  src\App.tsx:444:            ? studyBoard
+  src\App.tsx:445:            : session;
+> src\App.tsx:446:  const game = useMemo(() => {
+  src\App.tsx:447:    if (!boardSession) return new Chess();
+  src\App.tsx:448:    try {
+  src\App.tsx:449:      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+  src\App.tsx:450:    } catch {
+  src\App.tsx:451:      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+  src\App.tsx:452:    }
+  src\App.tsx:453:  }, [boardSession]);
+  src\App.tsx:454:  const legalTargets = useMemo(() => {
+  src\App.tsx:455:    if (!selectedSquare) return new Set<string>();
+  src\App.tsx:456:    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  src\App.tsx:457:  }, [game, selectedSquare]);
+  src\App.tsx:458:  const pieceSquares = game.board();
+  src\App.tsx:459:  const moveHistory = useMemo(() => {
+  src\App.tsx:460:    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+  src\App.tsx:461:    catch { return []; }
+  src\App.tsx:462:  }, [boardSession]);
+  src\App.tsx:463:  const highlightedMove = lastMove ?? (moveHistory.length
+  src\App.tsx:464:    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+  src\App.tsx:465:    : null);
+  src\App.tsx:466:  const engineArrow = useMemo(
+  src\App.tsx:467:    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+  src\App.tsx:468:    [engineEnabled, engineScore?.bestMove],
+  src\App.tsx:523:
+  src\App.tsx:524:  function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+  src\App.tsx:525:    setSession((current) => {
+  src\App.tsx:526:      if (!current) return current;
+  src\App.tsx:527:      return typeof change === "function" ? change(current) : { ...current, ...change };
+  src\App.tsx:528:    });
+  src\App.tsx:529:  }
+  src\App.tsx:530:
+> src\App.tsx:531:  function patchBoardSession(change: Partial<StudyBoardState>) {
+  src\App.tsx:532:    if (workspaceMode === "opening-explorer") {
+  src\App.tsx:533:      return;
+  src\App.tsx:534:    }
+  src\App.tsx:535:
+  src\App.tsx:536:    if (workspaceMode === "analysis") {
+  src\App.tsx:537:      setAnalysisBoard((current) => ({ ...current, ...change }));
+  src\App.tsx:538:    } else if (workspaceMode === "opening-prep") {
+  src\App.tsx:539:      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+  src\App.tsx:540:    } else if (studyMode) {
+  src\App.tsx:541:      setStudyBoard((current) => current ? { ...current, ...change } : current);
+  src\App.tsx:542:    } else {
+  src\App.tsx:543:      patchSession(change);
+  src\App.tsx:544:    }
+  src\App.tsx:545:  }
+  src\App.tsx:546:  async function toggleStudyMode() {
+  src\App.tsx:547:    if (!studyMode) {
+  src\App.tsx:548:      if (!session) {
+  src\App.tsx:549:        setError("Open a book before entering study mode.");
+  src\App.tsx:550:        return;
+  src\App.tsx:551:      }
+  src\App.tsx:552:      setStudyBoard({
+  src\App.tsx:553:        lineBaseFen: session.lineBaseFen,
+  src\App.tsx:877:      setPromotionRequest(null);
+  src\App.tsx:878:      setError("");
+  src\App.tsx:879:    } catch {
+  src\App.tsx:880:      setError("Unable to complete pawn promotion.");
+  src\App.tsx:881:      setPromotionRequest(null);
+  src\App.tsx:882:    }
+  src\App.tsx:883:  }
+  src\App.tsx:884:
+> src\App.tsx:885:  function makeMove(from: Square, to: Square) {
+  src\App.tsx:886:    if (!boardSession) return;
+  src\App.tsx:887:    const activeBoard = boardSession;
+  src\App.tsx:888:    try {
+  src\App.tsx:889:      const currentGame = new Chess(activeBoard.currentFen);
+  src\App.tsx:890:      const mover = currentGame.get(from);
+  src\App.tsx:891:      const promote = mover?.type === "p" && (to.endsWith("8") || to.endsWith("1"));
+  src\App.tsx:892:      if (promote) {
+  src\App.tsx:893:        setPromotionRequest({ from, to });
+  src\App.tsx:894:        return;
+  src\App.tsx:895:      }
+  src\App.tsx:896:      const result = currentGame.move({ from, to });
+  src\App.tsx:897:      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+  src\App.tsx:898:      if (workspaceMode === "opening-explorer") {
+  src\App.tsx:899:        const line = nextMoves
+  src\App.tsx:900:          .map((move, index) => index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ${move}` : move)
+  src\App.tsx:901:          .join(" ");
+  src\App.tsx:902:        setOpeningExplorerInput(line);
+  src\App.tsx:903:        setOpeningExplorerPly(nextMoves.length);
+  src\App.tsx:904:      } else {
+  src\App.tsx:905:        patchBoardSession({
+  src\App.tsx:906:          currentFen: currentGame.fen(),
+  src\App.tsx:907:          moves: nextMoves,
+  src\App.tsx:1055:      setError(`Could not read PGN file: ${messageOf(cause)}`);
+  src\App.tsx:1056:    }
+  src\App.tsx:1057:  }
+  src\App.tsx:1058:
+  src\App.tsx:1059:  function pastePgn() {
+  src\App.tsx:1060:    const source = window.prompt("Paste PGN notation:");
+  src\App.tsx:1061:    if (source !== null) loadPgnText(source);
+  src\App.tsx:1062:  }
+> src\App.tsx:1063:  function jumpToMove(index: number) {
+  src\App.tsx:1064:    if (!boardSession) return;
+  src\App.tsx:1065:    try {
+  src\App.tsx:1066:      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+  src\App.tsx:1067:      const last = next.history({ verbose: true }).at(-1);
+  src\App.tsx:1068:      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+  src\App.tsx:1069:      setLastMove(last ? { from: last.from, to: last.to } : null);
+  src\App.tsx:1070:      setSelectedSquare(null);
+  src\App.tsx:1071:    } catch (cause) {
+  src\App.tsx:1072:      setError(`Could not navigate to move: ${messageOf(cause)}`);
+  src\App.tsx:1073:    }
+  src\App.tsx:1074:  }
+  src\App.tsx:1075:
+  src\App.tsx:1076:  async function copyText(value: string) {
+  src\App.tsx:1077:    try {
+  src\App.tsx:1078:      await navigator.clipboard.writeText(value);
+  src\App.tsx:1079:      setNotice("Copied to clipboard.");
+  src\App.tsx:1080:    } catch (cause) {
+  src\App.tsx:1081:      setError(`Clipboard access failed: ${messageOf(cause)}`);
+  src\App.tsx:1082:    }
+  src\App.tsx:1083:  }
+  src\App.tsx:1084:
+  src\App.tsx:1085:  function stopBoardScan() {
+  src\App.tsx:1366:      fen: session.currentFen,
+  src\App.tsx:1367:      page: session.page,
+  src\App.tsx:1368:      savedAt: Date.now(),
+  src\App.tsx:1369:    };
+  src\App.tsx:1370:    patchSession((current) => ({ ...current, positions: [...current.positions, position] }));
+  src\App.tsx:1371:    setNotice("Position saved to this book.");
+  src\App.tsx:1372:  }
+  src\App.tsx:1373:
+> src\App.tsx:1374:  function resetBoard() {
+  src\App.tsx:1375:    if (workspaceMode === "opening-prep") {
+  src\App.tsx:1376:      const original = new Chess(openingPrepBoard.lineBaseFen);
+  src\App.tsx:1377:      patchBoardSession({
+  src\App.tsx:1378:        lineBaseFen: original.fen(),
+  src\App.tsx:1379:        currentFen: original.fen(),
+  src\App.tsx:1380:        moves: [],
+  src\App.tsx:1381:        moveIndex: 0,
+  src\App.tsx:1382:      });
+  src\App.tsx:1383:    } else if (studyMode) {
+  src\App.tsx:1384:      if (!studyBoard) return;
+  src\App.tsx:1385:      const original = new Chess(studyBoard.lineBaseFen);
+  src\App.tsx:1386:      patchBoardSession({
+  src\App.tsx:1387:        lineBaseFen: original.fen(),
+  src\App.tsx:1388:        currentFen: original.fen(),
+  src\App.tsx:1389:        moves: [],
+  src\App.tsx:1390:        moveIndex: 0,
+  src\App.tsx:1391:      });
+  src\App.tsx:1392:    } else {
+  src\App.tsx:1393:      if (!session) return;
+  src\App.tsx:1394:      const original = new Chess(session.originalFen);
+  src\App.tsx:1395:      patchSession({
+  src\App.tsx:1396:        lineBaseFen: original.fen(),
+
+
+
+
+========== ANALYSIS BOARD CSS ==========
+
+  src\styles.css:72:  min-width: 0;
+  src\styles.css:73:  overflow: auto;
+  src\styles.css:74:}
+  src\styles.css:75:
+  src\styles.css:76:.reader-footer,
+> src\styles.css:77:.analysis-strip {
+  src\styles.css:78:  flex: 0 0 auto;
+  src\styles.css:79:  min-width: 0;
+  src\styles.css:80:  max-width: 100%;
+  src\styles.css:81:  box-sizing: border-box;
+  src\styles.css:82:}
+  src\styles.css:83:
+  src\styles.css:84:@media (max-width: 1280px) and (min-width: 821px) {
+  src\styles.css:85:  .workspace {
+  src\styles.css:86:    grid-template-columns: 190px minmax(300px, 340px) minmax(0, 1fr);
+  src\styles.css:87:  }
+  src\styles.css:88:
+  src\styles.css:89:  .board-panel {
+  src\styles.css:1653:
+  src\styles.css:1654:/* ==========================================================
+  src\styles.css:1655:   10. STOCKFISH ENGINE ANALYSIS STRIP
+  src\styles.css:1656:   ========================================================== */
+  src\styles.css:1657:
+> src\styles.css:1658:.analysis-strip {
+  src\styles.css:1659:  flex: 0 0 auto;
+  src\styles.css:1660:  min-height: 64px;
+  src\styles.css:1661:  padding: 8px 14px;
+  src\styles.css:1662:  display: flex;
+  src\styles.css:1663:  align-items: center;
+  src\styles.css:1664:  gap: 12px;
+  src\styles.css:1665:  background: var(--panel-secondary);
+  src\styles.css:1666:  border-top: 1px solid var(--border-subtle);
+  src\styles.css:1667:  flex-wrap: nowrap;
+  src\styles.css:1668:}
+  src\styles.css:1669:
+  src\styles.css:1670:.analysis-name {
+  src\styles.css:3438:.page-workspace {
+  src\styles.css:3439:  min-height: 0;
+  src\styles.css:3440:  overflow: auto;
+  src\styles.css:3441:}
+  src\styles.css:3442:
+> src\styles.css:3443:.analysis-strip {
+  src\styles.css:3444:  flex: 0 0 auto;
+  src\styles.css:3445:  min-height: 64px;
+  src\styles.css:3446:  max-height: 76px;
+  src\styles.css:3447:  overflow: auto;
+  src\styles.css:3448:}
+  src\styles.css:3449:
+  src\styles.css:3450:@media (max-height: 850px) {
+  src\styles.css:3451:  .board-panel {
+  src\styles.css:3452:    padding-top: 3px;
+  src\styles.css:3453:    padding-bottom: 5px;
+  src\styles.css:3454:  }
+  src\styles.css:3455:
+  src\styles.css:3578:  flex: 0 1 34%;
+  src\styles.css:3579:  min-height: 90px;
+  src\styles.css:3580:  overflow-y: auto;
+  src\styles.css:3581:}
+  src\styles.css:3582:
+> src\styles.css:3583:.sidebar-moves-panel {
+  src\styles.css:3584:  display: flex;
+  src\styles.css:3585:  flex: 1 1 0;
+  src\styles.css:3586:  flex-direction: column;
+  src\styles.css:3587:  min-height: 110px;
+  src\styles.css:3588:  max-height: 42%;
+  src\styles.css:3589:  padding: 0 9px 8px;
+  src\styles.css:3590:  overflow: hidden;
+  src\styles.css:3591:  border-top: 1px solid var(--border-subtle);
+  src\styles.css:3592:}
+  src\styles.css:3593:
+> src\styles.css:3594:.sidebar-moves-panel .moves-panel {
+  src\styles.css:3595:  display: flex;
+  src\styles.css:3596:  flex: 1 1 auto;
+  src\styles.css:3597:  flex-direction: column;
+  src\styles.css:3598:  min-height: 0;
+  src\styles.css:3599:  margin: 0;
+  src\styles.css:3600:  overflow: hidden;
+  src\styles.css:3601:}
+  src\styles.css:3602:
+> src\styles.css:3603:.sidebar-moves-panel .moves-heading {
+  src\styles.css:3604:  flex: 0 0 auto;
+  src\styles.css:3605:  margin: 0;
+  src\styles.css:3606:  padding: 8px 2px 6px;
+  src\styles.css:3607:}
+  src\styles.css:3608:
+> src\styles.css:3609:.sidebar-moves-panel .move-list {
+  src\styles.css:3610:  flex: 1 1 auto;
+  src\styles.css:3611:  min-height: 0;
+  src\styles.css:3612:  max-height: none;
+  src\styles.css:3613:  overflow-y: auto;
+  src\styles.css:3614:  overflow-x: hidden;
+  src\styles.css:3615:  align-content: flex-start;
+  src\styles.css:3616:  scroll-behavior: smooth;
+  src\styles.css:3617:}
+  src\styles.css:3618:
+> src\styles.css:3619:.sidebar-moves-panel .move-pair {
+  src\styles.css:3620:  display: grid;
+  src\styles.css:3621:  grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr);
+  src\styles.css:3622:  gap: 2px;
+  src\styles.css:3623:  width: 100%;
+  src\styles.css:3624:  min-width: 0;
+  src\styles.css:3625:}
+  src\styles.css:3626:
+> src\styles.css:3627:.sidebar-moves-panel .move-pair button {
+  src\styles.css:3628:  min-width: 0;
+  src\styles.css:3629:  padding: 3px 4px;
+  src\styles.css:3630:  overflow: hidden;
+  src\styles.css:3631:  text-overflow: ellipsis;
+  src\styles.css:3632:}
+  src\styles.css:3633:
+  src\styles.css:3634:.library-panel .library-footer {
+  src\styles.css:3635:  flex: 0 0 auto;
+  src\styles.css:3636:}
+  src\styles.css:3637:
+  src\styles.css:3638:
+  src\styles.css:3639:/* Final compact fit: fill the sidebar move-list area and keep board controls visible */
+  src\styles.css:3642:  flex-direction: column;
+  src\styles.css:3643:  min-height: 0;
+  src\styles.css:3644:  overflow: hidden;
+  src\styles.css:3645:}
+  src\styles.css:3646:
+> src\styles.css:3647:.library-panel .sidebar-moves-panel {
+  src\styles.css:3648:  flex: 1 1 0 !important;
+  src\styles.css:3649:  min-height: 0 !important;
+  src\styles.css:3650:  max-height: none !important;
+  src\styles.css:3651:  margin: 0 !important;
+  src\styles.css:3652:  padding: 0 8px 6px !important;
+  src\styles.css:3653:  overflow: hidden !important;
+  src\styles.css:3654:}
+  src\styles.css:3655:
+> src\styles.css:3656:.sidebar-moves-panel .moves-panel {
+  src\styles.css:3657:  flex: 1 1 0 !important;
+  src\styles.css:3658:  min-height: 0 !important;
+  src\styles.css:3659:  height: 100% !important;
+  src\styles.css:3660:  overflow: hidden !important;
+  src\styles.css:3661:}
+  src\styles.css:3662:
+> src\styles.css:3663:.sidebar-moves-panel .move-list {
+  src\styles.css:3664:  flex: 1 1 0 !important;
+  src\styles.css:3665:  min-height: 0 !important;
+  src\styles.css:3666:  height: 100% !important;
+  src\styles.css:3667:  max-height: none !important;
+  src\styles.css:3668:  overflow-y: auto !important;
+  src\styles.css:3669:  overflow-x: hidden !important;
+  src\styles.css:3670:  align-content: start;
+  src\styles.css:3671:}
+  src\styles.css:3672:
+  src\styles.css:3673:.library-panel .library-footer {
+  src\styles.css:3674:  flex: 0 0 auto !important;
+  src\styles.css:3675:}
+  src\styles.css:3868:  margin-top: 3px !important;
+  src\styles.css:3869:  padding: 7px 9px !important;
+  src\styles.css:3870:}
+  src\styles.css:3871:
+  src\styles.css:3872:/* The move list belongs below the library, filling the remaining height */
+> src\styles.css:3873:.library-panel .sidebar-moves-panel {
+  src\styles.css:3874:  display: flex !important;
+  src\styles.css:3875:  flex: 1 1 0 !important;
+  src\styles.css:3876:  min-height: 150px !important;
+  src\styles.css:3877:  max-height: none !important;
+  src\styles.css:3878:  padding: 0 8px 8px !important;
+  src\styles.css:3879:  overflow: hidden !important;
+  src\styles.css:3880:}
+  src\styles.css:3881:
+> src\styles.css:3882:.sidebar-moves-panel .moves-panel {
+  src\styles.css:3883:  display: flex !important;
+  src\styles.css:3884:  flex: 1 1 0 !important;
+  src\styles.css:3885:  flex-direction: column !important;
+  src\styles.css:3886:  min-height: 0 !important;
+  src\styles.css:3887:  height: 100% !important;
+  src\styles.css:3888:  overflow: hidden !important;
+  src\styles.css:3889:}
+  src\styles.css:3890:
+> src\styles.css:3891:.sidebar-moves-panel .moves-heading {
+  src\styles.css:3892:  flex: 0 0 auto !important;
+  src\styles.css:3893:  padding: 8px 2px !important;
+  src\styles.css:3894:}
+  src\styles.css:3895:
+> src\styles.css:3896:.sidebar-moves-panel .move-list {
+  src\styles.css:3897:  display: block !important;
+  src\styles.css:3898:  flex: 1 1 0 !important;
+  src\styles.css:3899:  min-height: 0 !important;
+  src\styles.css:3900:  height: 100% !important;
+  src\styles.css:3901:  max-height: none !important;
+  src\styles.css:3902:  overflow-y: auto !important;
+  src\styles.css:3903:  overflow-x: hidden !important;
+  src\styles.css:3904:  scroll-behavior: smooth !important;
+  src\styles.css:3905:}
+  src\styles.css:3906:
+> src\styles.css:3907:.sidebar-moves-panel .move-pair {
+  src\styles.css:3908:  display: grid !important;
+  src\styles.css:3909:  grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) !important;
+  src\styles.css:3910:  width: 100% !important;
+  src\styles.css:3911:}
+  src\styles.css:3912:
+> src\styles.css:3913:.sidebar-moves-panel .move-pair button {
+  src\styles.css:3914:  min-width: 0 !important;
+  src\styles.css:3915:  overflow: hidden !important;
+  src\styles.css:3916:  text-overflow: ellipsis !important;
+  src\styles.css:3917:}
+  src\styles.css:3918:
+  src\styles.css:3919:@media (max-height: 850px) {
+  src\styles.css:3920:  .board-panel .board-frame {
+  src\styles.css:3921:    width: min(100%, calc(100vh - 335px), 480px) !important;
+  src\styles.css:3922:  }
+  src\styles.css:3923:
+  src\styles.css:3924:  .board-panel .board-controls button {
+  src\styles.css:3925:    min-height: 35px !important;
+  src\styles.css:3945:  flex-direction: column !important;
+  src\styles.css:3946:  min-height: 0 !important;
+  src\styles.css:3947:  overflow: hidden !important;
+  src\styles.css:3948:}
+  src\styles.css:3949:
+> src\styles.css:3950:.library-panel .sidebar-moves-panel {
+  src\styles.css:3951:  flex: 1 1 auto !important;
+  src\styles.css:3952:  min-height: 0 !important;
+  src\styles.css:3953:  max-height: none !important;
+  src\styles.css:3954:  margin: 0 !important;
+  src\styles.css:3955:  padding: 0 8px 8px !important;
+  src\styles.css:3956:  overflow: hidden !important;
+  src\styles.css:3957:}
+  src\styles.css:3958:
+> src\styles.css:3959:.sidebar-moves-panel .moves-panel {
+  src\styles.css:3960:  display: flex !important;
+  src\styles.css:3961:  flex: 1 1 auto !important;
+  src\styles.css:3962:  flex-direction: column !important;
+  src\styles.css:3963:  min-height: 0 !important;
+  src\styles.css:3964:  height: 100% !important;
+  src\styles.css:3965:  overflow: hidden !important;
+  src\styles.css:3966:}
+  src\styles.css:3967:
+> src\styles.css:3968:.sidebar-moves-panel .move-list {
+  src\styles.css:3969:  flex: 1 1 auto !important;
+  src\styles.css:3970:  min-height: 0 !important;
+  src\styles.css:3971:  max-height: none !important;
+  src\styles.css:3972:  height: 100% !important;
+  src\styles.css:3973:  overflow-y: auto !important;
+  src\styles.css:3974:  overflow-x: hidden !important;
+  src\styles.css:3975:}
+  src\styles.css:3976:
+  src\styles.css:3977:/* Compact the move-to-play status and place it alongside FEN/PGN */
+  src\styles.css:3978:.board-panel .turn-row {
+  src\styles.css:3979:  display: grid !important;
+  src\styles.css:3980:  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+  src\styles.css:4236:  height: 100% !important;
+  src\styles.css:4237:  min-height: 0 !important;
+  src\styles.css:4238:  overflow: hidden !important;
+  src\styles.css:4239:}
+  src\styles.css:4240:
+> src\styles.css:4241:.library-panel .sidebar-moves-panel {
+  src\styles.css:4242:  display: flex !important;
+  src\styles.css:4243:  flex: 1 1 auto !important;
+  src\styles.css:4244:  flex-direction: column !important;
+  src\styles.css:4245:  min-height: 0 !important;
+  src\styles.css:4246:  height: auto !important;
+  src\styles.css:4247:  max-height: none !important;
+  src\styles.css:4248:  margin: 0 !important;
+  src\styles.css:4249:  padding-bottom: 0 !important;
+  src\styles.css:4250:  overflow: hidden !important;
+  src\styles.css:4251:}
+  src\styles.css:4252:
+> src\styles.css:4253:.library-panel .sidebar-moves-panel .moves-panel {
+  src\styles.css:4254:  display: flex !important;
+  src\styles.css:4255:  flex: 1 1 auto !important;
+  src\styles.css:4256:  flex-direction: column !important;
+  src\styles.css:4257:  min-height: 0 !important;
+  src\styles.css:4258:  height: 100% !important;
+  src\styles.css:4259:  max-height: none !important;
+  src\styles.css:4260:  margin: 0 !important;
+  src\styles.css:4261:  overflow: hidden !important;
+  src\styles.css:4262:}
+  src\styles.css:4263:
+> src\styles.css:4264:.library-panel .sidebar-moves-panel .move-list {
+  src\styles.css:4265:  display: block !important;
+  src\styles.css:4266:  flex: 1 1 auto !important;
+  src\styles.css:4267:  min-height: 0 !important;
+  src\styles.css:4268:  height: 100% !important;
+  src\styles.css:4269:  max-height: none !important;
+  src\styles.css:4270:  overflow-y: auto !important;
+  src\styles.css:4271:  overflow-x: hidden !important;
+  src\styles.css:4272:  align-content: start !important;
+  src\styles.css:4273:}
+  src\styles.css:4274:
+  src\styles.css:4275:/* If the list is short or empty, the border/background still fills the panel. */
+> src\styles.css:4276:.library-panel .sidebar-moves-panel .move-list:empty {
+  src\styles.css:4277:  flex: 1 1 auto !important;
+  src\styles.css:4278:  min-height: 100% !important;
+  src\styles.css:4279:  height: 100% !important;
+  src\styles.css:4280:}
+  src\styles.css:4281:
+  src\styles.css:4282:/* Keep book entries in their own scrollable area instead of pushing moves down. */
+  src\styles.css:4283:.library-panel .book-list,
+  src\styles.css:4284:.library-panel .recent-books,
+  src\styles.css:4285:.library-panel .local-books-list {
+  src\styles.css:4286:  flex: 0 1 auto !important;
+  src\styles.css:4287:  min-height: 0 !important;
+  src\styles.css:4288:  max-height: 22vh !important;
+  src\styles.css:4329:.board-panel .engine-status-text {
+  src\styles.css:4330:  display: none !important;
+  src\styles.css:4331:}
+  src\styles.css:4332:
+  src\styles.css:4333:/* Stockfish analysis dock — clean grid, no overlapping or clipped controls. */
+> src\styles.css:4334:.analysis-strip {
+  src\styles.css:4335:  display: grid !important;
+  src\styles.css:4336:  grid-template-columns:
+  src\styles.css:4337:    minmax(145px, 1.25fr)
+  src\styles.css:4338:    minmax(112px, .95fr)
+  src\styles.css:4339:    minmax(76px, .65fr)
+  src\styles.css:4340:    minmax(92px, .8fr)
+  src\styles.css:4341:    minmax(72px, .6fr)
+  src\styles.css:4342:    minmax(145px, 1.35fr) !important;
+  src\styles.css:4343:  align-items: center !important;
+  src\styles.css:4344:  justify-content: stretch !important;
+  src\styles.css:4345:  gap: 10px !important;
+  src\styles.css:4346:  width: 100% !important;
+  src\styles.css:4353:  overflow: hidden !important;
+  src\styles.css:4354:  background: linear-gradient(180deg, #292724 0%, #23211f 100%) !important;
+  src\styles.css:4355:  border-top: 1px solid #3b3833 !important;
+  src\styles.css:4356:}
+  src\styles.css:4357:
+> src\styles.css:4358:.analysis-strip > * {
+  src\styles.css:4359:  position: relative !important;
+  src\styles.css:4360:  min-width: 0 !important;
+  src\styles.css:4361:  max-width: 100% !important;
+  src\styles.css:4362:  margin: 0 !important;
+  src\styles.css:4363:  box-sizing: border-box !important;
+  src\styles.css:4364:}
+  src\styles.css:4365:
+  src\styles.css:4366:.analysis-name {
+  src\styles.css:4367:  display: flex !important;
+  src\styles.css:4368:  align-items: center !important;
+  src\styles.css:4369:  gap: 9px !important;
+  src\styles.css:4370:  min-width: 0 !important;
+  src\styles.css:4498:  -webkit-line-clamp: 2 !important;
+  src\styles.css:4499:  overflow: hidden !important;
+  src\styles.css:4500:}
+  src\styles.css:4501:
+  src\styles.css:4502:@media (max-width: 1150px) {
+> src\styles.css:4503:  .analysis-strip {
+  src\styles.css:4504:    grid-template-columns:
+  src\styles.css:4505:      minmax(135px, 1.2fr)
+  src\styles.css:4506:      minmax(108px, 1fr)
+  src\styles.css:4507:      minmax(72px, .65fr)
+  src\styles.css:4508:      minmax(88px, .8fr)
+  src\styles.css:4509:      minmax(66px, .6fr) !important;
+  src\styles.css:4510:    gap: 8px !important;
+  src\styles.css:4511:  }
+  src\styles.css:4512:
+  src\styles.css:4513:  .analysis-pv {
+  src\styles.css:4514:    grid-column: 1 / -1 !important;
+  src\styles.css:4515:    display: grid !important;
+  src\styles.css:4524:    -webkit-line-clamp: 2 !important;
+  src\styles.css:4525:  }
+  src\styles.css:4526:}
+  src\styles.css:4527:
+  src\styles.css:4528:@media (max-width: 700px) {
+> src\styles.css:4529:  .analysis-strip {
+  src\styles.css:4530:    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  src\styles.css:4531:    gap: 10px !important;
+  src\styles.css:4532:    padding: 10px !important;
+  src\styles.css:4533:  }
+  src\styles.css:4534:
+  src\styles.css:4535:  .analysis-pv {
+  src\styles.css:4536:    grid-column: 1 / -1 !important;
+  src\styles.css:4537:    grid-template-columns: 1fr !important;
+  src\styles.css:4538:    gap: 5px !important;
+  src\styles.css:4539:  }
+  src\styles.css:4540:}
+  src\styles.css:4541:
+  src\styles.css:4542:/* Stockfish: compact footer bar, with every field visible and no overlap. */
+> src\styles.css:4543:.analysis-strip {
+  src\styles.css:4544:  display: grid !important;
+  src\styles.css:4545:  grid-template-columns: minmax(130px, 1.35fr) auto auto minmax(78px, .75fr) minmax(70px, .65fr) minmax(120px, 1.4fr) !important;
+  src\styles.css:4546:  align-items: center !important;
+  src\styles.css:4547:  gap: 8px !important;
+  src\styles.css:4548:  min-height: 58px !important;
+  src\styles.css:4549:  height: auto !important;
+  src\styles.css:4550:  max-height: none !important;
+  src\styles.css:4551:  padding: 8px 12px !important;
+  src\styles.css:4552:  overflow: visible !important;
+  src\styles.css:4553:  box-sizing: border-box !important;
+  src\styles.css:4554:  background: #262421 !important;
+  src\styles.css:4555:  border-top: 1px solid #3a3732 !important;
+  src\styles.css:4556:}
+  src\styles.css:4557:
+> src\styles.css:4558:.analysis-strip > * {
+  src\styles.css:4559:  min-width: 0 !important;
+  src\styles.css:4560:  max-width: 100% !important;
+  src\styles.css:4561:  margin: 0 !important;
+  src\styles.css:4562:  box-sizing: border-box !important;
+  src\styles.css:4563:}
+  src\styles.css:4564:
+  src\styles.css:4565:.analysis-name {
+  src\styles.css:4566:  display: flex !important;
+  src\styles.css:4567:  align-items: center !important;
+  src\styles.css:4568:  gap: 8px !important;
+  src\styles.css:4569:  min-width: 0 !important;
+  src\styles.css:4570:  overflow: hidden !important;
+  src\styles.css:4608:  line-height: 1.2 !important;
+  src\styles.css:4609:  white-space: nowrap !important;
+  src\styles.css:4610:  overflow-wrap: normal !important;
+  src\styles.css:4611:}
+  src\styles.css:4612:
+> src\styles.css:4613:.analysis-strip button {
+  src\styles.css:4614:  min-height: 32px !important;
+  src\styles.css:4615:  height: auto !important;
+  src\styles.css:4616:  padding: 6px 10px !important;
+  src\styles.css:4617:  font-size: 11px !important;
+  src\styles.css:4618:  line-height: 1.2 !important;
+  src\styles.css:4619:}
+  src\styles.css:4620:
+  src\styles.css:4621:.depth-control {
+  src\styles.css:4622:  display: flex !important;
+  src\styles.css:4623:  flex-wrap: nowrap !important;
+  src\styles.css:4624:  align-items: center !important;
+  src\styles.css:4625:  justify-content: flex-start !important;
+  src\styles.css:4686:  overflow-wrap: normal !important;
+  src\styles.css:4687:}
+  src\styles.css:4688:
+  src\styles.css:4689:/* Medium widths: keep the PV in the same compact footer, never below it. */
+  src\styles.css:4690:@media (max-width: 1150px) {
+> src\styles.css:4691:  .analysis-strip {
+  src\styles.css:4692:    grid-template-columns: minmax(105px, 1.2fr) auto minmax(62px, .65fr) minmax(68px, .7fr) minmax(58px, .6fr) !important;
+  src\styles.css:4693:    gap: 7px !important;
+  src\styles.css:4694:    padding: 7px 9px !important;
+  src\styles.css:4695:  }
+  src\styles.css:4696:
+  src\styles.css:4697:  .analysis-pv {
+  src\styles.css:4698:    display: flex !important;
+  src\styles.css:4699:    grid-column: auto !important;
+  src\styles.css:4700:    padding-left: 7px !important;
+  src\styles.css:4701:    padding-top: 0 !important;
+  src\styles.css:4702:    border-top: 0 !important;
+  src\styles.css:4703:    border-left: 1px solid #403c36 !important;
+  src\styles.css:4707:    min-width: 70px !important;
+  src\styles.css:4708:    padding-inline: 7px !important;
+  src\styles.css:4709:    font-size: 10px !important;
+  src\styles.css:4710:  }
+  src\styles.css:4711:
+> src\styles.css:4712:  .analysis-strip button {
+  src\styles.css:4713:    padding-inline: 7px !important;
+  src\styles.css:4714:  }
+  src\styles.css:4715:}
+  src\styles.css:4716:
+  src\styles.css:4717:/* Narrow panels: two tidy rows; content remains readable and separated. */
+  src\styles.css:4718:@media (max-width: 760px) {
+> src\styles.css:4719:  .analysis-strip {
+  src\styles.css:4720:    grid-template-columns: minmax(0, 1fr) auto auto !important;
+  src\styles.css:4721:    gap: 8px !important;
+  src\styles.css:4722:  }
+  src\styles.css:4723:
+  src\styles.css:4724:  .analysis-name {
+  src\styles.css:4725:    grid-column: 1 / 2 !important;
+  src\styles.css:4726:  }
+  src\styles.css:4727:
+> src\styles.css:4728:  .analysis-strip .engine-toggle {
+  src\styles.css:4729:    grid-column: 2 / 3 !important;
+  src\styles.css:4730:  }
+  src\styles.css:4731:
+  src\styles.css:4732:  .depth-control {
+  src\styles.css:4733:    grid-column: 3 / 4 !important;
+  src\styles.css:4734:  }
+  src\styles.css:4735:
+  src\styles.css:4736:  .analysis-result {
+  src\styles.css:4737:    grid-column: auto !important;
+  src\styles.css:4738:  }
+  src\styles.css:4739:
+  src\styles.css:4740:  .analysis-pv {
+  src\styles.css:4753:
+  src\styles.css:4754:
+  src\styles.css:4755:
+  src\styles.css:4756:
+  src\styles.css:4757:/* The divider was an extra grid child, forcing Stockfish fields out of alignment. */
+> src\styles.css:4758:.analysis-strip {
+  src\styles.css:4759:  display: grid !important;
+  src\styles.css:4760:  grid-template-columns: minmax(125px, 1.35fr) minmax(112px, auto) minmax(76px, .65fr) minmax(74px, .7fr) minmax(74px, .7fr) minmax(120px, 1.5fr) !important;
+  src\styles.css:4761:  align-items: center !important;
+  src\styles.css:4762:  gap: 10px !important;
+  src\styles.css:4763:  min-height: 62px !important;
+  src\styles.css:4764:  height: auto !important;
+  src\styles.css:4765:  max-height: none !important;
+  src\styles.css:4766:  padding: 8px 12px !important;
+  src\styles.css:4767:  overflow: hidden !important;
+  src\styles.css:4768:  box-sizing: border-box !important;
+  src\styles.css:4769:}
+  src\styles.css:4770:
+> src\styles.css:4771:.analysis-strip > .analysis-divider {
+  src\styles.css:4772:  display: none !important;
+  src\styles.css:4773:}
+  src\styles.css:4774:
+> src\styles.css:4775:.analysis-strip > * {
+  src\styles.css:4776:  min-width: 0 !important;
+  src\styles.css:4777:  max-width: 100% !important;
+  src\styles.css:4778:  margin: 0 !important;
+  src\styles.css:4779:  box-sizing: border-box !important;
+  src\styles.css:4780:}
+  src\styles.css:4781:
+> src\styles.css:4782:.analysis-strip .analysis-name {
+  src\styles.css:4783:  display: flex !important;
+  src\styles.css:4784:  align-items: center !important;
+  src\styles.css:4785:  gap: 8px !important;
+  src\styles.css:4786:  min-width: 0 !important;
+  src\styles.css:4787:  overflow: hidden !important;
+  src\styles.css:4788:}
+  src\styles.css:4789:
+> src\styles.css:4790:.analysis-strip .stockfish-mark {
+  src\styles.css:4791:  flex: 0 0 30px !important;
+  src\styles.css:4792:  width: 30px !important;
+  src\styles.css:4793:  height: 30px !important;
+  src\styles.css:4794:}
+  src\styles.css:4795:
+> src\styles.css:4796:.analysis-strip .analysis-name > div {
+  src\styles.css:4797:  flex: 1 1 auto !important;
+  src\styles.css:4798:  min-width: 0 !important;
+  src\styles.css:4799:  overflow: hidden !important;
+  src\styles.css:4800:}
+  src\styles.css:4801:
+> src\styles.css:4802:.analysis-strip .analysis-name strong,
+> src\styles.css:4803:.analysis-strip .analysis-name span {
+  src\styles.css:4804:  display: block !important;
+  src\styles.css:4805:  max-width: 100% !important;
+  src\styles.css:4806:  white-space: nowrap !important;
+  src\styles.css:4807:  overflow: hidden !important;
+  src\styles.css:4808:  text-overflow: ellipsis !important;
+  src\styles.css:4809:}
+  src\styles.css:4810:
+> src\styles.css:4811:.analysis-strip .analysis-name strong {
+  src\styles.css:4812:  font-size: 12px !important;
+  src\styles.css:4813:  line-height: 1.35 !important;
+  src\styles.css:4814:}
+  src\styles.css:4815:
+> src\styles.css:4816:.analysis-strip .analysis-name span {
+  src\styles.css:4817:  font-size: 10px !important;
+  src\styles.css:4818:  line-height: 1.35 !important;
+  src\styles.css:4819:}
+  src\styles.css:4820:
+> src\styles.css:4821:.analysis-strip .engine-toggle {
+  src\styles.css:4822:  min-width: 0 !important;
+  src\styles.css:4823:  width: 100% !important;
+  src\styles.css:4824:  min-height: 34px !important;
+  src\styles.css:4825:  padding: 7px 10px !important;
+  src\styles.css:4826:  white-space: normal !important;
+  src\styles.css:4827:  overflow-wrap: normal !important;
+  src\styles.css:4828:  line-height: 1.25 !important;
+  src\styles.css:4829:  font-size: 11px !important;
+  src\styles.css:4830:}
+  src\styles.css:4831:
+> src\styles.css:4832:.analysis-strip .depth-control {
+  src\styles.css:4833:  display: flex !important;
+  src\styles.css:4834:  align-items: center !important;
+  src\styles.css:4835:  justify-content: center !important;
+  src\styles.css:4836:  gap: 6px !important;
+  src\styles.css:4837:  min-width: 0 !important;
+  src\styles.css:4838:  white-space: nowrap !important;
+  src\styles.css:4839:  font-size: 11px !important;
+  src\styles.css:4840:}
+  src\styles.css:4841:
+> src\styles.css:4842:.analysis-strip .depth-control select {
+  src\styles.css:4843:  min-width: 48px !important;
+  src\styles.css:4844:  width: 52px !important;
+  src\styles.css:4845:  height: 32px !important;
+  src\styles.css:4846:  padding: 0 4px !important;
+  src\styles.css:4847:}
+  src\styles.css:4848:
+> src\styles.css:4849:.analysis-strip .analysis-result {
+  src\styles.css:4850:  display: flex !important;
+  src\styles.css:4851:  flex-direction: column !important;
+  src\styles.css:4852:  justify-content: center !important;
+  src\styles.css:4853:  gap: 4px !important;
+  src\styles.css:4854:  min-width: 0 !important;
+  src\styles.css:4855:  overflow: hidden !important;
+  src\styles.css:4856:}
+  src\styles.css:4857:
+> src\styles.css:4858:.analysis-strip .analysis-result span {
+  src\styles.css:4859:  font-size: 10px !important;
+  src\styles.css:4860:  line-height: 1.25 !important;
+  src\styles.css:4861:  white-space: normal !important;
+  src\styles.css:4862:  overflow-wrap: anywhere !important;
+  src\styles.css:4863:}
+  src\styles.css:4864:
+> src\styles.css:4865:.analysis-strip .analysis-result strong {
+  src\styles.css:4866:  font-size: 12px !important;
+  src\styles.css:4867:  line-height: 1.3 !important;
+  src\styles.css:4868:  white-space: nowrap !important;
+  src\styles.css:4869:  overflow: hidden !important;
+  src\styles.css:4870:  text-overflow: ellipsis !important;
+  src\styles.css:4871:}
+  src\styles.css:4872:
+> src\styles.css:4873:.analysis-strip .analysis-pv {
+  src\styles.css:4874:  display: flex !important;
+  src\styles.css:4875:  flex-direction: column !important;
+  src\styles.css:4876:  justify-content: center !important;
+  src\styles.css:4877:  gap: 4px !important;
+  src\styles.css:4878:  min-width: 0 !important;
+  src\styles.css:4879:  overflow: hidden !important;
+  src\styles.css:4880:  border-left: 1px solid #45413a !important;
+  src\styles.css:4881:  padding-left: 10px !important;
+  src\styles.css:4882:}
+  src\styles.css:4883:
+> src\styles.css:4884:.analysis-strip .analysis-pv span {
+  src\styles.css:4885:  font-size: 9px !important;
+  src\styles.css:4886:  line-height: 1.25 !important;
+  src\styles.css:4887:  letter-spacing: .35px !important;
+  src\styles.css:4888:}
+  src\styles.css:4889:
+> src\styles.css:4890:.analysis-strip .analysis-pv strong {
+  src\styles.css:4891:  display: block !important;
+  src\styles.css:4892:  max-width: 100% !important;
+  src\styles.css:4893:  font: 11px/1.4 Consolas, monospace !important;
+  src\styles.css:4894:  white-space: nowrap !important;
+  src\styles.css:4895:  overflow: hidden !important;
+  src\styles.css:4896:  text-overflow: ellipsis !important;
+  src\styles.css:4897:  overflow-wrap: normal !important;
+  src\styles.css:4898:}
+  src\styles.css:4899:
+  src\styles.css:4900:@media (max-width: 1100px) {
+> src\styles.css:4901:  .analysis-strip {
+  src\styles.css:4902:    grid-template-columns: minmax(100px, 1.2fr) minmax(100px, auto) 52px 65px 65px minmax(95px, 1fr) !important;
+  src\styles.css:4903:    gap: 7px !important;
+  src\styles.css:4904:    padding: 7px 9px !important;
+  src\styles.css:4905:  }
+  src\styles.css:4906:
+> src\styles.css:4907:  .analysis-strip .analysis-name strong {
+  src\styles.css:4908:    font-size: 11px !important;
+  src\styles.css:4909:  }
+  src\styles.css:4910:
+> src\styles.css:4911:  .analysis-strip .analysis-name span,
+> src\styles.css:4912:  .analysis-strip .analysis-result span {
+  src\styles.css:4913:    font-size: 9px !important;
+  src\styles.css:4914:  }
+  src\styles.css:4915:
+> src\styles.css:4916:  .analysis-strip .analysis-pv {
+  src\styles.css:4917:    padding-left: 7px !important;
+  src\styles.css:4918:  }
+  src\styles.css:4919:
+> src\styles.css:4920:  .analysis-strip .analysis-pv strong {
+  src\styles.css:4921:    font-size: 10px !important;
+  src\styles.css:4922:  }
+  src\styles.css:4923:}
+  src\styles.css:4924:
+  src\styles.css:4925:@media (max-width: 760px) {
+> src\styles.css:4926:  .analysis-strip {
+  src\styles.css:4927:    grid-template-columns: minmax(0, 1fr) auto auto !important;
+  src\styles.css:4928:    gap: 8px !important;
+  src\styles.css:4929:  }
+  src\styles.css:4930:
+> src\styles.css:4931:  .analysis-strip .analysis-name {
+  src\styles.css:4932:    grid-column: 1 / 2 !important;
+  src\styles.css:4933:  }
+  src\styles.css:4934:
+> src\styles.css:4935:  .analysis-strip .engine-toggle {
+  src\styles.css:4936:    grid-column: 2 / 3 !important;
+  src\styles.css:4937:    width: auto !important;
+  src\styles.css:4938:  }
+  src\styles.css:4939:
+> src\styles.css:4940:  .analysis-strip .depth-control {
+  src\styles.css:4941:    grid-column: 3 / 4 !important;
+  src\styles.css:4942:  }
+  src\styles.css:4943:
+> src\styles.css:4944:  .analysis-strip .analysis-pv {
+  src\styles.css:4945:    grid-column: 1 / -1 !important;
+  src\styles.css:4946:    display: grid !important;
+  src\styles.css:4947:    grid-template-columns: 110px minmax(0, 1fr) !important;
+  src\styles.css:4948:    align-items: center !important;
+  src\styles.css:4949:    border-left: 0 !important;
+  src\styles.css:4950:    border-top: 1px solid #45413a !important;
+  src\styles.css:4951:    padding: 7px 0 0 !important;
+  src\styles.css:4952:  }
+  src\styles.css:4953:}
+  src\styles.css:4954:
+  src\styles.css:4955:
+  src\styles.css:4956:
+  src\styles.css:5578:  overflow: visible !important;
+  src\styles.css:5579:}
+  src\styles.css:5580:
+  src\styles.css:5581:/* Final icon alignment: engine badge and side-to-move buttons */
+  src\styles.css:5582:.analysis-name .stockfish-mark,
+> src\styles.css:5583:.analysis-strip .stockfish-mark {
+  src\styles.css:5584:  display: inline-flex !important;
+  src\styles.css:5585:  align-items: center !important;
+  src\styles.css:5586:  justify-content: center !important;
+  src\styles.css:5587:  align-self: center !important;
+  src\styles.css:5588:  flex: 0 0 34px !important;
+  src\styles.css:5589:  width: 34px !important;
+  src\styles.css:5590:  height: 34px !important;
+  src\styles.css:5591:  min-width: 34px !important;
+  src\styles.css:5592:  min-height: 34px !important;
+  src\styles.css:5593:  padding: 0 !important;
+  src\styles.css:5594:  line-height: 1 !important;
+  src\styles.css:5595:  box-sizing: border-box !important;
+  src\styles.css:5617:  flex: 0 0 16px !important;
+  src\styles.css:5618:  margin: 0 !important;
+  src\styles.css:5619:}
+  src\styles.css:5620:
+  src\styles.css:5621:/* Stockfish badge: precise horizontal and vertical centering */
+> src\styles.css:5622:.analysis-strip .analysis-name .stockfish-mark,
+  src\styles.css:5623:.analysis-name .stockfish-mark {
+  src\styles.css:5624:  display: flex !important;
+  src\styles.css:5625:  align-items: center !important;
+  src\styles.css:5626:  justify-content: center !important;
+  src\styles.css:5627:  place-items: center !important;
+  src\styles.css:5628:  padding: 0 !important;
+  src\styles.css:5629:  line-height: 0 !important;
+  src\styles.css:5630:  text-align: center !important;
+  src\styles.css:5631:  box-sizing: border-box !important;
+  src\styles.css:5632:}
+  src\styles.css:5633:
+> src\styles.css:5634:.analysis-strip .analysis-name .stockfish-mark > svg,
+  src\styles.css:5635:.analysis-name .stockfish-mark > svg {
+  src\styles.css:5636:  display: block !important;
+  src\styles.css:5637:  position: static !important;
+  src\styles.css:5638:  margin: 0 auto !important;
+  src\styles.css:5639:  padding: 0 !important;
+  src\styles.css:5640:  transform: none !important;
+  src\styles.css:5641:  flex: 0 0 19px !important;
+  src\styles.css:5642:  width: 19px !important;
+  src\styles.css:5643:  height: 19px !important;
+  src\styles.css:5644:}
+  src\styles.css:5645:
+  src\styles.css:5646:/* Consistent SVG icon system for chess analysis controls */
+  src\styles.css:6594:  }
+  src\styles.css:6595:}
+  src\styles.css:6596:
+  src\styles.css:6597:
+  src\styles.css:6598:/* Opening Explorer workspace */
+> src\styles.css:6599:.opening-explorer-panel {
+  src\styles.css:6600:  display: grid;
+  src\styles.css:6601:  gap: 10px;
+  src\styles.css:6602:  margin-top: 14px;
+  src\styles.css:6603:  padding: 16px;
+  src\styles.css:6604:  border: 1px solid var(--border, #d9ded8);
+  src\styles.css:6605:  border-radius: 12px;
+  src\styles.css:6606:  background: var(--panel, #fff);
+  src\styles.css:6607:}
+> src\styles.css:6608:.opening-explorer-panel h3,
+> src\styles.css:6609:.opening-explorer-panel p {
+  src\styles.css:6610:  margin: 0;
+  src\styles.css:6611:}
+> src\styles.css:6612:.opening-explorer-panel textarea {
+  src\styles.css:6613:  width: 100%;
+  src\styles.css:6614:  box-sizing: border-box;
+  src\styles.css:6615:  resize: vertical;
+  src\styles.css:6616:  padding: 10px;
+  src\styles.css:6617:  border: 1px solid var(--border, #d9ded8);
+  src\styles.css:6618:  border-radius: 8px;
+  src\styles.css:6619:  font: inherit;
+  src\styles.css:6620:}
+  src\styles.css:6621:.opening-explorer-moves,
+  src\styles.css:6622:.opening-explorer-notation {
+  src\styles.css:6623:  display: flex;
+  src\styles.css:6624:  align-items: center;
+  src\styles.css:6756:  min-width: 0;
+  src\styles.css:6757:  padding: 18px;
+  src\styles.css:6758:  color: var(--text, #eeeae2);
+  src\styles.css:6759:  background: var(--panel, #252421);
+  src\styles.css:6760:}
+> src\styles.css:6761:.opening-explorer-right-workspace .opening-explorer-panel {
+  src\styles.css:6762:  color: var(--text, #eeeae2);
+  src\styles.css:6763:  background: transparent;
+  src\styles.css:6764:  border: 0;
+  src\styles.css:6765:  padding: 0;
+  src\styles.css:6766:  box-shadow: none;
+  src\styles.css:6767:}
+  src\styles.css:6768:.opening-explorer-right-workspace .opening-stats {
+  src\styles.css:6769:  color: var(--text, #eeeae2) !important;
+  src\styles.css:6770:  background: #302f2b !important;
+  src\styles.css:6771:  border: 1px solid #484740;
+  src\styles.css:6772:  border-radius: 10px;
+  src\styles.css:6773:  padding: 14px;
+  src\styles.css:6815:  padding: 22px !important;
+  src\styles.css:6816:  box-sizing: border-box;
+  src\styles.css:6817:  background: transparent !important;
+  src\styles.css:6818:}
+  src\styles.css:6819:
+> src\styles.css:6820:.opening-explorer-right-workspace .opening-explorer-panel > h3 {
+  src\styles.css:6821:  position: relative;
+  src\styles.css:6822:  overflow: hidden;
+  src\styles.css:6823:  padding: 20px 22px;
+  src\styles.css:6824:  margin: 0 0 18px;
+  src\styles.css:6825:  border: 1px solid rgba(157, 211, 100, 0.35);
+  src\styles.css:6826:  border-radius: 16px;
+  src\styles.css:6827:  color: #f4f7ee;
+  src\styles.css:6828:  font-size: 1.45rem;
+  src\styles.css:6829:  font-weight: 750;
+  src\styles.css:6830:  letter-spacing: 0.2px;
+  src\styles.css:6831:  background:
+  src\styles.css:6832:    linear-gradient(120deg, rgba(133, 190, 75, 0.17), rgba(255, 255, 255, 0.035) 52%, rgba(133, 190, 75, 0.08)),
+  src\styles.css:6838:  backdrop-filter: blur(16px);
+  src\styles.css:6839:  -webkit-backdrop-filter: blur(16px);
+  src\styles.css:6840:  animation: opening-explorer-arrive 500ms ease-out both;
+  src\styles.css:6841:}
+  src\styles.css:6842:
+> src\styles.css:6843:.opening-explorer-right-workspace .opening-explorer-panel > h3::before {
+  src\styles.css:6844:  content: "";
+  src\styles.css:6845:  position: absolute;
+  src\styles.css:6846:  inset: 0 auto 0 0;
+  src\styles.css:6847:  width: 4px;
+  src\styles.css:6848:  background: linear-gradient(180deg, #c5ef91, #83bd43);
+  src\styles.css:6849:  box-shadow: 0 0 14px rgba(139, 195, 74, 0.48);
+  src\styles.css:6850:}
+  src\styles.css:6851:
+> src\styles.css:6852:.opening-explorer-right-workspace .opening-explorer-panel > h3::after {
+  src\styles.css:6853:  content: "";
+  src\styles.css:6854:  position: absolute;
+  src\styles.css:6855:  top: -80%;
+  src\styles.css:6856:  bottom: -80%;
+  src\styles.css:6857:  left: -45%;
+  src\styles.css:6858:  width: 24%;
+  src\styles.css:6859:  transform: rotate(20deg);
+  src\styles.css:6860:  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+  src\styles.css:6861:  animation: opening-explorer-glint 7s ease-in-out infinite;
+  src\styles.css:6862:  pointer-events: none;
+  src\styles.css:6863:}
+  src\styles.css:6864:
+> src\styles.css:6865:.opening-explorer-right-workspace .opening-explorer-panel > p {
+  src\styles.css:6866:  color: #c6c5bd;
+  src\styles.css:6867:  line-height: 1.65;
+  src\styles.css:6868:}
+  src\styles.css:6869:
+  src\styles.css:6870:.opening-explorer-right-workspace .opening-stats {
+  src\styles.css:6871:  color: #eeeee8 !important;
+  src\styles.css:6872:  background: linear-gradient(145deg, #302f2b, #282825) !important;
+  src\styles.css:6873:  border: 1px solid #484840 !important;
+  src\styles.css:6874:  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  src\styles.css:6875:}
+  src\styles.css:6876:
+  src\styles.css:6877:.opening-explorer-right-workspace .opening-stats a {
+  src\styles.css:6892:  0%, 65% { left: -45%; }
+  src\styles.css:6893:  90%, 100% { left: 125%; }
+  src\styles.css:6894:}
+  src\styles.css:6895:
+  src\styles.css:6896:@media (prefers-reduced-motion: reduce) {
+> src\styles.css:6897:  .opening-explorer-right-workspace .opening-explorer-panel > h3,
+> src\styles.css:6898:  .opening-explorer-right-workspace .opening-explorer-panel > h3::after {
+  src\styles.css:6899:    animation: none !important;
+  src\styles.css:6900:  }
+  src\styles.css:6901:}
+  src\styles.css:6902:
+  src\styles.css:6903:/* READER VISIBILITY FINAL OVERRIDE */
+  src\styles.css:6904:/* Normal workspaces must retain the PDF reader and its direct children. */
+  src\styles.css:6905:.workspace:not(.opening-explorer-active) > .reader-panel {
+  src\styles.css:6906:  display: flex !important;
+  src\styles.css:6907:  flex-direction: column;
+  src\styles.css:6908:  min-width: 0;
+  src\styles.css:6909:  visibility: visible !important;
+  src\styles.css:6910:  opacity: 1 !important;
+  src\styles.css:6932:.workspace:not(.opening-explorer-active) > .reader-panel > .engine-panel {
+  src\styles.css:6933:  visibility: visible !important;
+  src\styles.css:6934:  opacity: 1 !important;
+  src\styles.css:6935:}
+  src\styles.css:6936:
+> src\styles.css:6937:/* ANALYSIS BOARD NO-BOOK LAYOUT */
+  src\styles.css:6938:/* Keep the library available, but give the Analysis Board the remaining workspace. */
+> src\styles.css:6939:.workspace.analysis-board-active:not(.library-collapsed) {
+  src\styles.css:6940:  grid-template-columns: 220px minmax(0, 1fr) !important;
+  src\styles.css:6941:}
+> src\styles.css:6942:.workspace.analysis-board-active.library-collapsed {
+  src\styles.css:6943:  grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:6944:}
+> src\styles.css:6945:.workspace.analysis-board-active > .reader-panel {
+  src\styles.css:6946:  display: none !important;
+  src\styles.css:6947:}
+> src\styles.css:6948:.workspace.analysis-board-active > .board-panel {
+  src\styles.css:6949:  display: flex;
+  src\styles.css:6950:  min-width: 0;
+  src\styles.css:6951:  width: 100%;
+  src\styles.css:6952:  max-width: none;
+  src\styles.css:6953:}
+  src\styles.css:6954:@media (max-width: 900px) {
+> src\styles.css:6955:  .workspace.analysis-board-active:not(.library-collapsed),
+> src\styles.css:6956:  .workspace.analysis-board-active.library-collapsed {
+  src\styles.css:6957:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:6958:  }
+  src\styles.css:6959:}
+  src\styles.css:6960:
+  src\styles.css:6961:/* Keep chess square base colors stable on hover and focus. */
+  src\styles.css:6962:button.square.light-square:hover,
+  src\styles.css:6963:button.square.light-square:focus,
+  src\styles.css:6964:button.square.light-square:focus-visible {
+  src\styles.css:6965:  background: var(--board-light);
+  src\styles.css:6966:}
+  src\styles.css:6967:
+  src\styles.css:6968:button.square.dark-square:hover,
+
+
+
+
+========== OPENING-RELATED PROJECT FILES ==========
+
+Name                                                             Length
+----                                                             ------
+App.tsx.before-analysis-layout-20261026-000802.bak                89304
+App.tsx.before-analysis-navigation.bak                            79238
+App.tsx.before-analysis-state-wiring.bak                          79238
+App.tsx.before-explorer-layout-20261025-235446.bak                91393
+App.tsx.before-explorer-right-panel-20261025-235646.bak           91466
+App.tsx.before-independent-analysis-board.bak                     80016
+App.tsx.before-independent-analysis.bak                           79238
+App.tsx.before-opening-explorer-move-fix-20261025-234542.bak      91063
+App.tsx.before-opening-explorer-ui.bak                            80430
+App.tsx.before-opening-explorer.bak                               80430
+App.tsx.before-opening-prep-isolation-20261025-231958.bak         85445
+App.tsx.before-opening-prep-isolation-20261025-232022.bak         85445
+App.tsx.before-opening-prep-isolation.bak                         85445
+App.tsx.before-opening-stats-20261025-232813.bak                  86175
+App.tsx.before-opening-stats-20261025-232946.bak                  91063
+App.tsx.opening-explorer-safety.bak                               85175
+opening-explorer-api.ts                                            3746
+opening-explorer-api.ts.before-lichess-url-fix.bak                 2541
+opening-explorer-api.ts.before-opening-stats-20261025-232946.bak   2541
+opening-explorer.test.ts                                           1298
+opening-explorer.ts                                                1863
+review-analysis.test.ts                                            4212
+review-analysis.ts                                                 4812
+styles.css.before-analysis-layout-20261026-000802.bak            144252
+styles.css.before-explorer-glass-ui-20261025-235813.bak          140189
+styles.css.before-explorer-layout-20261025-235446.bak            144161
+styles.css.before-explorer-right-panel-20261025-235646.bak       144915
+styles.css.before-opening-explorer.bak                           141421
+styles.css.before-opening-stats-20261025-232813.bak              142491
+styles.css.before-opening-stats-20261025-232946.bak              144161
+
+
+

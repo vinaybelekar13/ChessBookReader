@@ -1,0 +1,1910 @@
+
+========== tsconfig.json ==========
+
+{
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+}
+
+
+========== tsconfig.app.json ==========
+
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}
+
+
+========== vite.config.ts ==========
+
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    host: "127.0.0.1",
+    proxy: { "/api": { target: "http://127.0.0.1:8000", changeOrigin: true } },
+    watch: { ignored: ["**/backend/models/**", "**/backend/.venv-ocr/**"] },
+  },
+  worker: { format: "es" },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test-setup.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
+  },
+});
+
+
+========== src\components\LichessAnalysis\lichess-analysis.css ==========
+
+/* ============================================================================
+ * LICHESS ANALYSIS BOARD ó PIXEL-ACCURATE DARK THEME STYLESHEET
+ * Color values and proportions sampled directly from the reference screenshot.
+ * ============================================================================ */
+
+.li-analysis-root {
+  --li-bg-canvas-top: #2c2822;
+  --li-bg-canvas-bottom: #161512;
+  --li-panel-bg: #262421;
+  --li-panel-elevated: #33312e;
+  --li-panel-header: #3c3934;
+  --li-border-subtle: #3d3a35;
+  --li-text-primary: #dedede;
+  --li-text-secondary: #bababa;
+  --li-text-muted: #8c8c8c;
+  --li-accent-green: #629924;
+  --li-accent-green-Switch: #5d8f25;
+  --li-accent-blue: #3481c9;
+  --li-board-light: #f0d9b5;
+  --li-board-dark: #b58863;
+  --li-board-lastmove: rgba(155, 199, 0, 0.41);
+
+  min-height: 100vh;
+  width: 100%;
+  background: linear-gradient(180deg, var(--li-bg-canvas-top) 0%, #1e1c18 180px, var(--li-bg-canvas-bottom) 100%);
+  color: var(--li-text-primary);
+  font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.li-analysis-root *,
+.li-analysis-root *::before,
+.li-analysis-root *::after {
+  box-sizing: border-box;
+}
+
+/* ----------------------------------------------------------------------------
+ * TOP LICHESS SITE HEADER
+ * ---------------------------------------------------------------------------- */
+.li-site-header {
+  height: 54px;
+  padding: 0 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.li-site-header-left {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+
+.li-brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: #bababa;
+}
+
+.li-brand-text {
+  font-size: 27px;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+  color: #c4c4c4;
+}
+
+.li-brand-text span {
+  color: #7c7c7c;
+  font-weight: 300;
+}
+
+.li-site-nav {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.li-site-nav a {
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: #a8a8a8;
+  transition: color 0.12s ease;
+}
+
+.li-site-nav a:hover,
+.li-site-nav a.active {
+  color: #ffffff;
+}
+
+.li-site-nav a.li-donate-link {
+  color: #d59120;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.li-site-header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #b5b5b5;
+}
+
+.li-header-icon-btn {
+  background: transparent;
+  border: none;
+  color: #b5b5b5;
+  padding: 5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.li-header-icon-btn:hover {
+  color: #ffffff;
+}
+
+.li-user-tag {
+  font-size: 14px;
+  color: #bababa;
+  margin-left: 4px;
+}
+
+.li-user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #8c8c8c;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #8c8c8c;
+}
+
+/* ----------------------------------------------------------------------------
+ * MAIN 3-COLUMN ANALYSIS WORKSPACE GRID
+ * Matches screenshot proportions: Left 435px | Board ~808px | Eval 16px | Right 480px
+ * ---------------------------------------------------------------------------- */
+.li-analyse-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 435px) minmax(480px, 808px) 16px minmax(360px, 480px);
+  gap: 16px;
+  padding: 6px 22px 24px 36px;
+  max-width: 1860px;
+  width: 100%;
+  margin: 0 auto;
+  align-items: start;
+}
+
+/* ----------------------------------------------------------------------------
+ * LEFT COLUMN: VARIANT DROPDOWN + WIKIBOOK FOLDER-TAB CARD
+ * ---------------------------------------------------------------------------- */
+.li-left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.li-variant-selector-wrap {
+  position: relative;
+  height: 46px;
+  background: #393732;
+  border: 1px solid #4a4741;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+}
+
+.li-variant-crown {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 12px;
+  pointer-events: none;
+}
+
+.li-variant-select {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: #b5b5b5;
+  font-size: 19px;
+  font-weight: 400;
+  width: 100%;
+  cursor: pointer;
+  outline: none;
+}
+
+.li-variant-select option {
+  background: #262421;
+  color: #e0e0e0;
+}
+
+.li-variant-caret {
+  position: absolute;
+  right: 16px;
+  color: #3692e7;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+/* WikiBook Folder Tab & Card */
+.li-wikibook-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.li-wikibook-tab-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 16px;
+}
+
+.li-wikibook-tab-btn {
+  background: #33312e;
+  color: #c4c4c4;
+  border: none;
+  border-radius: 6px 6px 0 0;
+  padding: 9px 20px;
+  font-size: 16px;
+  font-weight: 400;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.li-wikibook-card {
+  background: #33312e;
+  border-radius: 6px;
+  padding: 18px 8px 18px 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.li-wikibook-scroll {
+  max-height: 615px;
+  overflow-y: auto;
+  padding-right: 14px;
+}
+
+.li-wikibook-scroll::-webkit-scrollbar {
+  width: 7px;
+}
+
+.li-wikibook-scroll::-webkit-scrollbar-track {
+  background: #262421;
+}
+
+.li-wikibook-scroll::-webkit-scrollbar-thumb {
+  background: #5c5954;
+  border-radius: 3px;
+}
+
+.li-wikibook-title {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  font-weight: 400;
+  color: #bababa;
+}
+
+.li-wikibook-quote {
+  margin-bottom: 18px;
+  font-size: 14.5px;
+  line-height: 1.48;
+  color: #b5b5b5;
+}
+
+.li-wikibook-paragraph {
+  margin: 0 0 18px 0;
+  font-size: 14.5px;
+  line-height: 1.54;
+  color: #b5b5b5;
+}
+
+.li-wikibook-paragraph strong {
+  color: #dedede;
+  font-weight: 700;
+}
+
+/* ----------------------------------------------------------------------------
+ * CENTER COLUMN: CHESSGROUND BOARD + UNDERBOARD FEN / PGN
+ * ---------------------------------------------------------------------------- */
+.li-center-column {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+
+.li-board-container {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.li-chessground-board {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  position: relative;
+  user-select: none;
+}
+
+.li-cg-square {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.li-cg-light {
+  background-color: var(--li-board-light);
+}
+
+.li-cg-dark {
+  background-color: var(--li-board-dark);
+}
+
+.li-cg-last-move.li-cg-light {
+  background-color: #cdd26a;
+}
+
+.li-cg-last-move.li-cg-dark {
+  background-color: #aaa23a;
+}
+
+.li-cg-selected {
+  background-color: rgba(20, 85, 30, 0.5) !important;
+}
+
+.li-cg-check {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 0, 0, 1) 0%,
+    rgba(231, 0, 0, 1) 25%,
+    rgba(169, 0, 0, 0) 89%,
+    rgba(158, 0, 0, 0) 100%
+  );
+}
+
+.li-coord-rank {
+  position: absolute;
+  top: 3px;
+
+  right: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.li-coord-file {
+  position: absolute;
+  bottom: 2px;
+  left: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.li-coord-on-light {
+  color: var(--li-board-dark);
+}
+
+.li-coord-on-dark {
+  color: var(--li-board-light);
+}
+
+.li-piece-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 3;
+}
+
+.li-piece-wrapper:active {
+  cursor: grabbing;
+}
+
+.li-piece-svg {
+  width: 92%;
+  height: 92%;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.28));
+}
+
+.li-legal-move-dot {
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background: rgba(20, 85, 30, 0.5);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.li-legal-capture-ring {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(transparent 0%, transparent 79%, rgba(20, 85, 30, 0.45) 80%);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.li-cg-shapes-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.li-promotion-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.li-promotion-column {
+  display: flex;
+  background: #f0d9b5;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+}
+
+.li-promotion-choice {
+  width: 78px;
+  height: 78px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+}
+
+.li-promotion-choice:hover {
+  background: #cdd26a;
+}
+
+/* Underboard FEN & PGN inputs */
+.li-underboard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.li-fen-pgn-row {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.li-pgn-row {
+  align-items: end;
+}
+
+.li-fen-pgn-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8c8c8c;
+}
+
+.li-fen-input,
+.li-pgn-textarea {
+  width: 100%;
+  background: #221f1c;
+  border: 1px solid #3a3732;
+  border-radius: 5px;
+  color: #c8c8c8;
+  font-size: 14px;
+  font-family: "Noto Sans", sans-serif;
+  padding: 10px 14px;
+  outline: none;
+  resize: vertical;
+}
+
+.li-fen-input:focus,
+.li-pgn-textarea:focus {
+  border-color: #629924;
+}
+
+/* ----------------------------------------------------------------------------
+ * EVALUATION GAUGE (16px wide vertical bar)
+ * ---------------------------------------------------------------------------- */
+.li-eval-gauge {
+  width: 14px;
+  aspect-ratio: 14 / 808;
+  height: 100%;
+  max-height: 808px;
+  min-height: 480px;
+  background: #414141;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.6);
+}
+
+.li-eval-gauge.li-eval-flipped {
+  flex-direction: column-reverse;
+}
+
+.li-eval-black-bar {
+  width: 100%;
+  background: #414141;
+  transition: height 0.25s ease;
+}
+
+.li-eval-white-bar {
+  width: 100%;
+  background: #d8d8d8;
+  transition: height 0.25s ease;
+}
+
+.li-eval-tick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+
+.li-eval-zero-marker {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 3.5px;
+  transform: translateY(-50%);
+  background: #d66b27;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ----------------------------------------------------------------------------
+ * RIGHT COLUMN: STOCKFISH ENGINE + MOVE TREE + BOTTOM CONTROLS
+ * ---------------------------------------------------------------------------- */
+.li-right-column {
+  display: flex;
+  flex-direction: column;
+  height: 808px;
+}
+
+.li-tools-card {
+  flex: 1;
+  background: var(--li-panel-bg);
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Stockfish Header */
+.li-ceval-section {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.li-ceval-progress-track {
+  height: 3px;
+  background: #2d2b28;
+  width: 100%;
+}
+
+.li-ceval-progress-bar {
+  height: 100%;
+  background: #629924;
+  transition: width 0.25s ease;
+}
+
+.li-ceval-header {
+  height: 52px;
+  background: var(--li-panel-header);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 12px;
+}
+
+.li-ceval-switch {
+  width: 44px;
+  height: 26px;
+  border-radius: 14px;
+  border: 1px solid #4f4c46;
+  background: #2b2926;
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  position: relative;
+  transition: background 0.15s ease;
+}
+
+.li-ceval-switch.on {
+  background: #3b4928;
+  border-color: #5d8f25;
+}
+
+.li-ceval-switch-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #78756f;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.li-ceval-switch.on .li-ceval-switch-knob {
+  transform: translateX(18px);
+  background: #629924;
+}
+
+.li-ceval-score {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e3e3e3;
+  min-width: 58px;
+  text-align: center;
+}
+
+.li-ceval-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.li-ceval-meta-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #9e9b95;
+}
+
+.li-nnue-badge {
+  color: #629924;
+  font-weight: 600;
+}
+
+.li-ceval-meta-bottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #9e9b95;
+}
+
+.li-depth-plus-btn {
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  border: none;
+  background: #7c7972;
+  color: #262421;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.li-depth-plus-btn:hover {
+  background: #a5a29b;
+}
+
+.li-cloud-badge {
+  background: #7c7972;
+  color: #262421;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.li-ceval-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.li-ceval-icon-btn {
+  background: transparent;
+  border: none;
+  color: #9e9b95;
+  padding: 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.li-ceval-icon-btn:hover,
+.li-ceval-icon-btn.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.li-ceval-settings-drawer {
+  background: #2f2d29;
+  border-bottom: 1px solid #3d3a35;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.li-ceval-setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #c4c4c4;
+}
+
+.li-ceval-setting-row input[type="range"] {
+  accent-color: #629924;
+  width: 140px;
+}
+
+/* Principal Variation Box */
+.li-pv-box {
+  min-height: 30px;
+  background: #262421;
+  border-bottom: 1px solid #363430;
+  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: #bababa;
+}
+
+.li-pv-line-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  flex: 1;
+}
+
+.li-pv-box.expanded .li-pv-line-text {
+  white-space: normal;
+}
+
+.li-pv-line-muted {
+  color: #78756f;
+  font-size: 12.5px;
+}
+
+.li-pv-expand-caret {
+  background: transparent;
+  border: none;
+  color: #8c8c8c;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 12px;
+}
+
+/* Move List Table */
+.li-moves-container {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  background: #262421;
+}
+
+.li-move-row {
+  display: grid;
+  grid-template-columns: 48px 1fr 1fr;
+  min-height: 30px;
+  align-items: stretch;
+}
+
+.li-move-index {
+  background: #33312e;
+  color: #8c8c8c;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #2e2c29;
+}
+
+.li-move-cell {
+  background: transparent;
+  border: none;
+  color: #bababa;
+  padding: 0 12px;
+  font-size: 14.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  text-align: left;
+}
+
+.li-move-cell:hover:not(.active):not(.li-move-empty) {
+  background: #302e2a;
+}
+
+.li-move-cell.active {
+  background: var(--li-accent-blue);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.li-move-eval {
+  font-size: 12px;
+  font-weight: 400;
+  color: #8c8c8c;
+}
+
+.li-move-cell.active .li-move-eval {
+  color: #e6f2ff;
+}
+
+/* Opening Explorer Table */
+.li-explorer-panel {
+  background: #2b2926;
+  border-bottom: 1px solid #3d3a35;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  max-height: 230px;
+  overflow-y: auto;
+}
+
+.li-explorer-header {
+  display: flex;
+  justify-content: space-between;
+  color: #dedede;
+  margin-bottom: 8px;
+}
+
+.li-explorer-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.li-explorer-table th {
+  text-align: left;
+  color: #8c8c8c;
+  font-weight: 500;
+  padding: 4px 6px;
+  border-bottom: 1px solid #3d3a35;
+}
+
+.li-explorer-row {
+  cursor: pointer;
+}
+
+.li-explorer-row:hover {
+  background: #383530;
+}
+
+.li-explorer-row td {
+  padding: 5px 6px;
+}
+
+.li-explorer-san {
+  font-weight: 700;
+  color: #dedede;
+}
+
+.li-explorer-count {
+  color: #a09d96;
+}
+
+.li-explorer-tricolor-bar {
+  display: flex;
+  height: 16px;
+  border-radius: 3px;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.li-bar-w {
+  background: #d8d8d8;
+  color: #1f1f1f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.li-bar-d {
+  background: #78756f;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.li-bar-b {
+  background: #383632;
+  color: #d8d8d8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Action Menu Drawer */
+.li-action-menu-drawer {
+  background: #302e2a;
+  border-top: 1px solid #423f3a;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.li-action-menu-drawer button {
+  background: #262421;
+  border: 1px solid #3d3a35;
+  color: #dedede;
+  padding: 7px 12px;
+  border-radius: 4px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.li-action-menu-drawer button:hover {
+  background: #3a3732;
+}
+
+/* Bottom Controls Toolbar */
+.li-controls-bar {
+  height: 42px;
+  background: #161512;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+
+.li-controls-left,
+.li-controls-MainNav,
+.li-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.li-ctrl-btn {
+  background: transparent;
+  border: none;
+  color: #9e9b95;
+  width: 38px;
+  height: 34px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+
+.li-ctrl-btn:hover:not(:disabled),
+.li-ctrl-btn.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.li-ctrl-btn:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+
+.li-toast {
+  position: fixed;
+  bottom: 22px;
+  right: 24px;
+  background: #33312e;
+  border: 1px solid #629924;
+  color: #ffffff;
+  padding: 9px 16px;
+  border-radius: 5px;
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+
+/* ----------------------------------------------------------------------------
+ * RESPONSIVE BREAKPOINTS (1366x768, 1440x900, 1600x900, 1920x1080)
+ * ---------------------------------------------------------------------------- */
+@media (max-width: 1560px) {
+  .li-analyse-grid {
+    grid-template-columns: 340px minmax(440px, 640px) 14px minmax(330px, 400px);
+    padding: 6px 16px 20px 20px;
+  }
+  .li-right-column {
+    height: 640px;
+  }
+  .li-eval-gauge {
+    max-height: 640px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .li-analyse-grid {
+    grid-template-columns: 1fr 14px 360px;
+  }
+  .li-left-column {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
+
+
+========== src\components\LichessAnalysis\WikiBookPanel.tsx ==========
+
+import React, { useState } from "react";
+import { ChevronUp, ChevronDown } from "lucide-react";
+import type { ChessVariant, WikiBookEntry } from "./types";
+
+interface WikiBookPanelProps {
+  variant: ChessVariant;
+  onVariantChange: (v: ChessVariant) => void;
+  wikiEntry: WikiBookEntry;
+}
+
+const VARIANTS: ChessVariant[] = [
+  "Standard",
+  "Chess960",
+  "King of the Hill",
+  "Three-check",
+  "Antichess",
+  "Atomic",
+  "Horde",
+  "Racing Kings",
+  "Crazyhouse",
+];
+
+/**
+ * Renders inline bold text wrapped in **...**
+ */
+function renderFormattedParagraph(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={idx}>{part.slice(2, -2)}</strong>;
+    }
+    return <React.Fragment key={idx}>{part}</React.Fragment>;
+  });
+}
+
+export const WikiBookPanel: React.FC<WikiBookPanelProps> = ({
+  variant,
+  onVariantChange,
+  wikiEntry,
+}) => {
+  const [wikiOpen, setWikiOpen] = useState(true);
+
+  return (
+    <aside className="li-left-column" aria-label="Variant and WikiBook opening panel">
+      {/* Variant Selector Box */}
+      <div className="li-variant-selector-wrap">
+        <span className="li-variant-crown" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="#9e9e9e">
+            <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z" />
+          </svg>
+        </span>
+        <select
+          aria-label="Chess variant"
+          className="li-variant-select"
+          value={variant}
+          onChange={(e) => onVariantChange(e.target.value as ChessVariant)}
+        >
+          {VARIANTS.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
+        <span className="li-variant-caret" aria-hidden="true">
+          ?
+        </span>
+      </div>
+
+      {/* Folder-Tab WikiBook Container */}
+      <div className="li-wikibook-wrapper">
+        <div className="li-wikibook-tab-row">
+          <button
+            type="button"
+            className="li-wikibook-tab-btn"
+            onClick={() => setWikiOpen((o) => !o)}
+            aria-expanded={wikiOpen}
+          >
+            <span>WikiBook</span>
+            {wikiOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </button>
+        </div>
+
+        {wikiOpen && (
+          <div className="li-wikibook-card">
+            <div className="li-wikibook-scroll">
+              <h2 className="li-wikibook-title">{wikiEntry.title}</h2>
+
+              {wikiEntry.quote && (
+                <div className="li-wikibook-quote">
+                  <div>{wikiEntry.quote.text}</div>
+                  <div>ó{wikiEntry.quote.author}</div>
+                </div>
+              )}
+
+              {wikiEntry.paragraphs.map((p, i) => (
+                <p key={i} className="li-wikibook-paragraph">
+                  {renderFormattedParagraph(p)}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+};
+
+
+========== src\components\LichessAnalysis\LichessAnalysisBoard.tsx ==========
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Chess, type Square } from "chess.js";
+import { Search, Users, Crosshair, Bell } from "lucide-react";
+import type {
+  BoardArrowShape,
+  BoardCircleShape,
+  ChessVariant,
+  EngineEvaluation,
+  MoveNode,
+  OpeningExplorerData,
+} from "./types";
+import { WikiBookPanel } from "./WikiBookPanel";
+import { ChessboardView } from "./ChessboardView";
+import { EvaluationBar } from "./EvaluationBar";
+import { EnginePanel } from "./EnginePanel";
+import { MoveListPanel } from "./MoveListPanel";
+import { OpeningExplorerModal } from "./OpeningExplorerModal";
+import { BoardControlsBar } from "./BoardControlsBar";
+import { fetchLichessOpeningStats, lookupWikiBook } from "./openingWikiData";
+import { formatLichessEval, LichessStockfishClient } from "./stockfishWorkerClient";
+import "./lichess-analysis.css";
+
+const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+
+export interface LichessAnalysisBoardProps {
+  showSiteHeader?: boolean;
+  initialPgnMoves?: string[];
+  stockfishWorkerPath?: string;
+}
+
+export const LichessAnalysisBoard: React.FC<LichessAnalysisBoardProps> = ({
+  showSiteHeader = true,
+  initialPgnMoves = [],
+  stockfishWorkerPath = "/stockfish/stockfish-19-lite-single.js",
+}) => {
+  const [variant, setVariant] = useState<ChessVariant>("Standard");
+  const [baseFen, setBaseFen] = useState<string>(START_FEN);
+  const [moves, setMoves] = useState<MoveNode[]>(() => {
+    const chess = new Chess(START_FEN);
+    const list: MoveNode[] = [];
+    initialPgnMoves.forEach((san, i) => {
+      try {
+        const res = chess.move(san);
+        list.push({
+          ply: i + 1,
+          moveNumber: Math.floor(i / 2) + 1,
+          color: res.color,
+          san: res.san,
+          uci: `${res.from}${res.to}${res.promotion ?? ""}`,
+          from: res.from as Square,
+          to: res.to as Square,
+          fen: chess.fen(),
+          evalFormatted: i === 0 ? "+0.2" : undefined,
+          evalCp: i === 0 ? 20 : undefined,
+        });
+      } catch {
+        // Ignore invalid initial move
+      }
+    });
+    return list;
+  });
+
+  const [currentPly, setCurrentPly] = useState<number>(() => initialPgnMoves.length);
+  const [flipped, setFlipped] = useState<boolean>(false);
+  const [engineEnabled, setEngineEnabled] = useState<boolean>(true);
+  const [engineDepth, setEngineDepth] = useState<number>(70);
+  const [evaluation, setEvaluation] = useState<EngineEvaluation | null>(null);
+  const [showThreat, setShowThreat] = useState<boolean>(false);
+  const [showEngineArrow, setShowEngineArrow] = useState<boolean>(true);
+
+  const [userArrows, setUserArrows] = useState<BoardArrowShape[]>([]);
+  const [userCircles, setUserCircles] = useState<BoardCircleShape[]>([]);
+
+  const [explorerOpen, setExplorerOpen] = useState<boolean>(false);
+  const [explorerData, setExplorerData] = useState<OpeningExplorerData | null>(null);
+  const [explorerLoading, setExplorerLoading] = useState<boolean>(false);
+  const [practiceMode, setPracticeMode] = useState<boolean>(false);
+  const [actionMenuOpen, setActionMenuOpen] = useState<boolean>(false);
+
+  const [fenDraft, setFenDraft] = useState<string>(START_FEN);
+  const [pgnDraft, setPgnDraft] = useState<string>("");
+  const [statusToast, setStatusToast] = useState<string>("");
+
+  const engineClientRef = useRef<LichessStockfishClient | null>(null);
+
+  const activeFen = useMemo(() => {
+    if (currentPly === 0) return baseFen;
+    return moves[currentPly - 1]?.fen ?? baseFen;
+  }, [baseFen, moves, currentPly]);
+
+  const game = useMemo(() => {
+    try {
+      return new Chess(activeFen);
+    } catch {
+      return new Chess(START_FEN);
+    }
+  }, [activeFen]);
+
+  const lastMove = useMemo(() => {
+    if (currentPly === 0) return null;
+    const node = moves[currentPly - 1];
+    return node ? { from: node.from, to: node.to } : null;
+  }, [moves, currentPly]);
+
+  const activeSanHistory = useMemo(
+    () => moves.slice(0, currentPly).map((m) => m.san),
+    [moves, currentPly]
+  );
+
+  const formattedPgnString = useMemo(() => {
+    if (moves.length === 0) return "";
+    const parts: string[] = [];
+    moves.forEach((m, idx) => {
+      if (m.color === "w") {
+        parts.push(`${m.moveNumber}. ${m.san}`);
+      } else if (idx === 0) {
+        parts.push(`${m.moveNumber}... ${m.san}`);
+      } else {
+        parts.push(m.san);
+      }
+    });
+    return parts.join(" ");
+  }, [moves]);
+
+  useEffect(() => {
+    setFenDraft(activeFen);
+  }, [activeFen]);
+
+  useEffect(() => {
+    setPgnDraft(formattedPgnString);
+  }, [formattedPgnString]);
+
+  // Initialize Stockfish client.
+  // The active move evaluation is updated by the separate effect below.
+  useEffect(() => {
+    const client = new LichessStockfishClient(stockfishWorkerPath, (ev) => {
+      setEvaluation(ev);
+    });
+    engineClientRef.current = client;
+    return () => client.dispose();
+  }, [stockfishWorkerPath]);
+
+  useEffect(() => {
+    if (!engineEnabled) {
+      engineClientRef.current?.stop();
+      return;
+    }
+    engineClientRef.current?.analyze(activeFen, engineDepth);
+  }, [engineEnabled, activeFen, engineDepth]);
+
+  useEffect(() => {
+    if (!engineEnabled || !evaluation || currentPly === 0) return;
+    const formatted = formatLichessEval(evaluation);
+    setMoves((prev) =>
+      prev.map((node, idx) =>
+        idx === currentPly - 1 && node.evalFormatted !== formatted
+          ? { ...node, evalFormatted: formatted, evalCp: evaluation.cp }
+          : node
+      )
+    );
+  }, [evaluation, engineEnabled, currentPly]);
+
+  useEffect(() => {
+    if (!explorerOpen) return;
+    const controller = new AbortController();
+    setExplorerLoading(true);
+    fetchLichessOpeningStats(activeFen, activeSanHistory, controller.signal)
+      .then((res) => {
+        setExplorerData(res);
+        setExplorerLoading(false);
+      })
+      .catch(() => setExplorerLoading(false));
+    return () => controller.abort();
+  }, [explorerOpen, activeFen, activeSanHistory]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setCurrentPly((p) => Math.max(0, p - 1));
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setCurrentPly((p) => Math.min(moves.length, p + 1));
+      } else if (e.key === "ArrowUp" || e.key === "Home") {
+        e.preventDefault();
+        setCurrentPly(0);
+      } else if (e.key === "ArrowDown" || e.key === "End") {
+        e.preventDefault();
+        setCurrentPly(moves.length);
+      } else if (e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setFlipped((f) => !f);
+      } else if (e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        setExplorerOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [moves.length]);
+
+  const handleMakeMove = (from: Square, to: Square, promotion?: "q" | "r" | "b" | "n"): boolean => {
+    try {
+      const nextGame = new Chess(activeFen);
+      const res = nextGame.move({ from, to, ...(promotion ? { promotion } : {}) });
+      const truncated = moves.slice(0, currentPly);
+      const nextPly = truncated.length + 1;
+      const moveNumber =
+        res.color === "w"
+          ? Math.floor(truncated.length / 2) + 1
+          : truncated[truncated.length - 1]?.moveNumber ?? 1;
+
+      const newNode: MoveNode = {
+        ply: nextPly,
+        moveNumber,
+        color: res.color,
+        san: res.san,
+        uci: `${res.from}${res.to}${res.promotion ?? ""}`,
+        from: res.from as Square,
+        to: res.to as Square,
+        fen: nextGame.fen(),
+      };
+
+      const updatedMoves = [...truncated, newNode];
+      setMoves(updatedMoves);
+      setCurrentPly(nextPly);
+      setUserArrows([]);
+      setUserCircles([]);
+
+      if (practiceMode && !nextGame.isGameOver()) {
+        window.setTimeout(() => {
+          const replyGame = new Chess(nextGame.fen());
+          const legal = replyGame.moves({ verbose: true });
+          if (legal.length > 0) {
+            const pick = legal[0];
+            const replyRes = replyGame.move(pick);
+            const replyPly = nextPly + 1;
+            const replyMoveNumber =
+              replyRes.color === "w" ? moveNumber + 1 : moveNumber;
+            setMoves((curr) => [
+              ...curr,
+              {
+                ply: replyPly,
+                moveNumber: replyMoveNumber,
+                color: replyRes.color,
+                san: replyRes.san,
+                uci: `${replyRes.from}${replyRes.to}${replyRes.promotion ?? ""}`,
+                from: replyRes.from as Square,
+                to: replyRes.to as Square,
+                fen: replyGame.fen(),
+              },
+            ]);
+            setCurrentPly(replyPly);
+          }
+        }, 350);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const handlePlayUciMove = (uci: string) => {
+    if (uci.length < 4) return;
+    const from = uci.slice(0, 2) as Square;
+    const to = uci.slice(2, 4) as Square;
+    const promo = uci[4] as "q" | "r" | "b" | "n" | undefined;
+    handleMakeMove(from, to, promo);
+  };
+
+  const handleApplyFen = (fenText: string) => {
+    const trimmed = fenText.trim();
+    try {
+      const parsed = new Chess(trimmed);
+      setBaseFen(parsed.fen());
+      setMoves([]);
+      setCurrentPly(0);
+      setUserArrows([]);
+      setUserCircles([]);
+      setStatusToast("Loaded custom FEN position");
+      window.setTimeout(() => setStatusToast(""), 2400);
+    } catch {
+      setStatusToast("Invalid FEN string");
+      window.setTimeout(() => setStatusToast(""), 2400);
+    }
+  };
+
+  const handleApplyPgn = (pgnText: string) => {
+    const trimmed = pgnText.trim();
+    if (!trimmed) {
+      setBaseFen(START_FEN);
+      setMoves([]);
+      setCurrentPly(0);
+      return;
+    }
+    try {
+      const parser = new Chess();
+      parser.loadPgn(trimmed);
+      const history = parser.history({ verbose: true });
+      const replay = new Chess(START_FEN);
+      const built: MoveNode[] = [];
+      history.forEach((h, i) => {
+        replay.move(h);
+        built.push({
+          ply: i + 1,
+          moveNumber: Math.floor(i / 2) + 1,
+          color: h.color,
+          san: h.san,
+          uci: `${h.from}${h.to}${h.promotion ?? ""}`,
+          from: h.from as Square,
+          to: h.to as Square,
+          fen: replay.fen(),
+        });
+      });
+      setBaseFen(START_FEN);
+      setMoves(built);
+      setCurrentPly(built.length);
+      setStatusToast(`Loaded PGN (${built.length} plies)`);
+      window.setTimeout(() => setStatusToast(""), 2400);
+    } catch {
+      setStatusToast("Could not parse PGN");
+      window.setTimeout(() => setStatusToast(""), 2400);
+    }
+  };
+
+  const wikiEntry = useMemo(
+    () => lookupWikiBook(activeSanHistory),
+    [activeSanHistory]
+  );
+
+  return (
+    <div className="li-analysis-root">
+      {showSiteHeader && (
+        <header className="li-site-header">
+          <div className="li-site-header-left">
+            <a href="#analysis" className="li-brand-logo" onClick={(e) => e.preventDefault()}>
+              <svg viewBox="0 0 50 50" width="28" height="28" className="li-knight-logo">
+                <circle cx="25" cy="25" r="22" fill="none" stroke="#bababa" strokeWidth="3.2" />
+                <path
+                  d="M18 36c1-8 9-10 8-19 0 0-5 4-8 2-2-1 2-6 5-8 3-2 9-1 12 4 3 5 3 13 2 21H18z"
+                  fill="#bababa"
+                />
+              </svg>
+              <span className="li-brand-text">
+                lichess<span>.org</span>
+              </span>
+            </a>
+
+            <nav className="li-site-nav" aria-label="Main navigation">
+              <a href="#play" onClick={(e) => e.preventDefault()}>PLAY</a>
+              <a href="#puzzles" onClick={(e) => e.preventDefault()}>PUZZLES</a>
+              <a href="#learn" onClick={(e) => e.preventDefault()}>LEARN</a>
+              <a href="#watch" onClick={(e) => e.preventDefault()}>WATCH</a>
+              <a href="#community" onClick={(e) => e.preventDefault()}>COMMUNITY</a>
+              <a href="#tools" className="active" onClick={(e) => e.preventDefault()}>TOOLS</a>
+              <a href="#donate" className="li-donate-link" onClick={(e) => e.preventDefault()}>
+                <span className="li-wing-icon">ü™Ω</span> DONATE
+              </a>
+            </nav>
+          </div>
+
+          <div className="li-site-header-right">
+            <button type="button" className="li-header-icon-btn" aria-label="Search">
+              <Search size={18} />
+            </button>
+            <button type="button" className="li-header-icon-btn" aria-label="Friends">
+              <Users size={18} />
+            </button>
+            <button type="button" className="li-header-icon-btn" aria-label="Challenges">
+              <Crosshair size={18} />
+            </button>
+            <button type="button" className="li-header-icon-btn" aria-label="Notifications">
+              <Bell size={18} />
+            </button>
+            <span className="li-user-tag">Vinayayayay</span>
+            <span className="li-user-avatar" aria-hidden="true">‚óè</span>
+          </div>
+        </header>
+      )}
+
+      <main className="li-analyse-grid">
+        <WikiBookPanel
+          variant={variant}
+          onVariantChange={setVariant}
+          wikiEntry={wikiEntry}
+        />
+
+        <section className="li-center-column" aria-label="Chessboard and FEN/PGN">
+          <ChessboardView
+            game={game}
+            flipped={flipped}
+            lastMove={lastMove}
+            engineBestMoveUci={engineEnabled ? evaluation?.bestMoveUci ?? null : null}
+            threatMoveUci={engineEnabled ? evaluation?.threatMoveUci ?? null : null}
+            showEngineArrow={engineEnabled && showEngineArrow}
+            showThreatArrow={engineEnabled && showThreat}
+            userArrows={userArrows}
+            userCircles={userCircles}
+            onMakeMove={handleMakeMove}
+            onToggleUserArrow={(arrow) =>
+              setUserArrows((prev) => {
+                const exists = prev.some(
+                  (a) => a.from === arrow.from && a.to === arrow.to && a.brush === arrow.brush
+                );
+                return exists
+                  ? prev.filter(
+                      (a) => !(a.from === arrow.from && a.to === arrow.to && a.brush === arrow.brush)
+                    )
+                  : [...prev, arrow];
+              })
+            }
+            onToggleUserCircle={(circle) =>
+              setUserCircles((prev) => {
+                const exists = prev.some(
+                  (c) => c.square === circle.square && c.brush === circle.brush
+                );
+                return exists
+                  ? prev.filter((c) => !(c.square === circle.square && c.brush === circle.brush))
+                  : [...prev, circle];
+              })
+            }
+            onClearUserShapes={() => {
+              setUserArrows([]);
+              setUserCircles([]);
+            }}
+          />
+
+          <div className="li-underboard">
+            <div className="li-fen-pgn-row">
+              <label htmlFor="li-fen-input" className="li-fen-pgn-label">
+                FEN
+              </label>
+              <input
+                id="li-fen-input"
+                type="text"
+                className="li-fen-input"
+                value={fenDraft}
+                onChange={(e) => setFenDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleApplyFen(fenDraft);
+                }}
+                onBlur={() => {
+                  if (fenDraft.trim() !== activeFen) handleApplyFen(fenDraft);
+                }}
+                spellCheck={false}
+              />
+            </div>
+
+            <div className="li-fen-pgn-row li-pgn-row">
+              <label htmlFor="li-pgn-input" className="li-fen-pgn-label">
+                PGN
+              </label>
+              <textarea
+                id="li-pgn-input"
+                className="li-pgn-textarea"
+                rows={2}
+                value={pgnDraft}
+                onChange={(e) => setPgnDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    handleApplyPgn(pgnDraft);
+                  }
+                }}
+                onBlur={() => {
+                  if (pgnDraft.trim() !== formattedPgnString) {
+                    handleApplyPgn(pgnDraft);
+                  }
+                }}
+                spellCheck={false}
+              />
+            </div>
+          </div>
+        </section>
+
+        <EvaluationBar
+          evaluation={evaluation}
+          enabled={engineEnabled}
+          flipped={flipped}
+        />
+
+        <aside className="li-right-column" aria-label="Engine evaluation and move tree">
+          <div className="li-tools-card">
+            <EnginePanel
+              enabled={engineEnabled}
+              onToggleEnabled={() => setEngineEnabled((e) => !e)}
+              evaluation={evaluation}
+              depth={engineDepth}
+              onChangeDepth={setEngineDepth}
+              showThreat={showThreat}
+              onToggleThreat={() => setShowThreat((t) => !t)}
+              currentTurn={game.turn()}
+              currentMoveNumber={moves[currentPly - 1]?.moveNumber ?? 1}
+              onPlayPvFirstMove={handlePlayUciMove}
+            />
+
+            {explorerOpen && (
+              <OpeningExplorerModal
+                data={explorerData}
+                loading={explorerLoading}
+                onPlayUciMove={handlePlayUciMove}
+              />
+            )}
+
+            <MoveListPanel
+              moves={moves}
+              currentPly={currentPly}
+              onSelectPly={setCurrentPly}
+            />
+
+            {actionMenuOpen && (
+              <div className="li-action-menu-drawer">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFlipped((f) => !f);
+                    setActionMenuOpen(false);
+                  }}
+                >
+                  Flip board (f)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEngineArrow((a) => !a);
+                    setActionMenuOpen(false);
+                  }}
+                >
+                  {showEngineArrow ? "Hide best move arrow" : "Show best move arrow"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBaseFen(START_FEN);
+                    setMoves([]);
+                    setCurrentPly(0);
+                    setActionMenuOpen(false);
+                  }}
+                >
+                  Reset to starting position
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(activeFen);
+                    setStatusToast("FEN copied to clipboard");
+                    window.setTimeout(() => setStatusToast(""), 2000);
+                    setActionMenuOpen(false);
+                  }}
+                >
+                  Copy FEN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(formattedPgnString);
+                    setStatusToast("PGN copied to clipboard");
+                    window.setTimeout(() => setStatusToast(""), 2000);
+                    setActionMenuOpen(false);
+                  }}
+                >
+                  Copy PGN
+                </button>
+              </div>
+            )}
+          </div>
+
+          <BoardControlsBar
+            explorerOpen={explorerOpen}
+            onToggleExplorer={() => setExplorerOpen((o) => !o)}
+            practiceMode={practiceMode}
+            onTogglePractice={() => setPracticeMode((p) => !p)}
+            canGoBack={currentPly > 0}
+            canGoForward={currentPly < moves.length}
+            onFirst={() => setCurrentPly(0)}
+            onPrev={() => setCurrentPly((p) => Math.max(0, p - 1))}
+            onNext={() => setCurrentPly((p) => Math.min(moves.length, p + 1))}
+            onLast={() => setCurrentPly(moves.length)}
+            menuOpen={actionMenuOpen}
+            onToggleMenu={() => setActionMenuOpen((m) => !m)}
+          />
+        </aside>
+      </main>
+
+      {statusToast && (
+        <div className="li-toast" role="status">
+          {statusToast}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default LichessAnalysisBoard;
+
+
+========== src\components\LichessAnalysis\types.ts ==========
+
+import type { Square } from "chess.js";
+
+export type ChessVariant =
+  | "Standard"
+  | "Chess960"
+  | "King of the Hill"
+  | "Three-check"
+  | "Antichess"
+  | "Atomic"
+  | "Horde"
+  | "Racing Kings"
+  | "Crazyhouse";
+
+export type ArrowBrush = "engine" | "threat" | "green" | "red" | "blue" | "yellow";
+
+export interface BoardArrowShape {
+  from: Square;
+  to: Square;
+  brush: ArrowBrush;
+}
+
+export interface BoardCircleShape {
+  square: Square;
+  brush: ArrowBrush;
+}
+
+export interface EngineEvaluation {
+  cp: number | null;      // Centipawns from White's perspective (+20 = +0.2)
+  mate: number | null;    // Mate in N from White's perspective
+  depth: number;
+  maxDepth: number;
+  knodes: number;
+  bestMoveUci: string;    // e.g. "e7e5"
+  threatMoveUci?: string;
+  pvUci: string[];        // e.g. ["e7e5", "g1f3", "b8c6", "f1b5", "g8f6", "e1g1"]
+  pvSan: string[];        // e.g. ["e5", "Nf3", "Nc6", "Bb5", "Nf6", "O-O"]
+  isCloud: boolean;
+  multiPvLines?: {
+    multipv: number;
+    cp: number | null;
+    mate: number | null;
+    pvSan: string[];
+    pvUci: string[];
+  }[];
+}
+
+export interface MoveNode {
+  ply: number;
+  moveNumber: number;
+  color: "w" | "b";
+  san: string;
+  uci: string;
+  from: Square;
+  to: Square;
+  fen: string;
+  evalFormatted?: string; // e.g. "+0.2"
+  evalCp?: number | null;
+}
+
+export interface WikiBookEntry {
+  eco: string;
+  title: string;          // e.g. "1. e4 ¬∑ King's Pawn opening"
+  quote?: {
+    text: string;
+    author: string;
+  };
+  paragraphs: string[];
+  plans?: string[];
+}
+
+export interface OpeningExplorerMoveStat {
+  uci: string;
+  san: string;
+  white: number;
+  draws: number;
+  black: number;
+  averageRating: number;
+}
+
+export interface OpeningExplorerData {
+  opening: { eco: string; name: string } | null;
+  white: number;
+  draws: number;
+  black: number;
+  moves: OpeningExplorerMoveStat[];
+  source: "lichess-api" | "builtin-master-book";
+}

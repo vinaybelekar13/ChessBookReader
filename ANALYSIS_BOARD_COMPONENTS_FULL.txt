@@ -1,0 +1,446 @@
+ANALYSIS BOARD COMPONENT STRUCTURE
+Generated: 11/02/2026 17:05:59
+
+========== className="board-panel" | LINE 1497 ==========
+ 1489:             </div>
+ 1490:           </div>
+ 1491:             </section>
+ 1492:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+ 1493:           </aside>
+ 1494:         )}
+ 1495: 
+ 1496:         {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+ 1497:         <section className="board-panel" aria-label="Chessboard analysis">
+ 1498:           <div className="board-header">
+ 1499:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+ 1500:             <div className="board-header-actions">
+ 1501:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+ 1502:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+ 1503:             </div>
+ 1504:           </div>
+ 1505:           <div className="board-area">
+ 1506:             <div
+ 1507:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+ 1508:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+ 1509:               title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+ 1510:             >
+ 1511:               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+ 1512:               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+ 1513:             </div>
+ 1514:             <div className="board-frame">
+ 1515:               <div
+ 1516:                 className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+ 1517:                 ref={boardRef}
+ 1518:                 onPointerDown={boardArrowPointerDown}
+ 1519:                 onPointerMove={boardArrowPointerMove}
+ 1520:                 onPointerUp={boardArrowPointerUp}
+ 1521:                 onPointerCancel={cancelBoardArrowGesture}
+ 1522:                 onContextMenu={(event) => {
+ 1523:   event.preventDefault();
+ 1524: 
+ 1525:   if (suppressBoardContextMenuRef.current || arrowGestureMovedRef.current) {
+ 1526:     suppressBoardContextMenuRef.current = false;
+ 1527:     return;
+ 1528:   }
+ 1529: 
+ 1530:   const bounds = boardRef.current?.getBoundingClientRect();
+ 1531:   if (!bounds) return;
+ 1532: 
+ 1533:   const square = boardSquareAtPoint(
+ 1534:     event.clientX,
+ 1535:     event.clientY,
+ 1536:     bounds,
+ 1537:     Boolean(boardSession?.flipped),
+ 1538:   );
+ 1539:   if (!square) return;
+ 1540: 
+ 1541:   setRedSquares((current) =>
+ 1542:     current.includes(square)
+ 1543:       ? current.filter((item) => item !== square)
+ 1544:       : [...current, square]
+ 1545:   );
+ 1546: }}
+ 1547:               >
+ 1548:                 {Array.from({ length: 64 }, (_, index) => {
+ 1549:                   const visibleRow = Math.floor(index / 8);
+ 1550:                   const visibleCol = index % 8;
+ 1551:                   const fileIndex = boardSession?.flipped ? 7 - visibleCol : visibleCol;
+ 1552:                   const rankIndex = boardSession?.flipped ? visibleRow : 7 - visibleRow;
+ 1553:                   const square = squareName(fileIndex, rankIndex);
+ 1554:                   const piece = pieceSquares[7 - rankIndex]?.[fileIndex];
+ 1555:                   const legal = legalTargets.has(square);
+ 1556:                   const isLast = highlightedMove?.from === square || highlightedMove?.to === square;
+ 1557:                   const light = (fileIndex + rankIndex) % 2 === 1;
+ 1558:                   return (
+ 1559:                     <button
+ 1560:                       key={square}
+ 1561:                       className={`square ${light ? "light-square" : "dark-square"} ${selectedSquare === square ? "selected-square" : ""} ${isLast ? "last-square" : ""} ${redSquares.includes(square) ? "red-highlight" : ""}`}
+ 1562:                       aria-label={`${square}${piece ? ` ${piece.color === "w" ? "white" : "black"} ${piece.type}` : ""}`}
+ 1563:                       draggable={Boolean(piece && piece.color === game.turn())}
+ 1564:                       onClick={() => handleSquareClick(square)}
+ 1565:                       onDragStart={(event) => {
+ 1566:                         const image = event.currentTarget.querySelector("img");
+ 1567:                         if (image) {
+ 1568:                           const bounds = event.currentTarget.getBoundingClientRect();
+ 1569:                           event.dataTransfer.setDragImage(image, bounds.width / 2, bounds.height / 2);
+ 1570:                         }
+ 1571:                         event.dataTransfer.setData("text/plain", square);
+ 1572:                         setSelectedSquare(square);
+ 1573:                       }}
+ 1574:                       onDragOver={(event) => event.preventDefault()}
+ 1575:                       onDrop={(event) => { event.preventDefault(); const from = event.dataTransfer.getData("text/plain") as Square; if (from) makeMove(from, square); }}
+ 1576:                       onDragEnd={() => setSelectedSquare(null)}
+ 1577:                     >
+ 1578:                       {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece.color}${piece.type}.svg`} /></span>}
+ 1579:                       {legal && <span className={piece ? "legal-capture" : "legal-dot"} />}
+ 1580:                       {boardSession?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
+ 1581:                       {boardSession?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
+ 1582:                     </button>
+ 1583:                   );
+ 1584:                 })}
+ 1585:                 <svg className="board-arrows" viewBox="0 0 8 8" aria-hidden="true">
+ 1586:                   {[
+ 1587:                     ...userArrows.map((arrow) => ({ arrow, kind: "user" as const })),
+ 1588:                     ...(engineArrow ? [{ arrow: engineArrow, kind: "engine" as const }] : []),
+ 1589:                     ...(arrowStart && arrowHover && arrowStart !== arrowHover
+ 1590:                       ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
+ 1591:                       : []),
+ 1592:                   ].map(({ arrow, kind }, index) => {
+ 1593:                     const from = squareCenter(arrow.from, Boolean(boardSession?.flipped));
+ 1594:                     const to = squareCenter(arrow.to, Boolean(boardSession?.flipped));
+ 1595:                     const dx = to.x - from.x;
+ 1596:                     const dy = to.y - from.y;
+ 1597:                     const length = Math.hypot(dx, dy);
+
+========== className="reader-panel" | LINE 1698 ==========
+ 1690:           </div>
+ 1691:           <details className="position-editor">
+ 1692:             <summary>Board position Â· enter FEN to correct selected diagram</summary>
+ 1693:             <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+ 1694:           </details>
+ 1695:           <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+ 1696:         </section>
+ 1697: 
+ 1698:         <section className="reader-panel" aria-label="PDF book reader">
+ 1699:           <div className="opening-explorer-right-workspace">
+ 1700:           {workspaceMode === "opening-explorer" && (
+ 1701:             <section className="opening-explorer-panel" aria-label="Opening Explorer">
+ 1702:               <h3>Opening Explorer</h3>
+ 1703:               <div className="lichess-connection-controls">
+ 1704:                 {lichessStatus?.connected ? (
+ 1705:                   <>
+ 1706:                     <span role="status">Lichess connected</span>
+ 1707:                     <button
+ 1708:                       type="button"
+ 1709:                       disabled={lichessActionBusy}
+ 1710:                       onClick={() => {
+ 1711:                         setLichessActionBusy(true);
+ 1712:                         void disconnectLichess()
+ 1713:                           .then(() => {
+ 1714:                             setLichessStatus((current) => current ? { ...current, connected: false } : current);
+ 1715:                             setOpeningStats(null);
+ 1716:                             setOpeningStatsStatus("idle");
+ 1717:                             setNotice("Lichess disconnected.");
+ 1718:                           })
+ 1719:                           .catch(() => setLichessStatusError("Could not disconnect. Check that the backend is running."))
+ 1720:                           .finally(() => setLichessActionBusy(false));
+ 1721:                       }}
+ 1722:                     >{lichessActionBusy ? "Disconnectingâ€¦" : "Disconnect"}</button>
+ 1723:                   </>
+ 1724:                 ) : (
+ 1725:                   <>
+ 1726:                     <span>{lichessStatus?.configured === false
+ 1727:                       ? "Lichess OAuth needs configuration."
+ 1728:                       : "Connect Lichess to load opening statistics."}</span>
+ 1729:                     <button
+ 1730:                       type="button"
+ 1731:                       className="green-button"
+ 1732:                       disabled={lichessActionBusy || lichessStatus?.configured === false}
+ 1733:                       onClick={() => { window.location.assign("/api/lichess/connect"); }}
+ 1734:                     >Connect Lichess</button>
+ 1735:                   </>
+ 1736:                 )}
+ 1737:               </div>
+ 1738:               {lichessStatusError && <p role="status">{lichessStatusError}</p>}
+ 1739:               <p>Enter a legal opening line in SAN or UCI notation. The board follows the selected move.</p>
+ 1740:               <label htmlFor="opening-line-input">Opening moves</label>
+ 1741:               <textarea
+ 1742:                 id="opening-line-input"
+ 1743:                 aria-label="Opening line input"
+ 1744:                 rows={3}
+ 1745:                 value={openingExplorerInput}
+ 1746:                 onChange={(event) => {
+ 1747:                   setOpeningExplorerInput(event.target.value);
+ 1748:                   setOpeningExplorerPly(0);
+ 1749:                 }}
+ 1750:                 placeholder="1. e4 e5 2. Nf3 Nc6"
+ 1751:               />
+ 1752:               {openingLine.error && <p role="alert">{openingLine.error}</p>}
+ 1753:               {!openingLine.error && (
+ 1754:                 <>
+ 1755:                   <div className="opening-explorer-moves" aria-label="Opening moves">
+ 1756:                     <button
+ 1757:                       type="button"
+ 1758:                       disabled={openingExplorerPly === 0}
+ 1759:                       onClick={() => setOpeningExplorerPly(0)}
+ 1760:                     >Start</button>
+ 1761:                     <button
+ 1762:                       type="button"
+ 1763:                       disabled={openingExplorerPly === 0}
+ 1764:                       onClick={() => setOpeningExplorerPly((ply) => Math.max(0, ply - 1))}
+ 1765:                     >Previous</button>
+ 1766:                     <span>Move {openingExplorerPly} / {openingLine.sanMoves.length}</span>
+ 1767:                     <button
+ 1768:                       type="button"
+ 1769:                       disabled={openingExplorerPly >= openingLine.sanMoves.length}
+ 1770:                       onClick={() => setOpeningExplorerPly((ply) => Math.min(openingLine.sanMoves.length, ply + 1))}
+ 1771:                     >Next</button>
+ 1772:                     <button
+ 1773:                       type="button"
+ 1774:                       disabled={openingExplorerPly >= openingLine.sanMoves.length}
+ 1775:                       onClick={() => setOpeningExplorerPly(openingLine.sanMoves.length)}
+ 1776:                     >End</button>
+ 1777:                   </div>
+ 1778:                   <div className="opening-explorer-notation">
+ 1779:                     {openingLine.sanMoves.length
+ 1780:                       ? openingLine.sanMoves.map((move, index) => (
+ 1781:                           <button
+ 1782:                             type="button"
+ 1783:                             key={`${index}-${move}`}
+ 1784:                             className={index < openingExplorerPly ? "opening-move-played" : ""}
+ 1785:                             onClick={() => setOpeningExplorerPly(index + 1)}
+ 1786:                           >{index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ` : ""}{move}</button>
+ 1787:                         ))
+ 1788:                       : <span>Enter moves to explore a line.</span>}
+ 1789:                   </div>
+ 1790:                   <section className="opening-stats" aria-label="Opening statistics" aria-live="polite">
+ 1791:                     <div className="opening-stats-heading">
+ 1792:                       <h4>Position statistics</h4>
+ 1793:                       <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
+ 1794:                     </div>
+ 1795:                     {openingStatsStatus === "loading" && <p>Loading game statisticsâ€¦</p>}
+ 1796:                     {openingStatsStatus === "error" && (
+ 1797:                       <p role="status">Statistics are currently unavailable. Check your connection or try again later. The board remains usable.</p>
+ 1798:                     )}
+
+========== className="sidebar-moves-panel" | LINE 1473 ==========
+ 1465:                       </button>
+ 1466:                       <button type="button" className="book-delete-button" title={"Delete " + item.title} aria-label={"Delete " + item.title} onClick={(event) => { event.stopPropagation(); void deleteBook(item); }}>&#215;</button>
+ 1467:                       <details className="book-menu"><summary aria-label={`Options for ${item.title}`}>&#8942;</summary><div className="book-menu-items"><button onClick={() => void renameBook(item)}>Rename</button><button onClick={() => void deleteBook(item)}>Delete book</button></div></details>
+ 1468:                     </div>
+ 1469:                   );
+ 1470:                 })}
+ 1471:                 {!visibleBooks.length && <div className="empty-library"><div>&#128218;</div><strong>{books.length ? "Nothing in this view" : "Your shelf is empty"}</strong><span>Add a PDF to begin reading. Your books stay in this browser.</span><button className="green-button" onClick={() => fileInput.current?.click()}>+ Add Book</button></div>}
+ 1472:               </div>
+ 1473:             <section className="sidebar-moves-panel" aria-label="Move list">
+ 1474: <div className="moves-panel">
+ 1475:             <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+ 1476:               if (!session) return;
+ 1477:               patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+ 1478:               setLastMove(null);
+ 1479:               setNotice("New analysis line started from the current position.");
+ 1480:             }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+ 1481:             <div className="move-list">
+ 1482:               {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+ 1483:                 <div className="move-pair" key={row}>
+ 1484:                   <span className="move-number">{row + 1}.</span>
+ 1485:                   {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+ 1486:                   {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+ 1487:                 </div>
+ 1488:               )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+ 1489:             </div>
+ 1490:           </div>
+ 1491:             </section>
+ 1492:             <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+ 1493:           </aside>
+ 1494:         )}
+ 1495: 
+ 1496:         {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+ 1497:         <section className="board-panel" aria-label="Chessboard analysis">
+ 1498:           <div className="board-header">
+ 1499:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+ 1500:             <div className="board-header-actions">
+ 1501:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+ 1502:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+ 1503:             </div>
+ 1504:           </div>
+ 1505:           <div className="board-area">
+ 1506:             <div
+ 1507:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+ 1508:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+ 1509:               title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+ 1510:             >
+ 1511:               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+ 1512:               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+ 1513:             </div>
+ 1514:             <div className="board-frame">
+ 1515:               <div
+ 1516:                 className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+ 1517:                 ref={boardRef}
+ 1518:                 onPointerDown={boardArrowPointerDown}
+ 1519:                 onPointerMove={boardArrowPointerMove}
+ 1520:                 onPointerUp={boardArrowPointerUp}
+ 1521:                 onPointerCancel={cancelBoardArrowGesture}
+ 1522:                 onContextMenu={(event) => {
+ 1523:   event.preventDefault();
+ 1524: 
+ 1525:   if (suppressBoardContextMenuRef.current || arrowGestureMovedRef.current) {
+ 1526:     suppressBoardContextMenuRef.current = false;
+ 1527:     return;
+ 1528:   }
+ 1529: 
+ 1530:   const bounds = boardRef.current?.getBoundingClientRect();
+ 1531:   if (!bounds) return;
+ 1532: 
+ 1533:   const square = boardSquareAtPoint(
+ 1534:     event.clientX,
+ 1535:     event.clientY,
+ 1536:     bounds,
+ 1537:     Boolean(boardSession?.flipped),
+ 1538:   );
+ 1539:   if (!square) return;
+ 1540: 
+ 1541:   setRedSquares((current) =>
+ 1542:     current.includes(square)
+ 1543:       ? current.filter((item) => item !== square)
+ 1544:       : [...current, square]
+ 1545:   );
+ 1546: }}
+ 1547:               >
+ 1548:                 {Array.from({ length: 64 }, (_, index) => {
+ 1549:                   const visibleRow = Math.floor(index / 8);
+ 1550:                   const visibleCol = index % 8;
+ 1551:                   const fileIndex = boardSession?.flipped ? 7 - visibleCol : visibleCol;
+ 1552:                   const rankIndex = boardSession?.flipped ? visibleRow : 7 - visibleRow;
+ 1553:                   const square = squareName(fileIndex, rankIndex);
+ 1554:                   const piece = pieceSquares[7 - rankIndex]?.[fileIndex];
+ 1555:                   const legal = legalTargets.has(square);
+ 1556:                   const isLast = highlightedMove?.from === square || highlightedMove?.to === square;
+ 1557:                   const light = (fileIndex + rankIndex) % 2 === 1;
+ 1558:                   return (
+ 1559:                     <button
+ 1560:                       key={square}
+ 1561:                       className={`square ${light ? "light-square" : "dark-square"} ${selectedSquare === square ? "selected-square" : ""} ${isLast ? "last-square" : ""} ${redSquares.includes(square) ? "red-highlight" : ""}`}
+ 1562:                       aria-label={`${square}${piece ? ` ${piece.color === "w" ? "white" : "black"} ${piece.type}` : ""}`}
+ 1563:                       draggable={Boolean(piece && piece.color === game.turn())}
+ 1564:                       onClick={() => handleSquareClick(square)}
+ 1565:                       onDragStart={(event) => {
+ 1566:                         const image = event.currentTarget.querySelector("img");
+ 1567:                         if (image) {
+ 1568:                           const bounds = event.currentTarget.getBoundingClientRect();
+ 1569:                           event.dataTransfer.setDragImage(image, bounds.width / 2, bounds.height / 2);
+ 1570:                         }
+ 1571:                         event.dataTransfer.setData("text/plain", square);
+ 1572:                         setSelectedSquare(square);
+ 1573:                       }}
+
+========== className="analysis-strip" | LINE 1953 ==========
+ 1945:             {currentDiagram && <div className="crop-actions">
+ 1946:               {cropEditingId === currentDiagram.id && <button onClick={resetSelectedCrop}>Reset crop</button>}
+ 1947:               <button onClick={() => adjustSelectedCrop(currentDiagram)}>{cropEditingId === currentDiagram.id ? "Adjusting?" : "Adjust Crop"}</button>
+ 1948:               <button className="green-button" onClick={() => void openTransfer(currentDiagram)}>Recognize Pieces</button>
+ 1949:               <button onClick={cancelCandidateSelection}>Cancel</button>
+ 1950:             </div>}
+ 1951:             <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+ 1952:           </div>
+ 1953:           <div className="analysis-strip">
+ 1954:             <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineâ€¦" : engineStatus === "analyzing" ? "Analyzing current positionâ€¦" : "Ready Â· White-positive scores"}</span></div></div>
+ 1955:             <div className="analysis-divider" />
+ 1956:             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+ 1957:             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+ 1958:             <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+ 1959:             <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+ 1960:             <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+ 1961:           </div>
+ 1962:         </section>
+ 1963:         </>}
+ 1964:       </div>
+ 1965: 
+ 1966:       {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+ 1967:       {transferCandidate && (
+ 1968:         <ManualBoardEditor
+ 1969:           initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+ 1970:           title="Review recognized position"
+ 1971:           subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits."
+ 1972:           confirmLabel="Use on Board"
+ 1973:           cropPreviewUrl={transferPreview}
+ 1974:           recognitionStatus={recognitionStatus}
+ 1975:           recognitionResult={recognitionResult}
+ 1976:           recognitionError={recognitionError}
+ 1977:           onRetryRecognition={() => void openTransfer(transferCandidate)}
+ 1978:           onConfirm={(confirmedFen) => {
+ 1979:             if (moveToPosition(confirmedFen)) {
+ 1980:               closeTransfer();
+ 1981:             }
+ 1982:           }}
+ 1983:           onCancel={closeTransfer}
+ 1984:         />
+ 1985:       )}
+ 1986:       {setupOpen && (
+ 1987:         <ManualBoardEditor
+ 1988:           initialFen={game.fen()}
+ 1989:           title="Set Up Position"
+ 1990:           subtitle="Set up a custom chess position to analyze with Stockfish."
+ 1991:           confirmLabel="Analyze Position"
+ 1992:           showPresets={true}
+ 1993:           currentAnalysisFen={game.fen()}
+ 1994:           onConfirm={(confirmedFen) => {
+ 1995:             if (analyzeManualPosition(confirmedFen)) {
+ 1996:               setSetupOpen(false);
+ 1997:             }
+ 1998:           }}
+ 1999:           onCancel={() => setSetupOpen(false)}
+ 2000:         />
+ 2001:       )}
+ 2002:       {gameEndOverlay && (
+ 2003:         <div className="game-end-backdrop">
+ 2004:           <section className="game-end-dialog" role="dialog" aria-modal="true" aria-labelledby="game-end-title">
+ 2005:             <div className="game-end-icon" aria-hidden="true">
+ 2006:               {gameEndOverlay.title === "Checkmate" ? "â™”" : gameEndOverlay.title === "Stalemate" ? "Â½" : "Â½"}
+ 2007:             </div>
+ 2008:             <h2 id="game-end-title">{gameEndOverlay.title}</h2>
+ 2009:             <p>{gameEndOverlay.message}</p>
+ 2010:             <div className="game-end-actions">
+ 2011:               <button type="button" onClick={() => setGameEndOverlay(null)}>Review position</button>
+ 2012:               <button type="button" onClick={() => { setGameEndOverlay(null); setSelectedSquare(null); }}>Continue analysis</button>
+ 2013:             </div>
+ 2014:           </section>
+ 2015:         </div>
+ 2016:       )}
+ 2017:       {promotionRequest && (
+ 2018:         <div className="promotion-backdrop" onClick={() => setPromotionRequest(null)}>
+ 2019:           <section className="promotion-dialog" role="dialog" aria-modal="true" aria-labelledby="promotion-title" onClick={(event) => event.stopPropagation()}>
+ 2020:             <h2 id="promotion-title">Promote pawn</h2>
+ 2021:             <p>Choose a piece to complete your move.</p>
+ 2022:             <div className="promotion-choices">
+ 2023:               <button type="button" onClick={() => completePromotion("q")} aria-label="Promote to queen"><span>â™•</span><small>Queen</small></button>
+ 2024:               <button type="button" onClick={() => completePromotion("r")} aria-label="Promote to rook"><span>â™–</span><small>Rook</small></button>
+ 2025:               <button type="button" onClick={() => completePromotion("b")} aria-label="Promote to bishop"><span>â™—</span><small>Bishop</small></button>
+ 2026:               <button type="button" onClick={() => completePromotion("n")} aria-label="Promote to knight"><span>â™˜</span><small>Knight</small></button>
+ 2027:             </div>
+ 2028:             <button className="promotion-cancel" type="button" onClick={() => setPromotionRequest(null)}>Cancel</button>
+ 2029:           </section>
+ 2030:         </div>
+ 2031:       )}
+ 2032:             {(error || notice) && <div className={`toast ${error ? "toast-error" : ""}`} role={error ? "alert" : "status"}><span>{error || notice}</span><button aria-label="Dismiss message" onClick={() => { setError(""); setNotice(""); }}>&#215;</button></div>}
+ 2033:     </main>
+ 2034:   );
+ 2035: }
+ 2036: 
+ 2037: function LibraryNavItem({
+ 2038:   active,
+ 2039:   onClick,
+ 2040:   icon: Icon,
+ 2041:   label,
+ 2042: }: {
+ 2043:   active: boolean;
+ 2044:   onClick: () => void;
+ 2045:   icon: React.ComponentType<{ size?: number; strokeWidth?: number; "aria-hidden"?: boolean }>;
+ 2046:   label: string;
+ 2047: }) {
+ 2048:   return (
+ 2049:     <button
+ 2050:       type="button"
+ 2051:       className={`library-nav-item ${active ? "nav-active" : ""}`}
+ 2052:       onClick={onClick}
+ 2053:       aria-current={active ? "page" : undefined}

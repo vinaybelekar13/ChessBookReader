@@ -1,0 +1,529 @@
+OPENING EXPLORER BACKEND ROUTE AUDIT
+
+
+Path       : D:\chess\BookChess\ChessBookReader\apply-oauth-frontend.py
+LineNumber : 4
+Line       : api_path = Path("src/opening-explorer-api.ts")
+
+Path       : D:\chess\BookChess\ChessBookReader\apply-oauth-frontend.py
+LineNumber : 16
+Line       : api = api.replace(old_url, '`/api/lichess/opening-explorer?${query.toString()}`', 1)
+
+Path       : D:\chess\BookChess\ChessBookReader\apply-oauth-frontend.py
+LineNumber : 33
+Line       :   const response = await fetch("/api/lichess/status", {
+
+Path       : D:\chess\BookChess\ChessBookReader\apply-oauth-frontend.py
+LineNumber : 66
+Line       : import_anchor = 'import { fetchOpeningExplorerStats, type OpeningExplorerStats } from "./opening-explorer-api";'
+
+Path       : D:\chess\BookChess\ChessBookReader\apply-oauth-frontend.py
+LineNumber : 71
+Line       :     'import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";',
+
+Path       : D:\chess\BookChess\ChessBookReader\apply-oauth-frontend.py
+LineNumber : 129
+Line       : fetch_effect_start = app.find('  useEffect(() => {\n    if (workspaceMode !== "opening-explorer") return;')
+
+Path       : D:\chess\BookChess\ChessBookReader\apply-oauth-frontend.py
+LineNumber : 137
+Line       :     '    if (workspaceMode !== "opening-explorer") return;',
+
+Path       : D:\chess\BookChess\ChessBookReader\apply-oauth-frontend.py
+LineNumber : 138
+Line       :     '''    if (workspaceMode !== "opening-explorer") return;
+
+Path       : D:\chess\BookChess\ChessBookReader\apply-oauth-frontend.py
+LineNumber : 152
+Line       :     r'(  useEffect\(\(\) => \{\n    if \(workspaceMode !== "opening-explorer"\) return;.*?\n  \}, \[)([^\]]*)(\]\);)',
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\app\lichess_oauth.py
+LineNumber : 22
+Line       : LICHESS_EXPLORER = "https://explorer.lichess.ovh/lichess"
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\app\lichess_oauth.py
+LineNumber : 148
+Line       :         raise HTTPException(status_code=502, detail="Lichess Opening Explorer request failed.") from exc
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\app\lichess_oauth.py
+LineNumber : 150
+Line       :         raise HTTPException(status_code=502, detail="Lichess Opening Explorer is unavailable.") from exc
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\app\lichess_oauth.py
+LineNumber : 152
+Line       :         raise HTTPException(status_code=502, detail="Invalid response from Lichess Opening Explorer.")
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\app\lichess_oauth.py
+LineNumber : 289
+Line       : @router.get("/opening-explorer")
+
+Path       : D:\chess\BookChess\ChessBookReader\backend\app\lichess_oauth.py
+LineNumber : 308
+Line       :     result = _get_json(LICHESS_EXPLORER + "?" + query, session[1]["token"])
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 24
+Line       : import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 25
+Line       : import { fetchOpeningExplorerStats, type OpeningExplorerStats } from "./opening-explorer-api";
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 67
+Line       : type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer";
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 138
+Line       :   const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 139
+Line       :   const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 140
+Line       :   const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 349
+Line       :     () => parseOpeningLine(openingExplorerInput),
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 350
+Line       :     [openingExplorerInput],
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 353
+Line       :     () => openingPositionAt(openingExplorerInput, openingExplorerPly),
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 354
+Line       :     [openingExplorerInput, openingExplorerPly],
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 358
+Line       :     if (workspaceMode !== "opening-explorer") return;
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 369
+Line       :       fetchOpeningExplorerStats(openingPosition.uciMoves, controller.signal)
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 386
+Line       :   }, [workspaceMode, openingPosition, openingExplorerPly]);
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 393
+Line       :         : workspaceMode === "opening-explorer"
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 491
+Line       :     if (workspaceMode === "opening-explorer") {
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 857
+Line       :       if (workspaceMode === "opening-explorer") {
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 861
+Line       :         setOpeningExplorerInput(line);
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 862
+Line       :         setOpeningExplorerPly(nextMoves.length);
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1347
+Line       :       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""}`}>
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1364
+Line       :               <LibraryNavItem active={workspaceMode === "opening-explorer"} icon={Search} label="Opening Explorer" onClick={() => setWorkspaceMode("opening-explorer")} /></nav>
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1408
+Line       :             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : 
+             session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} · ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` 
+             : "Ready for a position"}</span></div>
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1595
+Line       :           <div className="opening-explorer-right-workspace">
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1596
+Line       :           {workspaceMode === "opening-explorer" && (
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1597
+Line       :             <section className="opening-explorer-panel" aria-label="Opening Explorer">
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1605
+Line       :                 value={openingExplorerInput}
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1607
+Line       :                   setOpeningExplorerInput(event.target.value);
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1608
+Line       :                   setOpeningExplorerPly(0);
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1615
+Line       :                   <div className="opening-explorer-moves" aria-label="Opening moves">
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1618
+Line       :                       disabled={openingExplorerPly === 0}
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1619
+Line       :                       onClick={() => setOpeningExplorerPly(0)}
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1623
+Line       :                       disabled={openingExplorerPly === 0}
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1624
+Line       :                       onClick={() => setOpeningExplorerPly((ply) => Math.max(0, ply - 1))}
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1626
+Line       :                     <span>Move {openingExplorerPly} / {openingLine.sanMoves.length}</span>
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1629
+Line       :                       disabled={openingExplorerPly >= openingLine.sanMoves.length}
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1630
+Line       :                       onClick={() => setOpeningExplorerPly((ply) => Math.min(openingLine.sanMoves.length, ply + 1))}
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1634
+Line       :                       disabled={openingExplorerPly >= openingLine.sanMoves.length}
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1635
+Line       :                       onClick={() => setOpeningExplorerPly(openingLine.sanMoves.length)}
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1638
+Line       :                   <div className="opening-explorer-notation">
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1644
+Line       :                             className={index < openingExplorerPly ? "opening-move-played" : ""}
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1645
+Line       :                             onClick={() => setOpeningExplorerPly(index + 1)}
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\App.tsx
+LineNumber : 1653
+Line       :                       <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\opening-explorer-api.ts
+LineNumber : 1
+Line       : export type OpeningExplorerMove = {
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\opening-explorer-api.ts
+LineNumber : 10
+Line       : export type OpeningExplorerStats = {
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\opening-explorer-api.ts
+LineNumber : 15
+Line       :   moves: OpeningExplorerMove[];
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\opening-explorer-api.ts
+LineNumber : 25
+Line       : function opening(value: unknown): OpeningExplorerStats["opening"] {
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\opening-explorer-api.ts
+LineNumber : 35
+Line       : export async function fetchOpeningExplorerStats(
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\opening-explorer-api.ts
+LineNumber : 38
+Line       : ): Promise<OpeningExplorerStats> {
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\opening-explorer-api.ts
+LineNumber : 67
+Line       :   const moves: OpeningExplorerMove[] = Array.isArray(data.moves)
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-frontend-20261026-002503\opening-explorer-api.ts
+LineNumber : 68
+Line       :     ? data.moves.flatMap((entry): OpeningExplorerMove[] => {
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-20261026-002326\lichess_oauth.py
+LineNumber : 22
+Line       : LICHESS_EXPLORER = "https://explorer.lichess.ovh/lichess"
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-20261026-002326\lichess_oauth.py
+LineNumber : 147
+Line       :         raise HTTPException(status_code=502, detail="Lichess Opening Explorer request failed.") from exc
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-20261026-002326\lichess_oauth.py
+LineNumber : 149
+Line       :         raise HTTPException(status_code=502, detail="Lichess Opening Explorer is unavailable.") from exc
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-20261026-002326\lichess_oauth.py
+LineNumber : 151
+Line       :         raise HTTPException(status_code=502, detail="Invalid response from Lichess Opening Explorer.")
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-20261026-002326\lichess_oauth.py
+LineNumber : 239
+Line       : @router.get("/opening-explorer")
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-20261026-002326\lichess_oauth.py
+LineNumber : 258
+Line       :     result = _get_json(LICHESS_EXPLORER + "?" + query, session[1]["token"])
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-final-20261026-002410\lichess_oauth.py
+LineNumber : 22
+Line       : LICHESS_EXPLORER = "https://explorer.lichess.ovh/lichess"
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-final-20261026-002410\lichess_oauth.py
+LineNumber : 147
+Line       :         raise HTTPException(status_code=502, detail="Lichess Opening Explorer request failed.") from exc
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-final-20261026-002410\lichess_oauth.py
+LineNumber : 149
+Line       :         raise HTTPException(status_code=502, detail="Lichess Opening Explorer is unavailable.") from exc
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-final-20261026-002410\lichess_oauth.py
+LineNumber : 151
+Line       :         raise HTTPException(status_code=502, detail="Invalid response from Lichess Opening Explorer.")
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-final-20261026-002410\lichess_oauth.py
+LineNumber : 239
+Line       : @router.get("/opening-explorer")
+
+Path       : D:\chess\BookChess\ChessBookReader\backup-oauth-security-final-20261026-002410\lichess_oauth.py
+LineNumber : 258
+Line       :     result = _get_json(LICHESS_EXPLORER + "?" + query, session[1]["token"])
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 26
+Line       : import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 27
+Line       : import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 71
+Line       : type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "game-review";
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 142
+Line       :   const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 143
+Line       :   const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 144
+Line       :   const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 385
+Line       :     () => parseOpeningLine(openingExplorerInput),
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 386
+Line       :     [openingExplorerInput],
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 389
+Line       :     () => openingPositionAt(openingExplorerInput, openingExplorerPly),
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 390
+Line       :     [openingExplorerInput, openingExplorerPly],
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 394
+Line       :     if (workspaceMode !== "opening-explorer") return;
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 410
+Line       :       fetchOpeningExplorerStats(openingPosition.uciMoves, controller.signal)
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 427
+Line       :   }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 434
+Line       :         : workspaceMode === "opening-explorer"
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 532
+Line       :     if (workspaceMode === "opening-explorer") {
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 898
+Line       :       if (workspaceMode === "opening-explorer") {
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 902
+Line       :         setOpeningExplorerInput(line);
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 903
+Line       :         setOpeningExplorerPly(nextMoves.length);
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1441
+Line       :       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode 
+             === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1506
+Line       :             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : 
+             session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board 
+             candidate"}` : "Ready for a position"}</span></div>
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1706
+Line       :           <div className="opening-explorer-right-workspace">
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1707
+Line       :           {workspaceMode === "opening-explorer" && (
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1708
+Line       :             <section className="opening-explorer-panel" aria-label="Opening Explorer">
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1752
+Line       :                 value={openingExplorerInput}
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1754
+Line       :                   setOpeningExplorerInput(event.target.value);
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1755
+Line       :                   setOpeningExplorerPly(0);
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1762
+Line       :                   <div className="opening-explorer-moves" aria-label="Opening moves">
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1765
+Line       :                       disabled={openingExplorerPly === 0}
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1766
+Line       :                       onClick={() => setOpeningExplorerPly(0)}
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1770
+Line       :                       disabled={openingExplorerPly === 0}
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1771
+Line       :                       onClick={() => setOpeningExplorerPly((ply) => Math.max(0, ply - 1))}
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1773
+Line       :                     <span>Move {openingExplorerPly} / {openingLine.sanMoves.length}</span>
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1776
+Line       :                       disabled={openingExplorerPly >= openingLine.sanMoves.length}
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1777
+Line       :                       onClick={() => setOpeningExplorerPly((ply) => Math.min(openingLine.sanMoves.length, ply + 1))}
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1781
+Line       :                       disabled={openingExplorerPly >= openingLine.sanMoves.length}
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1782
+Line       :                       onClick={() => setOpeningExplorerPly(openingLine.sanMoves.length)}
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1785
+Line       :                   <div className="opening-explorer-notation">
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1791
+Line       :                             className={index < openingExplorerPly ? "opening-move-played" : ""}
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1792
+Line       :                             onClick={() => setOpeningExplorerPly(index + 1)}
+
+Path       : D:\chess\BookChess\ChessBookReader\src\App.tsx
+LineNumber : 1800
+Line       :                       <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
+
+Path       : D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LineNumber : 1
+Line       : export type OpeningExplorerMove = {
+
+Path       : D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LineNumber : 10
+Line       : export type OpeningExplorerStats = {
+
+Path       : D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LineNumber : 15
+Line       :   moves: OpeningExplorerMove[];
+
+Path       : D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LineNumber : 25
+Line       : function opening(value: unknown): OpeningExplorerStats["opening"] {
+
+Path       : D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LineNumber : 35
+Line       : export async function fetchOpeningExplorerStats(
+
+Path       : D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LineNumber : 38
+Line       : ): Promise<OpeningExplorerStats> {
+
+Path       : D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LineNumber : 45
+Line       :     `/api/lichess/opening-explorer?${query.toString()}`,
+
+Path       : D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LineNumber : 68
+Line       :   const moves: OpeningExplorerMove[] = Array.isArray(data.moves)
+
+Path       : D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LineNumber : 69
+Line       :     ? data.moves.flatMap((entry): OpeningExplorerMove[] => {
+
+Path       : D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LineNumber : 102
+Line       :   const response = await fetch("/api/lichess/status", {
+
+Path       : D:\chess\BookChess\ChessBookReader\src\opening-explorer.test.ts
+LineNumber : 2
+Line       : import { openingPositionAt, parseOpeningLine } from "./opening-explorer";
+
+
+
+
+
+========== VITE / SERVER CONFIGURATION ==========
+
+Name           Length
+----           ------
+package.json      794
+vite.config.ts    510
+
+
+

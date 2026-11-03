@@ -1,0 +1,319 @@
+﻿
+============================================================
+FILE: src\components\LichessAnalysis\stockfishWorkerClient.ts | LINES 165-280
+============================================================
+ 165:     depth: targetDepth,
+ 166:     maxDepth: targetDepth,
+ 167:     knodes: 340,
+ 168:     bestMoveUci: pvUci[0] ?? "",
+ 169:     pvUci,
+ 170:     pvSan,
+ 171:     isCloud: false,
+ 172:   };
+ 173: }
+ 174: 
+ 175: export class LichessStockfishClient {
+ 176:   private worker: Worker | null = null;
+ 177:   private currentFen = "";
+ 178:   private onEval: (evaluation: EngineEvaluation) => void;
+ 179:   private fallbackTimer: number | null = null;
+ 180: 
+ 181:   constructor(
+ 182:     private workerUrl: string,
+ 183:     onEval: (evaluation: EngineEvaluation) => void
+ 184:   ) {
+ 185:     this.onEval = onEval;
+ 186:     this.initWorker();
+ 187:   }
+ 188: 
+ 189:   private initWorker() {
+ 190:     if (typeof window === "undefined" || typeof Worker === "undefined") return;
+ 191:     try {
+ 192:       this.worker = new Worker(this.workerUrl);
+ 193:       this.worker.onmessage = (event: MessageEvent<string>) => {
+ 194:         this.handleUciLine(String(event.data ?? ""));
+ 195:       };
+ 196:       this.worker.onerror = () => {
+ 197:         this.worker?.terminate();
+ 198:         this.worker = null;
+ 199:       };
+ 200:       this.worker.postMessage("uci");
+ 201:       this.worker.postMessage("isready");
+ 202:     } catch {
+ 203:       this.worker = null;
+ 204:     }
+ 205:   }
+ 206: 
+ 207:   private handleUciLine(line: string) {
+ 208:     if (!line.startsWith("info ") || !line.includes(" score ") || !line.includes(" pv ")) return;
+ 209:     const depthMatch = /\bdepth\s+(\d+)/.exec(line);
+ 210:     const cpMatch = /\bscore\s+cp\s+(-?\d+)/.exec(line);
+ 211:     const mateMatch = /\bscore\s+mate\s+(-?\d+)/.exec(line);
+ 212:     const pvMatch = /\bpv\s+([a-h1-8qrbn\s]+)$/.exec(line);
+ 213:     if (!depthMatch || !pvMatch) return;
+ 214: 
+ 215:     const turn = this.currentFen.split(" ")[1] === "b" ? -1 : 1;
+ 216:     const depth = parseInt(depthMatch[1], 10);
+ 217:     const rawCp = cpMatch ? parseInt(cpMatch[1], 10) * turn : null;
+ 218:     const rawMate = mateMatch ? parseInt(mateMatch[1], 10) * turn : null;
+ 219:     const pvUci = pvMatch[1].trim().split(/\s+/).filter(Boolean);
+ 220:     const pvSan = uciListToSanList(this.currentFen, pvUci);
+ 221: 
+ 222:     if (this.fallbackTimer) {
+ 223:       window.clearTimeout(this.fallbackTimer);
+ 224:       this.fallbackTimer = null;
+ 225:     }
+ 226: 
+ 227:     this.onEval({
+ 228:       cp: rawCp,
+ 229:       mate: rawMate,
+ 230:       depth,
+ 231:       maxDepth: Math.max(depth, 22),
+ 232:       knodes: depth * 45,
+ 233:       bestMoveUci: pvUci[0] ?? "",
+ 234:       pvUci,
+ 235:       pvSan,
+ 236:       isCloud: false,
+ 237:     });
+ 238:   }
+ 239: 
+ 240:   public analyze(fen: string, depth: number) {
+ 241:     this.currentFen = fen;
+ 242:     if (this.fallbackTimer) {
+ 243:       window.clearTimeout(this.fallbackTimer);
+ 244:       this.fallbackTimer = null;
+ 245:     }
+ 246: 
+ 247:     // Immediately emit cloud cache or fast evaluation so UI never lags
+ 248:     const immediate = computeStaticHeuristicEvaluation(fen, depth);
+ 249:     this.onEval(immediate);
+ 250: 
+ 251:     if (this.worker && !CLOUD_CACHE[fen]) {
+ 252:       try {
+ 253:         this.worker.postMessage("stop");
+ 254:         this.worker.postMessage(`position fen ${fen}`);
+ 255:         this.worker.postMessage(`go depth ${depth}`);
+ 256:       } catch {
+ 257:         // Fallback already emitted
+ 258:       }
+ 259:     }
+ 260:   }
+ 261: 
+ 262:   public stop() {
+ 263:     if (this.fallbackTimer) {
+ 264:       window.clearTimeout(this.fallbackTimer);
+ 265:       this.fallbackTimer = null;
+ 266:     }
+ 267:     try {
+ 268:       this.worker?.postMessage("stop");
+ 269:     } catch {
+ 270:       // Ignore worker errors
+ 271:     }
+ 272:   }
+ 273: 
+ 274:   public dispose() {
+ 275:     this.stop();
+ 276:     this.worker?.terminate();
+ 277:     this.worker = null;
+ 278:   }
+ 279: }
+
+============================================================
+FILE: src\components\LichessAnalysis\LichessAnalysisBoard.tsx | LINES 110-250
+============================================================
+ 110:     return node ? { from: node.from, to: node.to } : null;
+ 111:   }, [moves, currentPly]);
+ 112: 
+ 113:   const activeSanHistory = useMemo(
+ 114:     () => moves.slice(0, currentPly).map((m) => m.san),
+ 115:     [moves, currentPly]
+ 116:   );
+ 117: 
+ 118:   const selectedMoveEvaluation = currentPly > 0 ? moves[currentPly - 1] : null;
+ 119: 
+ 120:   const barEvaluation: EngineEvaluation | null = useMemo(() => {
+ 121:     if (evaluationFen === activeFen && evaluation) return evaluation;
+ 122: 
+ 123:     if (selectedMoveEvaluation?.evalFormatted !== undefined) {
+ 124:       return {
+ 125:         cp: selectedMoveEvaluation.evalCp ?? null,
+ 126:         mate: selectedMoveEvaluation.evalMate ?? null,
+ 127:         depth: 0,
+ 128:         maxDepth: 0,
+ 129:         knodes: 0,
+ 130:         bestMoveUci: "",
+ 131:         pvUci: [],
+ 132:         pvSan: [],
+ 133:         isCloud: false,
+ 134:       };
+ 135:     }
+ 136: 
+ 137:     return null;
+ 138:   }, [evaluationFen, activeFen, evaluation, selectedMoveEvaluation]);
+ 139:   const activeHistoryKey = activeSanHistory.join("\u001f");
+ 140: 
+ 141:   useEffect(() => {
+ 142:     const controller = new AbortController();
+ 143:     const sanHistory = activeHistoryKey ? activeHistoryKey.split("\u001f") : [];
+ 144: 
+ 145:     setWikiError("");
+ 146: 
+ 147:     if (sanHistory.length === 0) {
+ 148:       setWikiArticle(null);
+ 149:       setWikiLoading(false);
+ 150:       return () => controller.abort();
+ 151:     }
+ 152: 
+ 153:     setWikiLoading(true);
+ 154: 
+ 155:     fetchWikibooksArticle(sanHistory, controller.signal)
+ 156:       .then((article) => {
+ 157:         if (!controller.signal.aborted) setWikiArticle(article);
+ 158:       })
+ 159:       .catch((error: unknown) => {
+ 160:         if (controller.signal.aborted) return;
+ 161:         setWikiError(
+ 162:           error instanceof Error
+ 163:             ? error.message
+ 164:             : "Could not retrieve the Wikibooks article."
+ 165:         );
+ 166:       })
+ 167:       .finally(() => {
+ 168:         if (!controller.signal.aborted) setWikiLoading(false);
+ 169:       });
+ 170: 
+ 171:     return () => controller.abort();
+ 172:   }, [activeHistoryKey]);
+ 173:   const formattedPgnString = useMemo(() => {
+ 174:     if (moves.length === 0) return "";
+ 175:     const parts: string[] = [];
+ 176:     moves.forEach((m, idx) => {
+ 177:       if (m.color === "w") {
+ 178:         parts.push(`${m.moveNumber}. ${m.san}`);
+ 179:       } else if (idx === 0) {
+ 180:         parts.push(`${m.moveNumber}... ${m.san}`);
+ 181:       } else {
+ 182:         parts.push(m.san);
+ 183:       }
+ 184:     });
+ 185:     return parts.join(" ");
+ 186:   }, [moves]);
+ 187: 
+ 188:   useEffect(() => {
+ 189:     setFenDraft(activeFen);
+ 190:   }, [activeFen]);
+ 191: 
+ 192:   useEffect(() => {
+ 193:     setPgnDraft(formattedPgnString);
+ 194:   }, [formattedPgnString]);
+ 195: 
+ 196:   // Initialize Stockfish client.
+ 197:   // The active move evaluation is updated by the separate effect below.
+ 198:   useEffect(() => {
+ 199:     const client = new LichessStockfishClient(stockfishWorkerPath, (ev) => {
+ 200:       setEvaluation(ev);
+ 201:     });
+ 202:     engineClientRef.current = client;
+ 203:     return () => client.dispose();
+ 204:   }, [stockfishWorkerPath]);
+ 205: 
+ 206:   useEffect(() => {
+ 207:     if (!engineEnabled) {
+ 208:       engineClientRef.current?.stop();
+ 209:       return;
+ 210:     }
+ 211:     setEvaluationFen(activeFen);
+ 212:     engineClientRef.current?.analyze(activeFen, engineDepth);
+ 213:   }, [engineEnabled, activeFen, engineDepth]);
+ 214: 
+ 215:   useEffect(() => {
+ 216:     if (!engineEnabled || !evaluation || currentPly === 0) return;
+ 217:     const formatted = formatLichessEval(evaluation);
+ 218: 
+ 219:     setMoves((prev) => {
+ 220:       const index = currentPly - 1;
+ 221:       const node = prev[index];
+ 222: 
+ 223:       if (!node) return prev;
+ 224:       if (
+ 225:         node.evalFormatted === formatted &&
+ 226:         node.evalCp === evaluation.cp &&
+ 227:         node.evalMate === evaluation.mate
+ 228:       ) {
+ 229:         return prev;
+ 230:       }
+ 231: 
+ 232:       const next = [...prev];
+ 233:       next[index] = {
+ 234:         ...node,
+ 235:         evalFormatted: formatted,
+ 236:         evalCp: evaluation.cp,
+ 237:         evalMate: evaluation.mate,
+ 238:       };
+ 239:       return next;
+ 240:     });
+ 241:   }, [evaluation, engineEnabled, currentPly]);
+ 242: 
+ 243:   useEffect(() => {
+ 244:     if (!explorerOpen) return;
+ 245: 
+ 246:     const controller = new AbortController();
+ 247:     const sanHistory = activeHistoryKey ? activeHistoryKey.split("\u001f") : [];
+ 248: 
+ 249:     setExplorerLoading(true);
+ 250: 
+
+============================================================
+FILE: src\components\LichessAnalysis\WikiBookPanel.tsx | LINES 35-85
+============================================================
+  35: export const WikiBookPanel: React.FC<WikiBookPanelProps> = ({
+  36:   variant,
+  37:   onVariantChange,
+  38:   wikiArticle,
+  39:   wikiLoading,
+  40:   wikiError,
+  41:   identifiedOpening,
+  42:   hasPlayedMoves,
+  43:   onSelectOpening,
+  44: }) => {
+  45:   const [wikiOpen, setWikiOpen] = useState(true);
+  46:   const [catalogueOpen, setCatalogueOpen] = useState(false);
+  47:   const [query, setQuery] = useState("");
+  48:   const [ecoGroup, setEcoGroup] = useState<EcoGroup>("ALL");
+  49: 
+  50:   useEffect(() => {
+  51:     if (!hasPlayedMoves) return;
+  52:     setWikiOpen(Boolean(identifiedOpening));
+  53:   }, [hasPlayedMoves, identifiedOpening]);
+  54: 
+  55:   const results = useMemo(
+  56:     () => searchOpenings(query, ecoGroup, 40),
+  57:     [query, ecoGroup]
+  58:   );
+  59: 
+  60:   return (
+  61:     <aside className="li-left-column" aria-label="Variant and WikiBook opening panel">
+  62:       <div className="li-variant-selector-wrap">
+  63:         <span className="li-variant-crown" aria-hidden="true">
+  64:           <svg viewBox="0 0 24 24" width="20" height="20" fill="#9e9e9e">
+  65:             <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z" />
+  66:           </svg>
+  67:         </span>
+  68: 
+  69:         <select
+  70:           aria-label="Chess variant"
+  71:           className="li-variant-select"
+  72:           value={variant}
+  73:           onChange={(e) => onVariantChange(e.target.value as ChessVariant)}
+  74:         >
+  75:           {VARIANTS.map((v) => (
+  76:             <option key={v} value={v}>{v}</option>
+  77:           ))}
+  78:         </select>
+  79: 
+  80:         <span className="li-variant-caret" aria-hidden="true">⌄</span>
+  81:       </div>
+  82: 
+  83:       <div className="li-wikibook-wrapper">
+  84:         <div className="li-wikibook-tab-row">
+  85:           <button

@@ -1,0 +1,470 @@
+COMPLETE ANALYSIS BOARD JSX
+ 1503:         {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+ 1504:         <section className="board-panel" aria-label="Chessboard analysis">
+ 1505:           <div className="board-header">
+ 1506:             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+ 1507:             <div className="board-header-actions">
+ 1508:               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+ 1509:               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+ 1510:             </div>
+ 1511:           </div>
+ 1512:           <div className="board-area">
+ 1513:             <div
+ 1514:               className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+ 1515:               aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+ 1516:               title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+ 1517:             >
+ 1518:               <div className="eval-white" style={{ height: `${engineScore ? whiteScoreShare(engineScore) * 100 : 50}%` }} />
+ 1519:               <div className="eval-black" style={{ height: `${engineScore ? (1 - whiteScoreShare(engineScore)) * 100 : 50}%` }} />
+ 1520:             </div>
+ 1521:             <div className="board-frame">
+ 1522:               <div
+ 1523:                 className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+ 1524:                 ref={boardRef}
+ 1525:                 onPointerDown={boardArrowPointerDown}
+ 1526:                 onPointerMove={boardArrowPointerMove}
+ 1527:                 onPointerUp={boardArrowPointerUp}
+ 1528:                 onPointerCancel={cancelBoardArrowGesture}
+ 1529:                 onContextMenu={(event) => {
+ 1530:   event.preventDefault();
+ 1531: 
+ 1532:   if (suppressBoardContextMenuRef.current || arrowGestureMovedRef.current) {
+ 1533:     suppressBoardContextMenuRef.current = false;
+ 1534:     return;
+ 1535:   }
+ 1536: 
+ 1537:   const bounds = boardRef.current?.getBoundingClientRect();
+ 1538:   if (!bounds) return;
+ 1539: 
+ 1540:   const square = boardSquareAtPoint(
+ 1541:     event.clientX,
+ 1542:     event.clientY,
+ 1543:     bounds,
+ 1544:     Boolean(boardSession?.flipped),
+ 1545:   );
+ 1546:   if (!square) return;
+ 1547: 
+ 1548:   setRedSquares((current) =>
+ 1549:     current.includes(square)
+ 1550:       ? current.filter((item) => item !== square)
+ 1551:       : [...current, square]
+ 1552:   );
+ 1553: }}
+ 1554:               >
+ 1555:                 {Array.from({ length: 64 }, (_, index) => {
+ 1556:                   const visibleRow = Math.floor(index / 8);
+ 1557:                   const visibleCol = index % 8;
+ 1558:                   const fileIndex = boardSession?.flipped ? 7 - visibleCol : visibleCol;
+ 1559:                   const rankIndex = boardSession?.flipped ? visibleRow : 7 - visibleRow;
+ 1560:                   const square = squareName(fileIndex, rankIndex);
+ 1561:                   const piece = pieceSquares[7 - rankIndex]?.[fileIndex];
+ 1562:                   const legal = legalTargets.has(square);
+ 1563:                   const isLast = highlightedMove?.from === square || highlightedMove?.to === square;
+ 1564:                   const light = (fileIndex + rankIndex) % 2 === 1;
+ 1565:                   return (
+ 1566:                     <button
+ 1567:                       key={square}
+ 1568:                       className={`square ${light ? "light-square" : "dark-square"} ${selectedSquare === square ? "selected-square" : ""} ${isLast ? "last-square" : ""} ${redSquares.includes(square) ? "red-highlight" : ""}`}
+ 1569:                       aria-label={`${square}${piece ? ` ${piece.color === "w" ? "white" : "black"} ${piece.type}` : ""}`}
+ 1570:                       draggable={Boolean(piece && piece.color === game.turn())}
+ 1571:                       onClick={() => handleSquareClick(square)}
+ 1572:                       onDragStart={(event) => {
+ 1573:                         const image = event.currentTarget.querySelector("img");
+ 1574:                         if (image) {
+ 1575:                           const bounds = event.currentTarget.getBoundingClientRect();
+ 1576:                           event.dataTransfer.setDragImage(image, bounds.width / 2, bounds.height / 2);
+ 1577:                         }
+ 1578:                         event.dataTransfer.setData("text/plain", square);
+ 1579:                         setSelectedSquare(square);
+ 1580:                       }}
+ 1581:                       onDragOver={(event) => event.preventDefault()}
+ 1582:                       onDrop={(event) => { event.preventDefault(); const from = event.dataTransfer.getData("text/plain") as Square; if (from) makeMove(from, square); }}
+ 1583:                       onDragEnd={() => setSelectedSquare(null)}
+ 1584:                     >
+ 1585:                       {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece.color}${piece.type}.svg`} /></span>}
+ 1586:                       {legal && <span className={piece ? "legal-capture" : "legal-dot"} />}
+ 1587:                       {boardSession?.coordinates && visibleCol === 0 && <span className={`rank-coordinate ${light ? "coord-dark" : "coord-light"}`}>{rankIndex + 1}</span>}
+ 1588:                       {boardSession?.coordinates && visibleRow === 7 && <span className={`file-coordinate ${light ? "coord-dark" : "coord-light"}`}>{"abcdefgh"[fileIndex]}</span>}
+ 1589:                     </button>
+ 1590:                   );
+ 1591:                 })}
+ 1592:                 <svg className="board-arrows" viewBox="0 0 8 8" aria-hidden="true">
+ 1593:                   {[
+ 1594:                     ...userArrows.map((arrow) => ({ arrow, kind: "user" as const })),
+ 1595:                     ...(engineArrow ? [{ arrow: engineArrow, kind: "engine" as const }] : []),
+ 1596:                     ...(arrowStart && arrowHover && arrowStart !== arrowHover
+ 1597:                       ? [{ arrow: { from: arrowStart, to: arrowHover }, kind: "preview" as const }]
+ 1598:                       : []),
+ 1599:                   ].map(({ arrow, kind }, index) => {
+ 1600:                     const from = squareCenter(arrow.from, Boolean(boardSession?.flipped));
+ 1601:                     const to = squareCenter(arrow.to, Boolean(boardSession?.flipped));
+ 1602:                     const dx = to.x - from.x;
+ 1603:                     const dy = to.y - from.y;
+ 1604:                     const length = Math.hypot(dx, dy);
+ 1605:                     if (length < 0.001) return null;
+ 1606: 
+ 1607:                     const ux = dx / length;
+ 1608:                     const uy = dy / length;
+ 1609:                     const px = -uy;
+ 1610:                     const py = ux;
+ 1611: 
+ 1612:                     const headLength = Math.min(0.34, length * 0.30);
+ 1613:                     const headHalfWidth = 0.19;
+ 1614:                     const shaftHalfWidth = kind === "preview" ? 0.045 : 0.055;
+ 1615:                     const tipX = to.x - ux * 0.04;
+ 1616:                     const tipY = to.y - uy * 0.04;
+ 1617:                     const baseX = tipX - ux * headLength;
+ 1618:                     const baseY = tipY - uy * headLength;
+ 1619:                     const startX = from.x + ux * 0.12;
+ 1620:                     const startY = from.y + uy * 0.12;
+ 1621: 
+ 1622:                     const points = [
+ 1623:                       [startX + px * shaftHalfWidth, startY + py * shaftHalfWidth],
+ 1624:                       [baseX + px * shaftHalfWidth, baseY + py * shaftHalfWidth],
+ 1625:                       [baseX + px * headHalfWidth, baseY + py * headHalfWidth],
+ 1626:                       [tipX, tipY],
+ 1627:                       [baseX - px * headHalfWidth, baseY - py * headHalfWidth],
+ 1628:                       [baseX - px * shaftHalfWidth, baseY - py * shaftHalfWidth],
+ 1629:                       [startX - px * shaftHalfWidth, startY - py * shaftHalfWidth],
+ 1630:                     ];
+ 1631:                     const color = kind === "engine" ? "#f0a23b" : "#81b64c";
+ 1632:                     const opacity = kind === "preview" ? 0.52 : kind === "engine" ? 0.78 : 0.80;
+ 1633: 
+ 1634:                     return (
+ 1635:                       <polygon
+ 1636:                         key={`${kind}-${arrow.from}-${arrow.to}-${index}`}
+ 1637:                         points={points.map(([x, y]) => `${x},${y}`).join(" ")}
+ 1638:                         fill={color}
+ 1639:                         opacity={opacity}
+ 1640:                         className={`board-arrow board-arrow-${kind}`}
+ 1641:                       />
+ 1642:                     );
+ 1643:                   })}
+ 1644:                 </svg>
+ 1645:               </div>
+ 1646:             </div>
+ 1647:           </div>
+ 1648:           <div className="board-controls">
+ 1649:             <button title="First move" onClick={() => jumpToMove(0)}><ChevronFirst size={17} /></button>
+ 1650:             <button title="Previous move" onClick={() => jumpToMove(Math.max(0, (boardSession?.moveIndex ?? 0) - 1))}><ChevronLeft size={17} /></button>
+ 1651:             <button title="Next move" onClick={() => jumpToMove(Math.min(boardSession?.moves.length ?? 0, (boardSession?.moveIndex ?? 0) + 1))}><ChevronRight size={17} /></button>
+ 1652:             <button title="Last move" onClick={() => jumpToMove(boardSession?.moves.length ?? 0)}><ChevronLast size={17} /></button>
+ 1653:             <span className="controls-separator" />
+ 1654:             <button title="Reset to original diagram position" onClick={resetBoard}><RotateCcw size={15} aria-hidden="true" /> Reset</button>
+ 1655:             <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+ 1656:             <button
+ 1657:               className={annotationMode ? "annotation-active" : ""}
+ 1658:               title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+ 1659:               aria-pressed={annotationMode}
+ 1660:               onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+ 1661:             ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+ 1662:             {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+ 1663:             <span className="controls-spacer" />
+ 1664:             <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+ 1665:             <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+ 1666:             <button title="Paste PGN notation" onClick={pastePgn}><FileCode2 size={15} aria-hidden="true" /> Paste PGN</button>
+ 1667:             <button title="Import a PGN file" onClick={() => document.getElementById("pgn-import-input")?.click()}><FileCode2 size={15} aria-hidden="true" /> Import PGN</button>
+ 1668:             <input
+ 1669:               id="pgn-import-input"
+ 1670:               type="file"
+ 1671:               accept=".pgn,text/plain"
+ 1672:               style={{ display: "none" }}
+ 1673:               onChange={(event) => {
+ 1674:                 const file = event.currentTarget.files?.[0];
+ 1675:                 if (file) void importPgnFile(file);
+ 1676:                 event.currentTarget.value = "";
+ 1677:               }}
+ 1678:             />
+ 1679:           </div>
+ 1680:           <div className="turn-row">
+ 1681:             <span>TO MOVE</span>
+ 1682:             <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+ 1683:               try {
+ 1684:                 const fen = fenWithTurn(game.fen(), "w");
+ 1685:                 patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+ 1686:                 setLastMove(null);
+ 1687:               } catch (cause) { setError(messageOf(cause)); }
+ 1688:             }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+ 1689:             <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+ 1690:               try {
+ 1691:                 const fen = fenWithTurn(game.fen(), "b");
+ 1692:                 patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+ 1693:                 setLastMove(null);
+ 1694:               } catch (cause) { setError(messageOf(cause)); }
+ 1695:             }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+ 1696:             <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+ 1697:           </div>
+ 1698:           <details className="position-editor">
+ 1699:             <summary>Board position Ã‚Â· enter FEN to correct selected diagram</summary>
+ 1700:             <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+ 1701:           </details>
+ 1702:           <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+ 1703:         </section>
+ 1704: 
+ 1705:         <section className="reader-panel" aria-label="PDF book reader">
+ 1706:           <div className="opening-explorer-right-workspace">
+ 1707:           {workspaceMode === "opening-explorer" && (
+ 1708:             <section className="opening-explorer-panel" aria-label="Opening Explorer">
+ 1709:               <h3>Opening Explorer</h3>
+ 1710:               <div className="lichess-connection-controls">
+ 1711:                 {lichessStatus?.connected ? (
+ 1712:                   <>
+ 1713:                     <span role="status">Lichess connected</span>
+ 1714:                     <button
+ 1715:                       type="button"
+ 1716:                       disabled={lichessActionBusy}
+ 1717:                       onClick={() => {
+ 1718:                         setLichessActionBusy(true);
+ 1719:                         void disconnectLichess()
+ 1720:                           .then(() => {
+ 1721:                             setLichessStatus((current) => current ? { ...current, connected: false } : current);
+ 1722:                             setOpeningStats(null);
+ 1723:                             setOpeningStatsStatus("idle");
+ 1724:                             setNotice("Lichess disconnected.");
+ 1725:                           })
+ 1726:                           .catch(() => setLichessStatusError("Could not disconnect. Check that the backend is running."))
+ 1727:                           .finally(() => setLichessActionBusy(false));
+ 1728:                       }}
+ 1729:                     >{lichessActionBusy ? "DisconnectingÃ¢â‚¬Â¦" : "Disconnect"}</button>
+ 1730:                   </>
+ 1731:                 ) : (
+ 1732:                   <>
+ 1733:                     <span>{lichessStatus?.configured === false
+ 1734:                       ? "Lichess OAuth needs configuration."
+ 1735:                       : "Connect Lichess to load opening statistics."}</span>
+ 1736:                     <button
+ 1737:                       type="button"
+ 1738:                       className="green-button"
+ 1739:                       disabled={lichessActionBusy || lichessStatus?.configured === false}
+ 1740:                       onClick={() => { window.location.assign("/api/lichess/connect"); }}
+ 1741:                     >Connect Lichess</button>
+ 1742:                   </>
+ 1743:                 )}
+ 1744:               </div>
+ 1745:               {lichessStatusError && <p role="status">{lichessStatusError}</p>}
+ 1746:               <p>Enter a legal opening line in SAN or UCI notation. The board follows the selected move.</p>
+ 1747:               <label htmlFor="opening-line-input">Opening moves</label>
+ 1748:               <textarea
+ 1749:                 id="opening-line-input"
+ 1750:                 aria-label="Opening line input"
+ 1751:                 rows={3}
+ 1752:                 value={openingExplorerInput}
+ 1753:                 onChange={(event) => {
+ 1754:                   setOpeningExplorerInput(event.target.value);
+ 1755:                   setOpeningExplorerPly(0);
+ 1756:                 }}
+ 1757:                 placeholder="1. e4 e5 2. Nf3 Nc6"
+ 1758:               />
+ 1759:               {openingLine.error && <p role="alert">{openingLine.error}</p>}
+ 1760:               {!openingLine.error && (
+ 1761:                 <>
+ 1762:                   <div className="opening-explorer-moves" aria-label="Opening moves">
+ 1763:                     <button
+ 1764:                       type="button"
+ 1765:                       disabled={openingExplorerPly === 0}
+ 1766:                       onClick={() => setOpeningExplorerPly(0)}
+ 1767:                     >Start</button>
+ 1768:                     <button
+ 1769:                       type="button"
+ 1770:                       disabled={openingExplorerPly === 0}
+ 1771:                       onClick={() => setOpeningExplorerPly((ply) => Math.max(0, ply - 1))}
+ 1772:                     >Previous</button>
+ 1773:                     <span>Move {openingExplorerPly} / {openingLine.sanMoves.length}</span>
+ 1774:                     <button
+ 1775:                       type="button"
+ 1776:                       disabled={openingExplorerPly >= openingLine.sanMoves.length}
+ 1777:                       onClick={() => setOpeningExplorerPly((ply) => Math.min(openingLine.sanMoves.length, ply + 1))}
+ 1778:                     >Next</button>
+ 1779:                     <button
+ 1780:                       type="button"
+ 1781:                       disabled={openingExplorerPly >= openingLine.sanMoves.length}
+ 1782:                       onClick={() => setOpeningExplorerPly(openingLine.sanMoves.length)}
+ 1783:                     >End</button>
+ 1784:                   </div>
+ 1785:                   <div className="opening-explorer-notation">
+ 1786:                     {openingLine.sanMoves.length
+ 1787:                       ? openingLine.sanMoves.map((move, index) => (
+ 1788:                           <button
+ 1789:                             type="button"
+ 1790:                             key={`${index}-${move}`}
+ 1791:                             className={index < openingExplorerPly ? "opening-move-played" : ""}
+ 1792:                             onClick={() => setOpeningExplorerPly(index + 1)}
+ 1793:                           >{index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ` : ""}{move}</button>
+ 1794:                         ))
+ 1795:                       : <span>Enter moves to explore a line.</span>}
+ 1796:                   </div>
+ 1797:                   <section className="opening-stats" aria-label="Opening statistics" aria-live="polite">
+ 1798:                     <div className="opening-stats-heading">
+ 1799:                       <h4>Position statistics</h4>
+ 1800:                       <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
+ 1801:                     </div>
+ 1802:                     {openingStatsStatus === "loading" && <p>Loading game statisticsÃ¢â‚¬Â¦</p>}
+ 1803:                     {openingStatsStatus === "error" && (
+ 1804:                       <p role="status">Statistics are currently unavailable. Check your connection or try again later. The board remains usable.</p>
+ 1805:                     )}
+ 1806:                     {openingStatsStatus === "ready" && openingStats && (
+ 1807:                       <>
+ 1808:                         {openingStats.opening && (
+ 1809:                           <p className="opening-stats-name">
+ 1810:                             {openingStats.opening.eco ? `${openingStats.opening.eco} Ã‚Â· ` : ""}
+ 1811:                             {openingStats.opening.name}
+ 1812:                           </p>
+ 1813:                         )}
+ 1814:                         <strong className="opening-stats-total">
+ 1815:                           {(openingStats.white + openingStats.draws + openingStats.black).toLocaleString()} games in this dataset
+ 1816:                         </strong>
+ 1817:                         <div className="opening-result-bar" aria-label="White wins, draws and Black wins">
+ 1818:                           <span className="opening-result-white" style={{ width: `${openingStats.total ? openingStats.white / openingStats.total * 100 : 0}%` }} />
+ 1819:                           <span className="opening-result-draw" style={{ width: `${openingStats.total ? openingStats.draws / openingStats.total * 100 : 0}%` }} />
+ 1820:                           <span className="opening-result-black" style={{ width: `${openingStats.total ? openingStats.black / openingStats.total * 100 : 0}%` }} />
+ 1821:                         </div>
+ 1822:                         <div className="opening-result-legend">
+ 1823:                           <span>White {openingStats.white.toLocaleString()}</span>
+ 1824:                           <span>Draws {openingStats.draws.toLocaleString()}</span>
+ 1825:                           <span>Black {openingStats.black.toLocaleString()}</span>
+ 1826:                         </div>
+ 1827:                         <h5>Popular continuations</h5>
+ 1828:                         {openingStats.moves.length ? (
+ 1829:                           <div className="opening-stat-moves">
+ 1830:                             {openingStats.moves.slice(0, 8).map((move) => {
+ 1831:                               const total = move.white + move.draws + move.black;
+ 1832:                               return (
+ 1833:                                 <div className="opening-stat-move" key={move.uci}>
+ 1834:                                   <strong>{move.san}</strong>
+ 1835:                                   <span>{total.toLocaleString()} games</span>
+ 1836:                                   {move.opening && <small>{move.opening.name}</small>}
+ 1837:                                 </div>
+ 1838:                               );
+ 1839:                             })}
+ 1840:                           </div>
+ 1841:                         ) : (
+ 1842:                           <p>No continuation data was returned for this position.</p>
+ 1843:                         )}
+ 1844:                         <p className="muted">Counts reflect Lichess's indexed dataset, not all chess games. Missing data is not treated as zero games.</p>
+ 1845:                       </>
+ 1846:                     )}
+ 1847:                     {openingStatsStatus === "idle" && !openingPosition.error && <p>Enter a legal line to load statistics.</p>}
+ 1848:                   </section>
+ 1849:                   <button
+ 1850:                     type="button"
+ 1851:                     className="green-button"
+ 1852:                     onClick={() => {
+ 1853:                       setAnalysisBoard({
+ 1854:                         lineBaseFen: START_FEN,
+ 1855:                         currentFen: openingPosition.fen,
+ 1856:                         moves: [...openingPosition.sanMoves],
+ 1857:                         moveIndex: openingPosition.sanMoves.length,
+ 1858:                         flipped: false,
+ 1859:                         coordinates: true,
+ 1860:                       });
+ 1861:                       setStudyMode(false);
+ 1862:                       setWorkspaceMode("analysis");
+ 1863:                       setNotice("Opening position copied to the independent Analysis Board.");
+ 1864:                     }}
+ 1865:                   >Open position in Analysis Board</button>
+ 1866:                   <p className="muted">Position FEN: {openingPosition.fen}</p>
+ 1867:                 </>
+ 1868:               )}
+ 1869:             </section>
+ 1870:           )}
+ 1871:           </div>
+ 1872: 
+ 1873:           <div className="reader-toolbar">
+ 1874:             <div className="reader-title"><div className="document-icon" aria-hidden="true"><BookOpenText size={20} strokeWidth={1.8} /></div><div><strong>{book?.title ?? "Book reader"}</strong><span>{pdf ? `${session?.pageCount} pages \u00b7 PDF document` : "Add a PDF book to begin"}</span></div></div>
+ 1875:             <div className="reader-actions">
+ 1876:               <button className={session?.bookmarks.includes(session.page) ? "active-action" : ""} title="Bookmark this page" disabled={!book} onClick={saveBookmark}>&#9734;</button>
+ 1877:               <button title="Zoom out" disabled={!session} onClick={() => patchSession({ zoom: Math.max(0.65, (session?.zoom ?? 1) - 0.1) })}>&#8722;</button>
+ 1878:               <span className="zoom-value">{Math.round((session?.zoom ?? 1) * 100)}%</span>
+ 1879:               <button title="Zoom in" disabled={!session} onClick={() => patchSession({ zoom: Math.min(1.8, (session?.zoom ?? 1) + 0.1) })}><Plus size={15} aria-hidden="true" /></button>
+ 1880:               <button title="Fit to width" disabled={!pdf} onClick={() => void fitPage("width")}>Fit width</button>
+ 1881:               <button title="Fit page" disabled={!pdf} onClick={() => void fitPage("page")}>Fit page</button>
+ 1882:             </div>
+ 1883:           </div>
+ 1884:           <div className="page-navigation">
+ 1885:             <button aria-label="Previous page" disabled={!pdf || session?.page === 1} onClick={() => changePage(-1)}>&#8249;</button>
+ 1886:             <label>PAGE <input aria-label="Current page" type="number" min="1" max={session?.pageCount || 1} value={session?.page ?? 1} disabled={!pdf} onChange={(event) => goToPage(Number(event.target.value))} /> <span>of {session?.pageCount || "?"}</span></label>
+ 1887:             <button aria-label="Next page" disabled={!pdf || (session?.page ?? 1) >= (session?.pageCount ?? 1)} onClick={() => changePage(1)}>&#8250;</button>
+ 1888:             <span className="nav-separator" />
+ 1889:             <button className={`scan-button ${detecting ? "scan-active" : ""}`} disabled={!pdf || rendering} onClick={() => void detectBoards()}>{detecting ? "&#8211;ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  Stop scan" : "Detect boards"}</button>
+ 1890:             <button
+ 1891:               type="button"
+ 1892:               className="clear-scan-button"
+ 1893:               disabled={!pdf}
+ 1894:               onClick={clearBoardScan}
+ 1895:               title="Stop scanning and remove detected board overlays"
+ 1896:             >Clear</button>
+ 1897:             <span className="detection-status">{detecting ? "Scanning current page..." : currentCandidates.length ? `${currentCandidates.length} candidate${currentCandidates.length === 1 ? "" : "s"}` : detectionAttempted ? "No boards found" : "Not scanned"}</span>
+ 1898:           </div>
+ 1899:           <div className="page-workspace">
+ 1900:             {!book && <div className="reader-empty"><div className="empty-glyph">&#128218;</div><strong>Open a chess book</strong><span>Import a PDF to read pages and mark chess diagrams.</span><button className="green-button" onClick={() => fileInput.current?.click()}>Add a book</button></div>}
+ 1901:             {book && (
+ 1902:               <div className="page-scroll">
+ 1903:                 <div
+ 1904:                   className={`page-stage ${rendering ? "is-rendering" : ""} ${manualMode ? "manual-mode" : ""}`}
+ 1905:                   ref={pageStageRef}
+ 1906:                   onPointerDown={startRegion}
+ 1907:                   onPointerMove={moveRegion}
+ 1908:                   onPointerUp={finishRegion}
+ 1909:                   onPointerCancel={cancelRegion}
+ 1910:                 >
+ 1911:                   <canvas ref={canvasRef} aria-label={`PDF page ${session?.page ?? 1}`} />
+ 1912:                   {!pdf && !pdfLoading && <div className="page-error">PDF is unavailable. Your saved reading state has been kept.</div>}
+ 1913:                   {currentCandidates.map((candidate, index) => (
+ 1914:                     candidate.id === cropEditingId ? (
+ 1915:                       <div
+ 1916:                         key={candidate.id}
+ 1917:                         className="diagram-overlay diagram-selected crop-editor"
+ 1918:                         style={{ left: `${candidate.x * 100}%`, top: `${candidate.y * 100}%`, width: `${candidate.width * 100}%`, height: `${candidate.height * 100}%` }}
+ 1919:                         aria-label={`Adjust crop region ${index + 1}`}
+ 1920:                         onPointerDown={(event) => startCropEdit(event, candidate, "move")}
+ 1921:                       >
+ 1922:                         <span>{index + 1} ? Drag to move</span>
+ 1923:                         {CROP_HANDLES.map((handle) => <button
+ 1924:                           key={handle}
+ 1925:                           type="button"
+ 1926:                           className={`crop-handle handle-${handle}`}
+ 1927:                           aria-label={`Resize crop ${handle}`}
+ 1928:                           onPointerDown={(event) => startCropEdit(event, candidate, handle)}
+ 1929:                         />)}
+ 1930:                       </div>
+ 1931:                     ) : (
+ 1932:                       <button
+ 1933:                         key={candidate.id}
+ 1934:                         className={`diagram-overlay ${candidate.id === session?.selectedDiagramId ? "diagram-selected" : ""} ${candidate.source === "manual" ? "manual-overlay" : ""}`}
+ 1935:                         style={{ left: `${candidate.x * 100}%`, top: `${candidate.y * 100}%`, width: `${candidate.width * 100}%`, height: `${candidate.height * 100}%` }}
+ 1936:                         aria-label={`Select diagram region ${index + 1}`}
+ 1937:                         onPointerDown={(event) => event.stopPropagation()}
+ 1938:                         onClick={(event) => { event.stopPropagation(); selectCandidate(candidate); if (candidate.source === "automatic") void openTransfer(candidate); }}
+ 1939:                       ><span>{index + 1} ? {candidate.source === "manual" ? "Manual crop" : "Relative match"}</span></button>
+ 1940:                     )
+ 1941:                   ))}
+ 1942:                   {dragSelection && <div className="selection-rectangle" style={{ left: `${Math.min(dragSelection.x, dragSelection.x2) * 100}%`, top: `${Math.min(dragSelection.y, dragSelection.y2) * 100}%`, width: `${Math.abs(dragSelection.x2 - dragSelection.x) * 100}%`, height: `${Math.abs(dragSelection.y2 - dragSelection.y) * 100}%` }} />}
+ 1943:                   {rendering && <div className="rendering-label"><span className="spinner" /> Rendering page</div>}
+ 1944:                   {pdfLoading && <div className="rendering-label"><span className="spinner" /> Opening PDF</div>}
+ 1945:                 </div>
+ 1946:                 <div className="page-scroll-hint">Drag over the page to mark a diagram ? {currentCandidates.length} regions</div>
+ 1947:               </div>
+ 1948:             )}
+ 1949:           </div>
+ 1950:           <div className="reader-footer">
+ 1951:             <div className="diagram-strip"><span className="strip-label">DIAGRAMS</span>{currentCandidates.length ? currentCandidates.map((candidate, index) => <button key={candidate.id} className={candidate.id === session?.selectedDiagramId ? "strip-selected" : ""} onClick={() => selectCandidate(candidate)} aria-label={`Select diagram ${index + 1}`}>{index + 1}</button>) : <span className="muted">None detected on this page</span>}</div>
+ 1952:             {currentDiagram && <div className="crop-actions">
+ 1953:               {cropEditingId === currentDiagram.id && <button onClick={resetSelectedCrop}>Reset crop</button>}
+ 1954:               <button onClick={() => adjustSelectedCrop(currentDiagram)}>{cropEditingId === currentDiagram.id ? "Adjusting?" : "Adjust Crop"}</button>
+ 1955:               <button className="green-button" onClick={() => void openTransfer(currentDiagram)}>Recognize Pieces</button>
+ 1956:               <button onClick={cancelCandidateSelection}>Cancel</button>
+ 1957:             </div>}
+ 1958:             <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+ 1959:           </div>
+ 1960:           <div className="analysis-strip">
+ 1961:             <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+ 1962:             <div className="analysis-divider" />
+ 1963:             <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+ 1964:             <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+ 1965:             <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+ 1966:             <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+ 1967:             <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+ 1968:           </div>
+ 1969:         </section>
+ 1970:         </>}
+ 1971:       </div>

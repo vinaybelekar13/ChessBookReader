@@ -1,0 +1,175 @@
+========== OPENING EXPLORER ROUTE (LINES 260-325) ==========
+    session_id = secrets.token_urlsafe(32)
+    with LOCK:
+        _sessions[session_id] = {
+            "token": token,
+            "expires": time.time() + SESSION_TTL,
+        }
+
+    response = RedirectResponse("/?lichess=connected", status_code=303)
+    _cookie(response, session_id)
+    response.delete_cookie(
+        STATE_COOKIE, path="/", httponly=True,
+        secure=_setting("CHESSBOOK_COOKIE_SECURE").lower() == "true",
+        samesite="lax",
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@router.post("/disconnect")
+def disconnect(request: Request):
+    session = _read_session(request)
+    if session:
+        with LOCK:
+            _sessions.pop(session[0], None)
+    response = JSONResponse({"connected": False})
+    _clear_cookie(response)
+    return response
+
+
+@router.get("/opening-explorer")
+def opening_explorer(request: Request, variant: str = "standard",
+                     moves: int = 8, play: str = ""):
+    session = _read_session(request)
+    if not session or not session[1].get("token"):
+        raise HTTPException(status_code=401, detail="Connect your Lichess account to load opening statistics.")
+    if variant != "standard":
+        raise HTTPException(status_code=400, detail="Only standard chess is supported.")
+    if not 1 <= moves <= 15:
+        raise HTTPException(status_code=400, detail="Moves must be between 1 and 15.")
+    uci_moves = [move for move in play.split(",") if move]
+    if len(uci_moves) > 200 or any(
+        len(move) not in (4, 5) or not move[:2].isalpha() or not move[2:4].isalnum()
+        for move in uci_moves
+    ):
+        raise HTTPException(status_code=400, detail="Invalid move sequence.")
+    query = urllib.parse.urlencode({
+        "variant": variant, "moves": str(moves), "play": ",".join(uci_moves)
+    })
+    result = _get_json(LICHESS_EXPLORER + "?" + query, session[1]["token"])
+    response = JSONResponse(result)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+========== AUTHENTICATION HELPERS ==========
+
+  backend\app\lichess_oauth.py:80:    expected = _b64(hmac.new(_secret(), session_id.encode(), hashlib.sha256).digest())
+  backend\app\lichess_oauth.py:81:    if not hmac.compare_digest(signature, expected):
+  backend\app\lichess_oauth.py:82:        return None
+  backend\app\lichess_oauth.py:83:    with LOCK:
+  backend\app\lichess_oauth.py:84:        session = _sessions.get(session_id)
+> backend\app\lichess_oauth.py:85:        if not session or session["expires"] < time.time():
+  backend\app\lichess_oauth.py:86:            _sessions.pop(session_id, None)
+  backend\app\lichess_oauth.py:87:            return None
+  backend\app\lichess_oauth.py:88:        return session_id, session
+  backend\app\lichess_oauth.py:89:
+  backend\app\lichess_oauth.py:90:
+  backend\app\lichess_oauth.py:91:def _cookie(response, session_id: str) -> None:
+  backend\app\lichess_oauth.py:92:    response.set_cookie(
+  backend\app\lichess_oauth.py:93:        COOKIE_NAME,
+  backend\app\lichess_oauth.py:94:        _sign(session_id),
+  backend\app\lichess_oauth.py:95:        httponly=True,
+  backend\app\lichess_oauth.py:128:    if not isinstance(data, dict):
+  backend\app\lichess_oauth.py:129:        raise HTTPException(status_code=502, detail="Invalid response from Lichess.")
+  backend\app\lichess_oauth.py:130:    return data
+  backend\app\lichess_oauth.py:131:
+  backend\app\lichess_oauth.py:132:
+> backend\app\lichess_oauth.py:133:def _get_json(url: str, token: str) -> dict:
+  backend\app\lichess_oauth.py:134:    req = urllib.request.Request(
+  backend\app\lichess_oauth.py:135:        url, method="GET",
+  backend\app\lichess_oauth.py:136:        headers={"Authorization": "Bearer " + token,
+  backend\app\lichess_oauth.py:137:                 "Accept": "application/json",
+  backend\app\lichess_oauth.py:138:                 "User-Agent": "ChessBookReader/0.1"},
+  backend\app\lichess_oauth.py:139:    )
+  backend\app\lichess_oauth.py:140:    try:
+  backend\app\lichess_oauth.py:141:        with urllib.request.urlopen(req, timeout=15) as response:
+  backend\app\lichess_oauth.py:142:            data = json.loads(response.read(2 * 1024 * 1024))
+  backend\app\lichess_oauth.py:143:    except urllib.error.HTTPError as exc:
+  backend\app\lichess_oauth.py:151:    if not isinstance(data, dict):
+  backend\app\lichess_oauth.py:152:        raise HTTPException(status_code=502, detail="Invalid response from Lichess Opening Explorer.")
+  backend\app\lichess_oauth.py:153:    return data
+  backend\app\lichess_oauth.py:154:
+  backend\app\lichess_oauth.py:155:
+> backend\app\lichess_oauth.py:156:@router.get("/status")
+  backend\app\lichess_oauth.py:157:def status(request: Request):
+  backend\app\lichess_oauth.py:158:    # If the secret is not configured, return an explicit disconnected status.
+  backend\app\lichess_oauth.py:159:    if len(_setting("CHESSBOOK_SESSION_SECRET")) < 32:
+  backend\app\lichess_oauth.py:160:        return {"connected": False, "configured": False}
+  backend\app\lichess_oauth.py:161:    try:
+  backend\app\lichess_oauth.py:162:        session = _read_session(request)
+  backend\app\lichess_oauth.py:163:    except HTTPException:
+  backend\app\lichess_oauth.py:164:        return {"connected": False, "configured": False}
+> backend\app\lichess_oauth.py:165:    return {"connected": bool(session and session[1].get("token")),
+  backend\app\lichess_oauth.py:166:            "configured": bool(_setting("LICHESS_CLIENT_ID"))}
+  backend\app\lichess_oauth.py:167:
+  backend\app\lichess_oauth.py:168:
+> backend\app\lichess_oauth.py:169:@router.get("/connect")
+  backend\app\lichess_oauth.py:170:def connect(request: Request):
+  backend\app\lichess_oauth.py:171:    client_id = _client_id()
+  backend\app\lichess_oauth.py:172:    _secret()
+  backend\app\lichess_oauth.py:173:    state = secrets.token_urlsafe(32)
+  backend\app\lichess_oauth.py:174:    verifier = secrets.token_urlsafe(48)
+  backend\app\lichess_oauth.py:175:    browser_nonce = secrets.token_urlsafe(32)
+  backend\app\lichess_oauth.py:176:    challenge = _b64(hashlib.sha256(verifier.encode()).digest())
+  backend\app\lichess_oauth.py:177:    callback_url = _callback_url(request)
+  backend\app\lichess_oauth.py:178:
+  backend\app\lichess_oauth.py:179:    with LOCK:
+  backend\app\lichess_oauth.py:207:    )
+  backend\app\lichess_oauth.py:208:    response.headers["Cache-Control"] = "no-store"
+  backend\app\lichess_oauth.py:209:    return response
+  backend\app\lichess_oauth.py:210:
+  backend\app\lichess_oauth.py:211:
+> backend\app\lichess_oauth.py:212:@router.get("/callback")
+  backend\app\lichess_oauth.py:213:def callback(request: Request, code: str = "", state: str = "", error: str = ""):
+  backend\app\lichess_oauth.py:214:    if error:
+  backend\app\lichess_oauth.py:215:        response = RedirectResponse("/?lichess=denied", status_code=303)
+  backend\app\lichess_oauth.py:216:        response.delete_cookie(
+  backend\app\lichess_oauth.py:217:            STATE_COOKIE, path="/", httponly=True,
+  backend\app\lichess_oauth.py:218:            secure=_setting("CHESSBOOK_COOKIE_SECURE").lower() == "true",
+  backend\app\lichess_oauth.py:219:            samesite="lax",
+  backend\app\lichess_oauth.py:220:        )
+  backend\app\lichess_oauth.py:221:        response.headers["Cache-Control"] = "no-store"
+  backend\app\lichess_oauth.py:222:        return response
+  backend\app\lichess_oauth.py:273:    )
+  backend\app\lichess_oauth.py:274:    response.headers["Cache-Control"] = "no-store"
+  backend\app\lichess_oauth.py:275:    return response
+  backend\app\lichess_oauth.py:276:
+  backend\app\lichess_oauth.py:277:
+> backend\app\lichess_oauth.py:278:@router.post("/disconnect")
+  backend\app\lichess_oauth.py:279:def disconnect(request: Request):
+  backend\app\lichess_oauth.py:280:    session = _read_session(request)
+  backend\app\lichess_oauth.py:281:    if session:
+  backend\app\lichess_oauth.py:282:        with LOCK:
+> backend\app\lichess_oauth.py:283:            _sessions.pop(session[0], None)
+  backend\app\lichess_oauth.py:284:    response = JSONResponse({"connected": False})
+  backend\app\lichess_oauth.py:285:    _clear_cookie(response)
+  backend\app\lichess_oauth.py:286:    return response
+  backend\app\lichess_oauth.py:287:
+  backend\app\lichess_oauth.py:288:
+> backend\app\lichess_oauth.py:289:@router.get("/opening-explorer")
+  backend\app\lichess_oauth.py:290:def opening_explorer(request: Request, variant: str = "standard",
+  backend\app\lichess_oauth.py:291:                     moves: int = 8, play: str = ""):
+  backend\app\lichess_oauth.py:292:    session = _read_session(request)
+> backend\app\lichess_oauth.py:293:    if not session or not session[1].get("token"):
+  backend\app\lichess_oauth.py:294:        raise HTTPException(status_code=401, detail="Connect your Lichess account to load opening statistics.")
+  backend\app\lichess_oauth.py:295:    if variant != "standard":
+  backend\app\lichess_oauth.py:296:        raise HTTPException(status_code=400, detail="Only standard chess is supported.")
+  backend\app\lichess_oauth.py:297:    if not 1 <= moves <= 15:
+  backend\app\lichess_oauth.py:298:        raise HTTPException(status_code=400, detail="Moves must be between 1 and 15.")
+  backend\app\lichess_oauth.py:299:    uci_moves = [move for move in play.split(",") if move]
+  backend\app\lichess_oauth.py:300:    if len(uci_moves) > 200 or any(
+  backend\app\lichess_oauth.py:301:        len(move) not in (4, 5) or not move[:2].isalpha() or not move[2:4].isalnum()
+  backend\app\lichess_oauth.py:302:        for move in uci_moves
+  backend\app\lichess_oauth.py:303:    ):
+  backend\app\lichess_oauth.py:304:        raise HTTPException(status_code=400, detail="Invalid move sequence.")
+  backend\app\lichess_oauth.py:305:    query = urllib.parse.urlencode({
+  backend\app\lichess_oauth.py:306:        "variant": variant, "moves": str(moves), "play": ",".join(uci_moves)
+  backend\app\lichess_oauth.py:307:    })
+> backend\app\lichess_oauth.py:308:    result = _get_json(LICHESS_EXPLORER + "?" + query, session[1]["token"])
+  backend\app\lichess_oauth.py:309:    response = JSONResponse(result)
+  backend\app\lichess_oauth.py:310:    response.headers["Cache-Control"] = "no-store"
+  backend\app\lichess_oauth.py:311:    return response
+
+
+

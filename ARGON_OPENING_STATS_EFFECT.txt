@@ -1,0 +1,55 @@
+        analysisBoard.lineBaseFen,
+        analysisBoard.moves,
+        analysisBoard.moveIndex,
+      ).history({ verbose: true }).map((move) =>
+        `${move.from}${move.to}${move.promotion ?? ""}`
+      );
+    } catch {
+      return null;
+    }
+  }, [
+    analysisBoard.lineBaseFen,
+    analysisBoard.moves,
+    analysisBoard.moveIndex,
+  ]);
+
+  useEffect(() => {
+    if (workspaceMode !== "analysis") return;
+
+    if (analysisOpeningUciMoves === null) {
+      setAnalysisOpeningStats(null);
+      setAnalysisOpeningStatsStatus("idle");
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setAnalysisOpeningStatsStatus("loading");
+      fetchPublicOpeningExplorerStats(analysisOpeningUciMoves, controller.signal)
+        .then((result) => {
+          setAnalysisOpeningStats(result);
+          setAnalysisOpeningStatsStatus("ready");
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            setAnalysisOpeningStats(null);
+            setAnalysisOpeningStatsStatus("error");
+          }
+        });
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [workspaceMode, analysisOpeningUciMoves]);
+
+  const boardSession: StudyBoardState | null =
+    workspaceMode === "analysis"
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+        ? openingPrepBoard
+        : workspaceMode === "opening-explorer"
+          ? {
+              lineBaseFen: START_FEN,
+              currentFen: openingPosition.fen,

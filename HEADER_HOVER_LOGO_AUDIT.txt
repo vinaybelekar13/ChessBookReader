@@ -1,0 +1,1944 @@
+CHESSBOOK READER - HEADER, SIDEBAR AND LOGO AUDIT
+Generated: 11/02/2026 17:12:39
+
+
+############################################
+FILE: .\src\App.tsx
+############################################
+
+========== libraryOpen | LINE 138 ==========
+  130:     moves: [],
+  131:     moveIndex: 0,
+  132:     flipped: false,
+  133:     coordinates: true,
+  134:   }));
+  135:   const [ready, setReady] = useState(false);
+  136:   const [notice, setNotice] = useState("");
+  137:   const [error, setError] = useState("");
+  138:   const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+  139:   const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+  140:   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+  141:   const [bookSearch, setBookSearch] = useState("");
+  142:   const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+  143:   const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+  144:   const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+  145:   const [openingStatsStatus, setOpeningStatsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  146:   const [lichessStatus, setLichessStatus] = useState<LichessConnectionStatus | null>(null);
+  147:   const [lichessStatusError, setLichessStatusError] = useState("");
+  148:   const [lichessActionBusy, setLichessActionBusy] = useState(false);
+  149: 
+  150:   useEffect(() => {
+
+========== libraryOpen | LINE 1421 ==========
+ 1413:   if (!ready) {
+ 1414:     return <main className="startup"><div className="loader" /><span>Restoring your reading session...</span></main>;
+ 1415:   }
+ 1416: 
+ 1417:   return (
+ 1418:     <main className={`app-shell ${studyMode ? "study-focus-mode" : ""}`}>
+ 1419:       <header className="topbar">
+ 1420:         <div className="brand-mark">&#9822;</div>
+ 1421:         <button className="icon-button library-toggle" aria-label="Toggle library" onClick={() => setLibraryOpen((value) => !value)}>&#9776;</button>
+ 1422:         <div className="brand-name">ChessBook <span>Reader</span></div>
+ 1423:         <div className="top-divider" />
+ 1424:         <div className="current-book" title={book?.title ?? "No book open"}>
+ 1425:           <span className="book-dot" />
+ 1426:           <strong>{book?.title ?? "No book open"}</strong>
+ 1427:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+ 1428:         </div>
+ 1429:         <div className="top-spacer" />
+ 1430:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+ 1432:       </header>
+ 1433: 
+
+========== libraryOpen | LINE 1434 ==========
+ 1426:           <strong>{book?.title ?? "No book open"}</strong>
+ 1427:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+ 1428:         </div>
+ 1429:         <div className="top-spacer" />
+ 1430:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+ 1432:       </header>
+ 1433: 
+ 1434:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+ 1435:         {libraryOpen && (
+ 1436:           <aside className="library-panel">
+ 1437:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+ 1438:             <input
+ 1439:               ref={fileInput}
+ 1440:               className="hidden-input"
+ 1441:               type="file"
+ 1442:               accept="application/pdf,.pdf"
+ 1443:               onChange={(event) => void addBook(event.target.files?.[0])}
+ 1444:             />
+ 1445:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+ 1446:             <nav className="library-nav" aria-label="Library sections">
+
+========== libraryOpen | LINE 1435 ==========
+ 1427:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+ 1428:         </div>
+ 1429:         <div className="top-spacer" />
+ 1430:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+ 1432:       </header>
+ 1433: 
+ 1434:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+ 1435:         {libraryOpen && (
+ 1436:           <aside className="library-panel">
+ 1437:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+ 1438:             <input
+ 1439:               ref={fileInput}
+ 1440:               className="hidden-input"
+ 1441:               type="file"
+ 1442:               accept="application/pdf,.pdf"
+ 1443:               onChange={(event) => void addBook(event.target.files?.[0])}
+ 1444:             />
+ 1445:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+ 1446:             <nav className="library-nav" aria-label="Library sections">
+ 1447:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+
+========== setLibraryOpen | LINE 138 ==========
+  130:     moves: [],
+  131:     moveIndex: 0,
+  132:     flipped: false,
+  133:     coordinates: true,
+  134:   }));
+  135:   const [ready, setReady] = useState(false);
+  136:   const [notice, setNotice] = useState("");
+  137:   const [error, setError] = useState("");
+  138:   const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+  139:   const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+  140:   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+  141:   const [bookSearch, setBookSearch] = useState("");
+  142:   const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+  143:   const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+  144:   const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+  145:   const [openingStatsStatus, setOpeningStatsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  146:   const [lichessStatus, setLichessStatus] = useState<LichessConnectionStatus | null>(null);
+  147:   const [lichessStatusError, setLichessStatusError] = useState("");
+  148:   const [lichessActionBusy, setLichessActionBusy] = useState(false);
+  149: 
+  150:   useEffect(() => {
+
+========== setLibraryOpen | LINE 1421 ==========
+ 1413:   if (!ready) {
+ 1414:     return <main className="startup"><div className="loader" /><span>Restoring your reading session...</span></main>;
+ 1415:   }
+ 1416: 
+ 1417:   return (
+ 1418:     <main className={`app-shell ${studyMode ? "study-focus-mode" : ""}`}>
+ 1419:       <header className="topbar">
+ 1420:         <div className="brand-mark">&#9822;</div>
+ 1421:         <button className="icon-button library-toggle" aria-label="Toggle library" onClick={() => setLibraryOpen((value) => !value)}>&#9776;</button>
+ 1422:         <div className="brand-name">ChessBook <span>Reader</span></div>
+ 1423:         <div className="top-divider" />
+ 1424:         <div className="current-book" title={book?.title ?? "No book open"}>
+ 1425:           <span className="book-dot" />
+ 1426:           <strong>{book?.title ?? "No book open"}</strong>
+ 1427:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+ 1428:         </div>
+ 1429:         <div className="top-spacer" />
+ 1430:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+ 1432:       </header>
+ 1433: 
+
+========== library-toggle | LINE 1421 ==========
+ 1413:   if (!ready) {
+ 1414:     return <main className="startup"><div className="loader" /><span>Restoring your reading session...</span></main>;
+ 1415:   }
+ 1416: 
+ 1417:   return (
+ 1418:     <main className={`app-shell ${studyMode ? "study-focus-mode" : ""}`}>
+ 1419:       <header className="topbar">
+ 1420:         <div className="brand-mark">&#9822;</div>
+ 1421:         <button className="icon-button library-toggle" aria-label="Toggle library" onClick={() => setLibraryOpen((value) => !value)}>&#9776;</button>
+ 1422:         <div className="brand-name">ChessBook <span>Reader</span></div>
+ 1423:         <div className="top-divider" />
+ 1424:         <div className="current-book" title={book?.title ?? "No book open"}>
+ 1425:           <span className="book-dot" />
+ 1426:           <strong>{book?.title ?? "No book open"}</strong>
+ 1427:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+ 1428:         </div>
+ 1429:         <div className="top-spacer" />
+ 1430:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+ 1432:       </header>
+ 1433: 
+
+========== brand-mark | LINE 1420 ==========
+ 1412: 
+ 1413:   if (!ready) {
+ 1414:     return <main className="startup"><div className="loader" /><span>Restoring your reading session...</span></main>;
+ 1415:   }
+ 1416: 
+ 1417:   return (
+ 1418:     <main className={`app-shell ${studyMode ? "study-focus-mode" : ""}`}>
+ 1419:       <header className="topbar">
+ 1420:         <div className="brand-mark">&#9822;</div>
+ 1421:         <button className="icon-button library-toggle" aria-label="Toggle library" onClick={() => setLibraryOpen((value) => !value)}>&#9776;</button>
+ 1422:         <div className="brand-name">ChessBook <span>Reader</span></div>
+ 1423:         <div className="top-divider" />
+ 1424:         <div className="current-book" title={book?.title ?? "No book open"}>
+ 1425:           <span className="book-dot" />
+ 1426:           <strong>{book?.title ?? "No book open"}</strong>
+ 1427:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+ 1428:         </div>
+ 1429:         <div className="top-spacer" />
+ 1430:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+ 1432:       </header>
+
+========== brand-name | LINE 1422 ==========
+ 1414:     return <main className="startup"><div className="loader" /><span>Restoring your reading session...</span></main>;
+ 1415:   }
+ 1416: 
+ 1417:   return (
+ 1418:     <main className={`app-shell ${studyMode ? "study-focus-mode" : ""}`}>
+ 1419:       <header className="topbar">
+ 1420:         <div className="brand-mark">&#9822;</div>
+ 1421:         <button className="icon-button library-toggle" aria-label="Toggle library" onClick={() => setLibraryOpen((value) => !value)}>&#9776;</button>
+ 1422:         <div className="brand-name">ChessBook <span>Reader</span></div>
+ 1423:         <div className="top-divider" />
+ 1424:         <div className="current-book" title={book?.title ?? "No book open"}>
+ 1425:           <span className="book-dot" />
+ 1426:           <strong>{book?.title ?? "No book open"}</strong>
+ 1427:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+ 1428:         </div>
+ 1429:         <div className="top-spacer" />
+ 1430:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+ 1432:       </header>
+ 1433: 
+ 1434:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+
+========== topbar | LINE 1419 ==========
+ 1411:   const whiteTurn = game.turn() === "w";
+ 1412: 
+ 1413:   if (!ready) {
+ 1414:     return <main className="startup"><div className="loader" /><span>Restoring your reading session...</span></main>;
+ 1415:   }
+ 1416: 
+ 1417:   return (
+ 1418:     <main className={`app-shell ${studyMode ? "study-focus-mode" : ""}`}>
+ 1419:       <header className="topbar">
+ 1420:         <div className="brand-mark">&#9822;</div>
+ 1421:         <button className="icon-button library-toggle" aria-label="Toggle library" onClick={() => setLibraryOpen((value) => !value)}>&#9776;</button>
+ 1422:         <div className="brand-name">ChessBook <span>Reader</span></div>
+ 1423:         <div className="top-divider" />
+ 1424:         <div className="current-book" title={book?.title ?? "No book open"}>
+ 1425:           <span className="book-dot" />
+ 1426:           <strong>{book?.title ?? "No book open"}</strong>
+ 1427:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+ 1428:         </div>
+ 1429:         <div className="top-spacer" />
+ 1430:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+
+========== library-panel | LINE 1436 ==========
+ 1428:         </div>
+ 1429:         <div className="top-spacer" />
+ 1430:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+ 1432:       </header>
+ 1433: 
+ 1434:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+ 1435:         {libraryOpen && (
+ 1436:           <aside className="library-panel">
+ 1437:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+ 1438:             <input
+ 1439:               ref={fileInput}
+ 1440:               className="hidden-input"
+ 1441:               type="file"
+ 1442:               accept="application/pdf,.pdf"
+ 1443:               onChange={(event) => void addBook(event.target.files?.[0])}
+ 1444:             />
+ 1445:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+ 1446:             <nav className="library-nav" aria-label="Library sections">
+ 1447:                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+ 1448:               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+
+========== library-collapsed | LINE 1434 ==========
+ 1426:           <strong>{book?.title ?? "No book open"}</strong>
+ 1427:           {book && <span className="muted">{session?.page ?? 1} / {session?.pageCount || "&#8211;"}</span>}
+ 1428:         </div>
+ 1429:         <div className="top-spacer" />
+ 1430:         <span className="storage-label"><i /> LOCAL LIBRARY</span>
+ 1431:         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+ 1432:       </header>
+ 1433: 
+ 1434:       <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+ 1435:         {libraryOpen && (
+ 1436:           <aside className="library-panel">
+ 1437:             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+ 1438:             <input
+ 1439:               ref={fileInput}
+ 1440:               className="hidden-input"
+ 1441:               type="file"
+ 1442:               accept="application/pdf,.pdf"
+ 1443:               onChange={(event) => void addBook(event.target.files?.[0])}
+ 1444:             />
+ 1445:             <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+ 1446:             <nav className="library-nav" aria-label="Library sections">
+
+
+############################################
+FILE: .\src\styles.css
+############################################
+
+========== library-toggle | LINE 5152 ==========
+ 5144:   z-index: 2;
+ 5145:   background: rgba(239, 68, 68, 0.58);
+ 5146:   pointer-events: none;
+ 5147: }
+ 5148: 
+ 5149: /* Consistent icon controls — ChessBook Reader */
+ 5150: .board-controls button,
+ 5151: .board-panel button,
+ 5152: .library-toggle,
+ 5153: .icon-button {
+ 5154:   -webkit-tap-highlight-color: transparent;
+ 5155: }
+ 5156: 
+ 5157: .board-controls button {
+ 5158:   display: inline-flex;
+ 5159:   align-items: center;
+ 5160:   justify-content: center;
+ 5161:   gap: 8px;
+ 5162:   font-family: inherit;
+ 5163:   font-weight: 600;
+ 5164:   transition:
+
+========== brand-mark | LINE 351 ==========
+  343:   align-items: center;
+  344:   padding: 0 16px;
+  345:   gap: 12px;
+  346:   background: #1B1917;
+  347:   border-bottom: 1px solid var(--border-subtle);
+  348:   z-index: 10;
+  349: }
+  350: 
+  351: .brand-mark {
+  352:   width: 28px;
+  353:   height: 28px;
+  354:   display: grid;
+  355:   place-items: center;
+  356:   color: var(--green-primary);
+  357:   background: rgba(129, 182, 76, 0.12);
+  358:   border: 1px solid rgba(129, 182, 76, 0.28);
+  359:   border-radius: 6px;
+  360:   font-size: 18px;
+  361:   flex-shrink: 0;
+  362: }
+  363: 
+
+========== brand-name | LINE 364 ==========
+  356:   color: var(--green-primary);
+  357:   background: rgba(129, 182, 76, 0.12);
+  358:   border: 1px solid rgba(129, 182, 76, 0.28);
+  359:   border-radius: 6px;
+  360:   font-size: 18px;
+  361:   flex-shrink: 0;
+  362: }
+  363: 
+  364: .brand-name {
+  365:   font-size: 17px;
+  366:   color: var(--text-primary);
+  367:   font-weight: 700;
+  368:   letter-spacing: -0.2px;
+  369:   white-space: nowrap;
+  370: }
+  371: 
+  372: .brand-name span {
+  373:   color: var(--green-primary);
+  374:   font-weight: 600;
+  375: }
+  376: 
+
+========== brand-name | LINE 372 ==========
+  364: .brand-name {
+  365:   font-size: 17px;
+  366:   color: var(--text-primary);
+  367:   font-weight: 700;
+  368:   letter-spacing: -0.2px;
+  369:   white-space: nowrap;
+  370: }
+  371: 
+  372: .brand-name span {
+  373:   color: var(--green-primary);
+  374:   font-weight: 600;
+  375: }
+  376: 
+  377: .top-divider {
+  378:   width: 1px;
+  379:   height: 22px;
+  380:   background: var(--border-subtle);
+  381:   margin: 0 2px;
+  382:   flex-shrink: 0;
+  383: }
+  384: 
+
+========== topbar | LINE 327 ==========
+  319: 
+  320: input:focus,
+  321: select:focus {
+  322:   border-color: var(--focus-outline);
+  323:   box-shadow: 0 0 0 1px var(--focus-outline);
+  324: }
+  325: 
+  326: /* ==========================================================
+  327:    3. APPLICATION SHELL & HEADER (TOPBAR)
+  328:    ========================================================== */
+  329: 
+  330: .app-shell {
+  331:   min-height: 100vh;
+  332:   height: 100vh;
+  333:   display: flex;
+  334:   flex-direction: column;
+  335:   overflow: hidden;
+  336:   background: var(--bg-app);
+  337: }
+  338: 
+  339: .topbar {
+
+========== topbar | LINE 339 ==========
+  331:   min-height: 100vh;
+  332:   height: 100vh;
+  333:   display: flex;
+  334:   flex-direction: column;
+  335:   overflow: hidden;
+  336:   background: var(--bg-app);
+  337: }
+  338: 
+  339: .topbar {
+  340:   height: 50px;
+  341:   flex: 0 0 50px;
+  342:   display: flex;
+  343:   align-items: center;
+  344:   padding: 0 16px;
+  345:   gap: 12px;
+  346:   background: #1B1917;
+  347:   border-bottom: 1px solid var(--border-subtle);
+  348:   z-index: 10;
+  349: }
+  350: 
+  351: .brand-mark {
+
+========== topbar | LINE 6546 ==========
+ 6538:   max-width: none !important;
+ 6539:   margin: 0 !important;
+ 6540:   padding: 0 !important;
+ 6541:   overflow: hidden !important;
+ 6542:   display: flex !important;
+ 6543:   flex-direction: column !important;
+ 6544: }
+ 6545: 
+ 6546: .app-shell.study-focus-mode > .topbar {
+ 6547:   display: none !important;
+ 6548: }
+ 6549: 
+ 6550: .app-shell.study-focus-mode > .workspace {
+ 6551:   flex: 1 1 auto !important;
+ 6552:   min-height: 0 !important;
+ 6553:   height: 100% !important;
+ 6554:   max-height: none !important;
+ 6555:   width: 100% !important;
+ 6556:   grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr) !important;
+ 6557:   overflow: hidden !important;
+ 6558: }
+
+========== library-panel | LINE 26 ==========
+   18:   flex: 1 1 auto;
+   19:   min-width: 0;
+   20:   min-height: 0;
+   21:   height: auto;
+   22:   max-height: none;
+   23:   overflow: hidden;
+   24: }
+   25: 
+   26: .library-panel,
+   27: .board-panel,
+   28: .reader-panel {
+   29:   min-width: 0;
+   30:   min-height: 0;
+   31:   box-sizing: border-box;
+   32: }
+   33: 
+   34: .board-panel {
+   35:   overflow-x: hidden;
+   36:   overflow-y: auto;
+   37: }
+   38: 
+
+========== library-panel | LINE 105 ==========
+   97: }
+   98: 
+   99: @media (max-width: 820px) {
+  100:   .workspace,
+  101:   .workspace.library-collapsed {
+  102:     grid-template-columns: minmax(0, 1fr);
+  103:   }
+  104: 
+  105:   .library-panel {
+  106:     display: none;
+  107:   }
+  108: 
+  109:   .board-panel {
+  110:     max-height: 48vh;
+  111:   }
+  112: 
+  113:   .board-frame {
+  114:     width: min(100%, 38vh, 300px);
+  115:   }
+  116: }
+  117: 
+
+========== library-panel | LINE 455 ==========
+  447: .workspace.library-collapsed {
+  448:   grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  449: }
+  450: 
+  451: /* ==========================================================
+  452:    5. LEFT SIDEBAR: LIBRARY & NAVIGATION
+  453:    ========================================================== */
+  454: 
+  455: .library-panel {
+  456:   background: var(--panel-primary);
+  457:   border-right: 1px solid var(--border-subtle);
+  458:   min-width: 0;
+  459:   display: flex;
+  460:   flex-direction: column;
+  461:   overflow: hidden;
+  462: }
+  463: 
+  464: .library-heading {
+  465:   height: 46px;
+  466:   flex: 0 0 46px;
+  467:   padding: 0 14px;
+
+========== library-panel | LINE 2390 ==========
+ 2382:     grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+ 2383:   }
+ 2384: }
+ 2385: 
+ 2386: @media (max-width: 820px) {
+ 2387:   .workspace:not(.library-collapsed) {
+ 2388:     grid-template-columns: 100%;
+ 2389:   }
+ 2390:   .library-panel {
+ 2391:     display: none;
+ 2392:   }
+ 2393:   .workspace.library-collapsed {
+ 2394:     grid-template-columns: 100%;
+ 2395:   }
+ 2396:   .manual-editor-workspace {
+ 2397:     grid-template-columns: 1fr;
+ 2398:   }
+ 2399:   .manual-chessboard {
+ 2400:     width: min(100%, 300px);
+ 2401:     margin-inline: auto;
+ 2402:   }
+
+========== library-panel | LINE 2745 ==========
+ 2737: }
+ 2738: 
+ 2739: /* FINAL LAYOUT OVERRIDES â€” stable chess analysis workspace */
+ 2740: .workspace {
+ 2741:   align-items: start;
+ 2742:   min-width: 0;
+ 2743: }
+ 2744: 
+ 2745: .library-panel,
+ 2746: .board-panel,
+ 2747: .reader-panel {
+ 2748:   min-width: 0;
+ 2749:   box-sizing: border-box;
+ 2750: }
+ 2751: 
+ 2752: .board-panel {
+ 2753:   display: flex;
+ 2754:   flex-direction: column;
+ 2755:   align-items: stretch;
+ 2756:   gap: 0;
+ 2757:   overflow: hidden;
+
+========== library-panel | LINE 3573 ==========
+ 3565:   display: inline-flex !important;
+ 3566:   flex: 0 0 auto !important;
+ 3567:   width: auto !important;
+ 3568:   white-space: nowrap !important;
+ 3569: }
+ 3570: 
+ 3571: 
+ 3572: /* Move history lives beneath the library list, not beneath the chessboard. */
+ 3573: .library-panel {
+ 3574:   min-height: 0;
+ 3575: }
+ 3576: 
+ 3577: .library-panel .book-list {
+ 3578:   flex: 0 1 34%;
+ 3579:   min-height: 90px;
+ 3580:   overflow-y: auto;
+ 3581: }
+ 3582: 
+ 3583: .sidebar-moves-panel {
+ 3584:   display: flex;
+ 3585:   flex: 1 1 0;
+
+========== library-panel | LINE 3577 ==========
+ 3569: }
+ 3570: 
+ 3571: 
+ 3572: /* Move history lives beneath the library list, not beneath the chessboard. */
+ 3573: .library-panel {
+ 3574:   min-height: 0;
+ 3575: }
+ 3576: 
+ 3577: .library-panel .book-list {
+ 3578:   flex: 0 1 34%;
+ 3579:   min-height: 90px;
+ 3580:   overflow-y: auto;
+ 3581: }
+ 3582: 
+ 3583: .sidebar-moves-panel {
+ 3584:   display: flex;
+ 3585:   flex: 1 1 0;
+ 3586:   flex-direction: column;
+ 3587:   min-height: 110px;
+ 3588:   max-height: 42%;
+ 3589:   padding: 0 9px 8px;
+
+========== library-panel | LINE 3634 ==========
+ 3626: 
+ 3627: .sidebar-moves-panel .move-pair button {
+ 3628:   min-width: 0;
+ 3629:   padding: 3px 4px;
+ 3630:   overflow: hidden;
+ 3631:   text-overflow: ellipsis;
+ 3632: }
+ 3633: 
+ 3634: .library-panel .library-footer {
+ 3635:   flex: 0 0 auto;
+ 3636: }
+ 3637: 
+ 3638: 
+ 3639: /* Final compact fit: fill the sidebar move-list area and keep board controls visible */
+ 3640: .library-panel {
+ 3641:   display: flex;
+ 3642:   flex-direction: column;
+ 3643:   min-height: 0;
+ 3644:   overflow: hidden;
+ 3645: }
+ 3646: 
+
+========== library-panel | LINE 3640 ==========
+ 3632: }
+ 3633: 
+ 3634: .library-panel .library-footer {
+ 3635:   flex: 0 0 auto;
+ 3636: }
+ 3637: 
+ 3638: 
+ 3639: /* Final compact fit: fill the sidebar move-list area and keep board controls visible */
+ 3640: .library-panel {
+ 3641:   display: flex;
+ 3642:   flex-direction: column;
+ 3643:   min-height: 0;
+ 3644:   overflow: hidden;
+ 3645: }
+ 3646: 
+ 3647: .library-panel .sidebar-moves-panel {
+ 3648:   flex: 1 1 0 !important;
+ 3649:   min-height: 0 !important;
+ 3650:   max-height: none !important;
+ 3651:   margin: 0 !important;
+ 3652:   padding: 0 8px 6px !important;
+
+========== library-panel | LINE 3647 ==========
+ 3639: /* Final compact fit: fill the sidebar move-list area and keep board controls visible */
+ 3640: .library-panel {
+ 3641:   display: flex;
+ 3642:   flex-direction: column;
+ 3643:   min-height: 0;
+ 3644:   overflow: hidden;
+ 3645: }
+ 3646: 
+ 3647: .library-panel .sidebar-moves-panel {
+ 3648:   flex: 1 1 0 !important;
+ 3649:   min-height: 0 !important;
+ 3650:   max-height: none !important;
+ 3651:   margin: 0 !important;
+ 3652:   padding: 0 8px 6px !important;
+ 3653:   overflow: hidden !important;
+ 3654: }
+ 3655: 
+ 3656: .sidebar-moves-panel .moves-panel {
+ 3657:   flex: 1 1 0 !important;
+ 3658:   min-height: 0 !important;
+ 3659:   height: 100% !important;
+
+========== library-panel | LINE 3673 ==========
+ 3665:   min-height: 0 !important;
+ 3666:   height: 100% !important;
+ 3667:   max-height: none !important;
+ 3668:   overflow-y: auto !important;
+ 3669:   overflow-x: hidden !important;
+ 3670:   align-content: start;
+ 3671: }
+ 3672: 
+ 3673: .library-panel .library-footer {
+ 3674:   flex: 0 0 auto !important;
+ 3675: }
+ 3676: 
+ 3677: /* Remove excess vertical gaps around the board and its controls */
+ 3678: .board-panel {
+ 3679:   min-height: 0 !important;
+ 3680:   gap: 2px !important;
+ 3681:   padding-top: 3px !important;
+ 3682:   padding-bottom: 4px !important;
+ 3683:   overflow-y: auto !important;
+ 3684: }
+ 3685: 
+
+========== library-panel | LINE 3873 ==========
+ 3865: 
+ 3866: .board-panel .board-fen {
+ 3867:   flex: 0 0 auto !important;
+ 3868:   margin-top: 3px !important;
+ 3869:   padding: 7px 9px !important;
+ 3870: }
+ 3871: 
+ 3872: /* The move list belongs below the library, filling the remaining height */
+ 3873: .library-panel .sidebar-moves-panel {
+ 3874:   display: flex !important;
+ 3875:   flex: 1 1 0 !important;
+ 3876:   min-height: 150px !important;
+ 3877:   max-height: none !important;
+ 3878:   padding: 0 8px 8px !important;
+ 3879:   overflow: hidden !important;
+ 3880: }
+ 3881: 
+ 3882: .sidebar-moves-panel .moves-panel {
+ 3883:   display: flex !important;
+ 3884:   flex: 1 1 0 !important;
+ 3885:   flex-direction: column !important;
+
+========== library-panel | LINE 3943 ==========
+ 3935:   .board-panel .board-controls button {
+ 3936:     min-height: 31px !important;
+ 3937:     height: 31px !important;
+ 3938:   }
+ 3939: }
+ 3940: 
+ 3941: 
+ 3942: /* Use the empty lower sidebar area for a taller move list */
+ 3943: .library-panel {
+ 3944:   display: flex !important;
+ 3945:   flex-direction: column !important;
+ 3946:   min-height: 0 !important;
+ 3947:   overflow: hidden !important;
+ 3948: }
+ 3949: 
+ 3950: .library-panel .sidebar-moves-panel {
+ 3951:   flex: 1 1 auto !important;
+ 3952:   min-height: 0 !important;
+ 3953:   max-height: none !important;
+ 3954:   margin: 0 !important;
+ 3955:   padding: 0 8px 8px !important;
+
+========== library-panel | LINE 3950 ==========
+ 3942: /* Use the empty lower sidebar area for a taller move list */
+ 3943: .library-panel {
+ 3944:   display: flex !important;
+ 3945:   flex-direction: column !important;
+ 3946:   min-height: 0 !important;
+ 3947:   overflow: hidden !important;
+ 3948: }
+ 3949: 
+ 3950: .library-panel .sidebar-moves-panel {
+ 3951:   flex: 1 1 auto !important;
+ 3952:   min-height: 0 !important;
+ 3953:   max-height: none !important;
+ 3954:   margin: 0 !important;
+ 3955:   padding: 0 8px 8px !important;
+ 3956:   overflow: hidden !important;
+ 3957: }
+ 3958: 
+ 3959: .sidebar-moves-panel .moves-panel {
+ 3960:   display: flex !important;
+ 3961:   flex: 1 1 auto !important;
+ 3962:   flex-direction: column !important;
+
+========== library-panel | LINE 4233 ==========
+ 4225: 
+ 4226: @media (prefers-reduced-motion: reduce) {
+ 4227:   .game-end-dialog { animation: none; }
+ 4228: }
+ 4229: 
+ 4230: 
+ 4231: /* MOVE LIST: stretch its PANEL across all remaining sidebar height.
+ 4232:    The list box stays large even when it contains only a few moves. */
+ 4233: .library-panel {
+ 4234:   display: flex !important;
+ 4235:   flex-direction: column !important;
+ 4236:   height: 100% !important;
+ 4237:   min-height: 0 !important;
+ 4238:   overflow: hidden !important;
+ 4239: }
+ 4240: 
+ 4241: .library-panel .sidebar-moves-panel {
+ 4242:   display: flex !important;
+ 4243:   flex: 1 1 auto !important;
+ 4244:   flex-direction: column !important;
+ 4245:   min-height: 0 !important;
+
+========== library-panel | LINE 4241 ==========
+ 4233: .library-panel {
+ 4234:   display: flex !important;
+ 4235:   flex-direction: column !important;
+ 4236:   height: 100% !important;
+ 4237:   min-height: 0 !important;
+ 4238:   overflow: hidden !important;
+ 4239: }
+ 4240: 
+ 4241: .library-panel .sidebar-moves-panel {
+ 4242:   display: flex !important;
+ 4243:   flex: 1 1 auto !important;
+ 4244:   flex-direction: column !important;
+ 4245:   min-height: 0 !important;
+ 4246:   height: auto !important;
+ 4247:   max-height: none !important;
+ 4248:   margin: 0 !important;
+ 4249:   padding-bottom: 0 !important;
+ 4250:   overflow: hidden !important;
+ 4251: }
+ 4252: 
+ 4253: .library-panel .sidebar-moves-panel .moves-panel {
+
+========== library-panel | LINE 4253 ==========
+ 4245:   min-height: 0 !important;
+ 4246:   height: auto !important;
+ 4247:   max-height: none !important;
+ 4248:   margin: 0 !important;
+ 4249:   padding-bottom: 0 !important;
+ 4250:   overflow: hidden !important;
+ 4251: }
+ 4252: 
+ 4253: .library-panel .sidebar-moves-panel .moves-panel {
+ 4254:   display: flex !important;
+ 4255:   flex: 1 1 auto !important;
+ 4256:   flex-direction: column !important;
+ 4257:   min-height: 0 !important;
+ 4258:   height: 100% !important;
+ 4259:   max-height: none !important;
+ 4260:   margin: 0 !important;
+ 4261:   overflow: hidden !important;
+ 4262: }
+ 4263: 
+ 4264: .library-panel .sidebar-moves-panel .move-list {
+ 4265:   display: block !important;
+
+========== library-panel | LINE 4264 ==========
+ 4256:   flex-direction: column !important;
+ 4257:   min-height: 0 !important;
+ 4258:   height: 100% !important;
+ 4259:   max-height: none !important;
+ 4260:   margin: 0 !important;
+ 4261:   overflow: hidden !important;
+ 4262: }
+ 4263: 
+ 4264: .library-panel .sidebar-moves-panel .move-list {
+ 4265:   display: block !important;
+ 4266:   flex: 1 1 auto !important;
+ 4267:   min-height: 0 !important;
+ 4268:   height: 100% !important;
+ 4269:   max-height: none !important;
+ 4270:   overflow-y: auto !important;
+ 4271:   overflow-x: hidden !important;
+ 4272:   align-content: start !important;
+ 4273: }
+ 4274: 
+ 4275: /* If the list is short or empty, the border/background still fills the panel. */
+ 4276: .library-panel .sidebar-moves-panel .move-list:empty {
+
+========== library-panel | LINE 4276 ==========
+ 4268:   height: 100% !important;
+ 4269:   max-height: none !important;
+ 4270:   overflow-y: auto !important;
+ 4271:   overflow-x: hidden !important;
+ 4272:   align-content: start !important;
+ 4273: }
+ 4274: 
+ 4275: /* If the list is short or empty, the border/background still fills the panel. */
+ 4276: .library-panel .sidebar-moves-panel .move-list:empty {
+ 4277:   flex: 1 1 auto !important;
+ 4278:   min-height: 100% !important;
+ 4279:   height: 100% !important;
+ 4280: }
+ 4281: 
+ 4282: /* Keep book entries in their own scrollable area instead of pushing moves down. */
+ 4283: .library-panel .book-list,
+ 4284: .library-panel .recent-books,
+ 4285: .library-panel .local-books-list {
+ 4286:   flex: 0 1 auto !important;
+ 4287:   min-height: 0 !important;
+ 4288:   max-height: 22vh !important;
+
+========== library-panel | LINE 4283 ==========
+ 4275: /* If the list is short or empty, the border/background still fills the panel. */
+ 4276: .library-panel .sidebar-moves-panel .move-list:empty {
+ 4277:   flex: 1 1 auto !important;
+ 4278:   min-height: 100% !important;
+ 4279:   height: 100% !important;
+ 4280: }
+ 4281: 
+ 4282: /* Keep book entries in their own scrollable area instead of pushing moves down. */
+ 4283: .library-panel .book-list,
+ 4284: .library-panel .recent-books,
+ 4285: .library-panel .local-books-list {
+ 4286:   flex: 0 1 auto !important;
+ 4287:   min-height: 0 !important;
+ 4288:   max-height: 22vh !important;
+ 4289:   overflow-y: auto !important;
+ 4290:   overflow-x: hidden !important;
+ 4291: }
+ 4292: 
+ 4293: /* Footer stays at the bottom; move-list panel consumes all space above it. */
+ 4294: .library-panel .library-footer {
+ 4295:   flex: 0 0 auto !important;
+
+========== library-panel | LINE 4284 ==========
+ 4276: .library-panel .sidebar-moves-panel .move-list:empty {
+ 4277:   flex: 1 1 auto !important;
+ 4278:   min-height: 100% !important;
+ 4279:   height: 100% !important;
+ 4280: }
+ 4281: 
+ 4282: /* Keep book entries in their own scrollable area instead of pushing moves down. */
+ 4283: .library-panel .book-list,
+ 4284: .library-panel .recent-books,
+ 4285: .library-panel .local-books-list {
+ 4286:   flex: 0 1 auto !important;
+ 4287:   min-height: 0 !important;
+ 4288:   max-height: 22vh !important;
+ 4289:   overflow-y: auto !important;
+ 4290:   overflow-x: hidden !important;
+ 4291: }
+ 4292: 
+ 4293: /* Footer stays at the bottom; move-list panel consumes all space above it. */
+ 4294: .library-panel .library-footer {
+ 4295:   flex: 0 0 auto !important;
+ 4296:   margin-top: 0 !important;
+
+========== library-panel | LINE 4285 ==========
+ 4277:   flex: 1 1 auto !important;
+ 4278:   min-height: 100% !important;
+ 4279:   height: 100% !important;
+ 4280: }
+ 4281: 
+ 4282: /* Keep book entries in their own scrollable area instead of pushing moves down. */
+ 4283: .library-panel .book-list,
+ 4284: .library-panel .recent-books,
+ 4285: .library-panel .local-books-list {
+ 4286:   flex: 0 1 auto !important;
+ 4287:   min-height: 0 !important;
+ 4288:   max-height: 22vh !important;
+ 4289:   overflow-y: auto !important;
+ 4290:   overflow-x: hidden !important;
+ 4291: }
+ 4292: 
+ 4293: /* Footer stays at the bottom; move-list panel consumes all space above it. */
+ 4294: .library-panel .library-footer {
+ 4295:   flex: 0 0 auto !important;
+ 4296:   margin-top: 0 !important;
+ 4297: }
+
+========== library-panel | LINE 4294 ==========
+ 4286:   flex: 0 1 auto !important;
+ 4287:   min-height: 0 !important;
+ 4288:   max-height: 22vh !important;
+ 4289:   overflow-y: auto !important;
+ 4290:   overflow-x: hidden !important;
+ 4291: }
+ 4292: 
+ 4293: /* Footer stays at the bottom; move-list panel consumes all space above it. */
+ 4294: .library-panel .library-footer {
+ 4295:   flex: 0 0 auto !important;
+ 4296:   margin-top: 0 !important;
+ 4297: }
+ 4298: 
+ 4299: 
+ 4300: /* Hide the extra section-label row above the board. */
+ 4301: .board-panel .section-eyebrow,
+ 4302: .board-panel .panel-eyebrow,
+ 4303: .board-panel .position-analysis-label,
+ 4304: .board-panel .engine-status,
+ 4305: .board-panel .engine-status-row {
+ 4306:   display: none !important;
+
+========== library-panel | LINE 5422 ==========
+ 5414:   overflow: hidden;
+ 5415:   box-sizing: border-box;
+ 5416: }
+ 5417: 
+ 5418: .workspace.library-collapsed {
+ 5419:   grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+ 5420: }
+ 5421: 
+ 5422: .workspace > .library-panel,
+ 5423: .workspace > .board-panel,
+ 5424: .workspace > .reader-panel {
+ 5425:   width: 100%;
+ 5426:   min-width: 0;
+ 5427:   max-width: 100%;
+ 5428:   box-sizing: border-box;
+ 5429: }
+ 5430: 
+ 5431: .workspace > .library-panel {
+ 5432:   overflow: hidden;
+ 5433: }
+ 5434: 
+
+========== library-panel | LINE 5431 ==========
+ 5423: .workspace > .board-panel,
+ 5424: .workspace > .reader-panel {
+ 5425:   width: 100%;
+ 5426:   min-width: 0;
+ 5427:   max-width: 100%;
+ 5428:   box-sizing: border-box;
+ 5429: }
+ 5430: 
+ 5431: .workspace > .library-panel {
+ 5432:   overflow: hidden;
+ 5433: }
+ 5434: 
+ 5435: .workspace .library-nav {
+ 5436:   width: 100%;
+ 5437:   min-width: 0;
+ 5438:   padding-inline: 8px;
+ 5439:   box-sizing: border-box;
+ 5440: }
+ 5441: 
+ 5442: .workspace .library-nav-item {
+ 5443:   display: grid;
+
+========== library-panel | LINE 5525 ==========
+ 5517: @media (max-width: 900px) {
+ 5518:   .workspace,
+ 5519:   .workspace.library-collapsed {
+ 5520:     grid-template-columns: minmax(0, 1fr);
+ 5521:     overflow-y: auto;
+ 5522:     overflow-x: hidden;
+ 5523:   }
+ 5524: 
+ 5525:   .workspace > .library-panel {
+ 5526:     max-height: 42vh;
+ 5527:   }
+ 5528: 
+ 5529:   .workspace > .board-panel {
+ 5530:     max-height: none;
+ 5531:   }
+ 5532: 
+ 5533:   .workspace .board-frame {
+ 5534:     width: min(100%, 64vw, 440px);
+ 5535:   }
+ 5536: 
+ 5537:   .workspace > .reader-panel {
+
+========== library-panel | LINE 6465 ==========
+ 6457:   border-top: 1px solid var(--border-subtle);
+ 6458:   color: var(--text-muted);
+ 6459:   font-size: 10px;
+ 6460:   line-height: 1.45;
+ 6461: }
+ 6462: 
+ 6463: 
+ 6464: /* Refined search focus styling */
+ 6465: .library-panel input:focus,
+ 6466: .library-panel input:focus-visible,
+ 6467: .library-panel textarea:focus,
+ 6468: .library-panel textarea:focus-visible,
+ 6469: .study-library input:focus,
+ 6470: .study-library input:focus-visible,
+ 6471: .study-library textarea:focus,
+ 6472: .study-library textarea:focus-visible {
+ 6473:   outline: none;
+ 6474:   border-color: rgba(139, 190, 86, 0.7);
+ 6475:   box-shadow: 0 0 0 2px rgba(139, 190, 86, 0.16);
+ 6476: }
+ 6477: 
+
+========== library-panel | LINE 6466 ==========
+ 6458:   color: var(--text-muted);
+ 6459:   font-size: 10px;
+ 6460:   line-height: 1.45;
+ 6461: }
+ 6462: 
+ 6463: 
+ 6464: /* Refined search focus styling */
+ 6465: .library-panel input:focus,
+ 6466: .library-panel input:focus-visible,
+ 6467: .library-panel textarea:focus,
+ 6468: .library-panel textarea:focus-visible,
+ 6469: .study-library input:focus,
+ 6470: .study-library input:focus-visible,
+ 6471: .study-library textarea:focus,
+ 6472: .study-library textarea:focus-visible {
+ 6473:   outline: none;
+ 6474:   border-color: rgba(139, 190, 86, 0.7);
+ 6475:   box-shadow: 0 0 0 2px rgba(139, 190, 86, 0.16);
+ 6476: }
+ 6477: 
+ 6478: .library-panel input:focus:not(:focus-visible),
+
+========== library-panel | LINE 6467 ==========
+ 6459:   font-size: 10px;
+ 6460:   line-height: 1.45;
+ 6461: }
+ 6462: 
+ 6463: 
+ 6464: /* Refined search focus styling */
+ 6465: .library-panel input:focus,
+ 6466: .library-panel input:focus-visible,
+ 6467: .library-panel textarea:focus,
+ 6468: .library-panel textarea:focus-visible,
+ 6469: .study-library input:focus,
+ 6470: .study-library input:focus-visible,
+ 6471: .study-library textarea:focus,
+ 6472: .study-library textarea:focus-visible {
+ 6473:   outline: none;
+ 6474:   border-color: rgba(139, 190, 86, 0.7);
+ 6475:   box-shadow: 0 0 0 2px rgba(139, 190, 86, 0.16);
+ 6476: }
+ 6477: 
+ 6478: .library-panel input:focus:not(:focus-visible),
+ 6479: .study-library input:focus:not(:focus-visible) {
+
+========== library-panel | LINE 6468 ==========
+ 6460:   line-height: 1.45;
+ 6461: }
+ 6462: 
+ 6463: 
+ 6464: /* Refined search focus styling */
+ 6465: .library-panel input:focus,
+ 6466: .library-panel input:focus-visible,
+ 6467: .library-panel textarea:focus,
+ 6468: .library-panel textarea:focus-visible,
+ 6469: .study-library input:focus,
+ 6470: .study-library input:focus-visible,
+ 6471: .study-library textarea:focus,
+ 6472: .study-library textarea:focus-visible {
+ 6473:   outline: none;
+ 6474:   border-color: rgba(139, 190, 86, 0.7);
+ 6475:   box-shadow: 0 0 0 2px rgba(139, 190, 86, 0.16);
+ 6476: }
+ 6477: 
+ 6478: .library-panel input:focus:not(:focus-visible),
+ 6479: .study-library input:focus:not(:focus-visible) {
+ 6480:   box-shadow: none;
+
+========== library-panel | LINE 6478 ==========
+ 6470: .study-library input:focus-visible,
+ 6471: .study-library textarea:focus,
+ 6472: .study-library textarea:focus-visible {
+ 6473:   outline: none;
+ 6474:   border-color: rgba(139, 190, 86, 0.7);
+ 6475:   box-shadow: 0 0 0 2px rgba(139, 190, 86, 0.16);
+ 6476: }
+ 6477: 
+ 6478: .library-panel input:focus:not(:focus-visible),
+ 6479: .study-library input:focus:not(:focus-visible) {
+ 6480:   box-shadow: none;
+ 6481: }
+ 6482: 
+ 6483: 
+ 6484: /* STUDY FOCUS LAYOUT */
+ 6485: @media (min-width: 901px) {
+ 6486:   .app-shell.study-focus-mode {
+ 6487:     width: 100%;
+ 6488:     max-width: 100%;
+ 6489:   }
+ 6490: 
+
+========== library-panel | LINE 6497 ==========
+ 6489:   }
+ 6490: 
+ 6491:   .app-shell.study-focus-mode .workspace {
+ 6492:     grid-template-columns: minmax(0, 1.12fr) minmax(360px, 0.88fr) !important;
+ 6493:     width: 100%;
+ 6494:     min-width: 0;
+ 6495:   }
+ 6496: 
+ 6497:   .app-shell.study-focus-mode .workspace > .library-panel {
+ 6498:     display: none !important;
+ 6499:   }
+ 6500: 
+ 6501:   .app-shell.study-focus-mode .workspace > .board-panel,
+ 6502:   .app-shell.study-focus-mode .workspace > .reader-panel {
+ 6503:     width: 100% !important;
+ 6504:     min-width: 0 !important;
+ 6505:     max-width: none !important;
+ 6506:   }
+ 6507: 
+ 6508:   .app-shell.study-focus-mode .board-panel {
+ 6509:     border-left: 0;
+
+========== library-panel | LINE 6514 ==========
+ 6506:   }
+ 6507: 
+ 6508:   .app-shell.study-focus-mode .board-panel {
+ 6509:     border-left: 0;
+ 6510:   }
+ 6511: }
+ 6512: 
+ 6513: @media (max-width: 900px) {
+ 6514:   .app-shell.study-focus-mode .workspace > .library-panel {
+ 6515:     display: none !important;
+ 6516:   }
+ 6517: }
+ 6518: 
+ 6519: 
+ 6520: /* FULL-VIEWPORT FOCUS MODE */
+ 6521: html:has(.app-shell.study-focus-mode),
+ 6522: body:has(.app-shell.study-focus-mode),
+ 6523: #root:has(.app-shell.study-focus-mode) {
+ 6524:   width: 100%;
+ 6525:   height: 100%;
+ 6526:   min-height: 100%;
+
+========== library-panel | LINE 6560 ==========
+ 6552:   min-height: 0 !important;
+ 6553:   height: 100% !important;
+ 6554:   max-height: none !important;
+ 6555:   width: 100% !important;
+ 6556:   grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr) !important;
+ 6557:   overflow: hidden !important;
+ 6558: }
+ 6559: 
+ 6560: .app-shell.study-focus-mode .workspace > .library-panel {
+ 6561:   display: none !important;
+ 6562: }
+ 6563: 
+ 6564: .app-shell.study-focus-mode .workspace > .board-panel,
+ 6565: .app-shell.study-focus-mode .workspace > .reader-panel {
+ 6566:   height: 100% !important;
+ 6567:   min-height: 0 !important;
+ 6568:   max-height: none !important;
+ 6569:   width: 100% !important;
+ 6570:   min-width: 0 !important;
+ 6571:   max-width: none !important;
+ 6572:   overflow-y: auto !important;
+
+========== library-panel | LINE 7177 ==========
+ 7169: .gr-move-table-row { width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); font-size: 11px; cursor: pointer; }
+ 7170: .gr-move-table-row:hover, .gr-move-table-row.selected { background: rgba(24,178,132,.07); }
+ 7171: .gr-move-table-row strong { color: var(--text-primary); }
+ 7172: .gr-move-table-row > span:nth-child(4) { display: flex; align-items: center; gap: 7px; }
+ 7173: .gr-empty { padding: 30px; text-align: center; color: var(--text-muted); font-size: 12px; }
+ 7174: .gr-bottom-note { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10px; margin-top: 16px; }
+ 7175: .workspace.game-review-active { display: block; overflow: hidden; }
+ 7176: .workspace.game-review-active > .game-review-page { height: 100%; }
+ 7177: .workspace.game-review-active .library-panel { display: none; }
+ 7178: 
+ 7179: @media (max-width: 1050px) {
+ 7180:   .gr-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+ 7181:   .gr-main-grid { grid-template-columns: 1fr; }
+ 7182:   .gr-move-preview { grid-column: auto; }
+ 7183: }
+ 7184: @media (max-width: 650px) {
+ 7185:   .game-review-page { padding: 20px 13px; }
+ 7186:   .gr-topline { align-items: flex-start; flex-direction: column; }
+ 7187:   .gr-top-actions { width: 100%; }
+ 7188:   .gr-top-actions .gr-button { flex: 1; }
+ 7189:   .gr-game-card { padding: 13px 10px; }
+
+========== library-panel | LINE 7775 ==========
+ 7767: .workspace.game-review-active > .game-review-page {
+ 7768:   width: 100%;
+ 7769:   height: 100%;
+ 7770:   min-width: 0;
+ 7771:   min-height: 0;
+ 7772:   overflow: auto;
+ 7773: }
+ 7774: 
+ 7775: .workspace.game-review-active > .library-panel {
+ 7776:   display: none !important;
+ 7777: }
+ 7778: 
+ 7779: @media (max-width: 900px) {
+ 7780:   .workspace.game-review-active {
+ 7781:     grid-template-columns: minmax(0, 1fr) !important;
+ 7782:     overflow: auto;
+ 7783:   }
+ 7784: 
+ 7785:   .workspace.game-review-active > .game-review-page {
+ 7786:     height: auto;
+ 7787:     min-height: 100%;
+
+========== library-collapsed | LINE 101 ==========
+   93: 
+   94:   .board-frame {
+   95:     width: min(100%, 42vh, 340px);
+   96:   }
+   97: }
+   98: 
+   99: @media (max-width: 820px) {
+  100:   .workspace,
+  101:   .workspace.library-collapsed {
+  102:     grid-template-columns: minmax(0, 1fr);
+  103:   }
+  104: 
+  105:   .library-panel {
+  106:     display: none;
+  107:   }
+  108: 
+  109:   .board-panel {
+  110:     max-height: 48vh;
+  111:   }
+  112: 
+  113:   .board-frame {
+
+========== library-collapsed | LINE 447 ==========
+  439:   flex: 1 1 auto;
+  440:   min-height: 0;
+  441:   display: grid;
+  442:   grid-template-columns: minmax(190px, 220px) minmax(320px, 380px) minmax(0, 1fr);
+  443:   background: var(--bg-app);
+  444:   overflow: hidden;
+  445: }
+  446: 
+  447: .workspace.library-collapsed {
+  448:   grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  449: }
+  450: 
+  451: /* ==========================================================
+  452:    5. LEFT SIDEBAR: LIBRARY & NAVIGATION
+  453:    ========================================================== */
+  454: 
+  455: .library-panel {
+  456:   background: var(--panel-primary);
+  457:   border-right: 1px solid var(--border-subtle);
+  458:   min-width: 0;
+  459:   display: flex;
+
+========== library-collapsed | LINE 2372 ==========
+ 2364: /* ==========================================================
+ 2365:    13. RESPONSIVE BREAKPOINTS (DESKTOP TO LAPTOP & MOBILE)
+ 2366:    ========================================================== */
+ 2367: 
+ 2368: @media (max-width: 1280px) {
+ 2369:   .workspace {
+ 2370:     grid-template-columns: 210px minmax(340px, 380px) minmax(0, 1fr);
+ 2371:   }
+ 2372:   .workspace.library-collapsed {
+ 2373:     grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+ 2374:   }
+ 2375: }
+ 2376: 
+ 2377: @media (max-width: 1024px) {
+ 2378:   .workspace {
+ 2379:     grid-template-columns: 200px minmax(320px, 360px) minmax(0, 1fr);
+ 2380:   }
+ 2381:   .workspace.library-collapsed {
+ 2382:     grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+ 2383:   }
+ 2384: }
+
+========== library-collapsed | LINE 2381 ==========
+ 2373:     grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+ 2374:   }
+ 2375: }
+ 2376: 
+ 2377: @media (max-width: 1024px) {
+ 2378:   .workspace {
+ 2379:     grid-template-columns: 200px minmax(320px, 360px) minmax(0, 1fr);
+ 2380:   }
+ 2381:   .workspace.library-collapsed {
+ 2382:     grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+ 2383:   }
+ 2384: }
+ 2385: 
+ 2386: @media (max-width: 820px) {
+ 2387:   .workspace:not(.library-collapsed) {
+ 2388:     grid-template-columns: 100%;
+ 2389:   }
+ 2390:   .library-panel {
+ 2391:     display: none;
+ 2392:   }
+ 2393:   .workspace.library-collapsed {
+
+========== library-collapsed | LINE 2387 ==========
+ 2379:     grid-template-columns: 200px minmax(320px, 360px) minmax(0, 1fr);
+ 2380:   }
+ 2381:   .workspace.library-collapsed {
+ 2382:     grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+ 2383:   }
+ 2384: }
+ 2385: 
+ 2386: @media (max-width: 820px) {
+ 2387:   .workspace:not(.library-collapsed) {
+ 2388:     grid-template-columns: 100%;
+ 2389:   }
+ 2390:   .library-panel {
+ 2391:     display: none;
+ 2392:   }
+ 2393:   .workspace.library-collapsed {
+ 2394:     grid-template-columns: 100%;
+ 2395:   }
+ 2396:   .manual-editor-workspace {
+ 2397:     grid-template-columns: 1fr;
+ 2398:   }
+ 2399:   .manual-chessboard {
+
+========== library-collapsed | LINE 2393 ==========
+ 2385: 
+ 2386: @media (max-width: 820px) {
+ 2387:   .workspace:not(.library-collapsed) {
+ 2388:     grid-template-columns: 100%;
+ 2389:   }
+ 2390:   .library-panel {
+ 2391:     display: none;
+ 2392:   }
+ 2393:   .workspace.library-collapsed {
+ 2394:     grid-template-columns: 100%;
+ 2395:   }
+ 2396:   .manual-editor-workspace {
+ 2397:     grid-template-columns: 1fr;
+ 2398:   }
+ 2399:   .manual-chessboard {
+ 2400:     width: min(100%, 300px);
+ 2401:     margin-inline: auto;
+ 2402:   }
+ 2403:   .recognition-layout {
+ 2404:     grid-template-columns: 1fr;
+ 2405:   }
+
+========== library-collapsed | LINE 3218 ==========
+ 3210:   .board-frame { width: min(100%, 46vh, 390px); }
+ 3211: }
+ 3212: 
+ 3213: /* ChessBookReader: wider analysis board and compact PDF reader */
+ 3214: .workspace {
+ 3215:   grid-template-columns: 220px minmax(450px, 36%) minmax(0, 1fr) !important;
+ 3216: }
+ 3217: 
+ 3218: .workspace.library-collapsed {
+ 3219:   grid-template-columns: minmax(450px, 36%) minmax(0, 1fr) !important;
+ 3220: }
+ 3221: 
+ 3222: .board-panel {
+ 3223:   min-width: 0;
+ 3224:   padding-left: 12px;
+ 3225:   padding-right: 12px;
+ 3226:   overflow-y: auto;
+ 3227: }
+ 3228: 
+ 3229: .board-header {
+ 3230:   display: flex;
+
+========== library-collapsed | LINE 3289 ==========
+ 3281: .reader-panel {
+ 3282:   min-width: 0;
+ 3283: }
+ 3284: 
+ 3285: @media (max-width: 1280px) {
+ 3286:   .workspace {
+ 3287:     grid-template-columns: 200px minmax(410px, 38%) minmax(0, 1fr) !important;
+ 3288:   }
+ 3289:   .workspace.library-collapsed {
+ 3290:     grid-template-columns: minmax(410px, 38%) minmax(0, 1fr) !important;
+ 3291:   }
+ 3292:   .board-frame {
+ 3293:     width: min(100%, 54vh, 480px);
+ 3294:   }
+ 3295: }
+ 3296: 
+ 3297: @media (max-width: 900px) {
+ 3298:   .workspace,
+ 3299:   .workspace.library-collapsed {
+ 3300:     grid-template-columns: minmax(0, 1fr) !important;
+ 3301:   }
+
+========== library-collapsed | LINE 3299 ==========
+ 3291:   }
+ 3292:   .board-frame {
+ 3293:     width: min(100%, 54vh, 480px);
+ 3294:   }
+ 3295: }
+ 3296: 
+ 3297: @media (max-width: 900px) {
+ 3298:   .workspace,
+ 3299:   .workspace.library-collapsed {
+ 3300:     grid-template-columns: minmax(0, 1fr) !important;
+ 3301:   }
+ 3302:   .board-frame {
+ 3303:     width: min(100%, 68vw, 480px);
+ 3304:   }
+ 3305:   .board-header-actions {
+ 3306:     flex-wrap: wrap;
+ 3307:   }
+ 3308: }
+ 3309: 
+ 3310: /* Compact, viewport-fitted analysis layout */
+ 3311: .workspace {
+
+========== library-collapsed | LINE 3318 ==========
+ 3310: /* Compact, viewport-fitted analysis layout */
+ 3311: .workspace {
+ 3312:   min-height: 0;
+ 3313:   height: 100%;
+ 3314:   overflow: hidden;
+ 3315:   grid-template-columns: 220px minmax(470px, 39%) minmax(0, 1fr) !important;
+ 3316: }
+ 3317: 
+ 3318: .workspace.library-collapsed {
+ 3319:   grid-template-columns: minmax(470px, 39%) minmax(0, 1fr) !important;
+ 3320: }
+ 3321: 
+ 3322: .board-panel {
+ 3323:   min-height: 0;
+ 3324:   height: 100%;
+ 3325:   overflow-y: auto;
+ 3326:   overflow-x: hidden;
+ 3327:   padding: 5px 10px 8px;
+ 3328:   gap: 4px;
+ 3329: }
+ 3330: 
+
+========== library-collapsed | LINE 3481 ==========
+ 3473:   }
+ 3474: }
+ 3475: 
+ 3476: @media (max-width: 1280px) {
+ 3477:   .workspace {
+ 3478:     grid-template-columns: 205px minmax(430px, 40%) minmax(0, 1fr) !important;
+ 3479:   }
+ 3480: 
+ 3481:   .workspace.library-collapsed {
+ 3482:     grid-template-columns: minmax(430px, 40%) minmax(0, 1fr) !important;
+ 3483:   }
+ 3484: }
+ 3485: 
+ 3486: @media (max-width: 900px) {
+ 3487:   .workspace,
+ 3488:   .workspace.library-collapsed {
+ 3489:     grid-template-columns: minmax(0, 1fr) !important;
+ 3490:   }
+ 3491: 
+ 3492:   .board-frame {
+ 3493:     width: min(100%, calc(100vh - 300px), 460px);
+
+========== library-collapsed | LINE 3488 ==========
+ 3480: 
+ 3481:   .workspace.library-collapsed {
+ 3482:     grid-template-columns: minmax(430px, 40%) minmax(0, 1fr) !important;
+ 3483:   }
+ 3484: }
+ 3485: 
+ 3486: @media (max-width: 900px) {
+ 3487:   .workspace,
+ 3488:   .workspace.library-collapsed {
+ 3489:     grid-template-columns: minmax(0, 1fr) !important;
+ 3490:   }
+ 3491: 
+ 3492:   .board-frame {
+ 3493:     width: min(100%, calc(100vh - 300px), 460px);
+ 3494:   }
+ 3495: 
+ 3496:   .board-header {
+ 3497:     flex-wrap: wrap;
+ 3498:   }
+ 3499: }
+ 3500: 
+
+========== library-collapsed | LINE 5418 ==========
+ 5410:   grid-template-columns: 220px minmax(0, 1.05fr) minmax(280px, 0.95fr);
+ 5411:   width: 100%;
+ 5412:   min-width: 0;
+ 5413:   min-height: 0;
+ 5414:   overflow: hidden;
+ 5415:   box-sizing: border-box;
+ 5416: }
+ 5417: 
+ 5418: .workspace.library-collapsed {
+ 5419:   grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+ 5420: }
+ 5421: 
+ 5422: .workspace > .library-panel,
+ 5423: .workspace > .board-panel,
+ 5424: .workspace > .reader-panel {
+ 5425:   width: 100%;
+ 5426:   min-width: 0;
+ 5427:   max-width: 100%;
+ 5428:   box-sizing: border-box;
+ 5429: }
+ 5430: 
+
+========== library-collapsed | LINE 5508 ==========
+ 5500:   box-sizing: border-box;
+ 5501: }
+ 5502: 
+ 5503: @media (max-width: 1150px) and (min-width: 901px) {
+ 5504:   .workspace {
+ 5505:     grid-template-columns: 190px minmax(0, 1.1fr) minmax(240px, 0.9fr);
+ 5506:   }
+ 5507: 
+ 5508:   .workspace.library-collapsed {
+ 5509:     grid-template-columns: minmax(0, 1.1fr) minmax(240px, 0.9fr);
+ 5510:   }
+ 5511: 
+ 5512:   .workspace .board-frame {
+ 5513:     width: min(100%, 48vh, 430px);
+ 5514:   }
+ 5515: }
+ 5516: 
+ 5517: @media (max-width: 900px) {
+ 5518:   .workspace,
+ 5519:   .workspace.library-collapsed {
+ 5520:     grid-template-columns: minmax(0, 1fr);
+
+========== library-collapsed | LINE 5519 ==========
+ 5511: 
+ 5512:   .workspace .board-frame {
+ 5513:     width: min(100%, 48vh, 430px);
+ 5514:   }
+ 5515: }
+ 5516: 
+ 5517: @media (max-width: 900px) {
+ 5518:   .workspace,
+ 5519:   .workspace.library-collapsed {
+ 5520:     grid-template-columns: minmax(0, 1fr);
+ 5521:     overflow-y: auto;
+ 5522:     overflow-x: hidden;
+ 5523:   }
+ 5524: 
+ 5525:   .workspace > .library-panel {
+ 5526:     max-height: 42vh;
+ 5527:   }
+ 5528: 
+ 5529:   .workspace > .board-panel {
+ 5530:     max-height: none;
+ 5531:   }
+
+========== library-collapsed | LINE 6715 ==========
+ 6707:   font-size: .8rem;
+ 6708: }
+ 6709: .opening-stat-move small {
+ 6710:   grid-column: 1 / -1;
+ 6711:   color: var(--muted, #687168);
+ 6712: }
+ 6713: 
+ 6714: /* Dedicated Opening Explorer layout: hide the PDF reader and expand the board workspace. */
+ 6715: .workspace.opening-explorer-active:not(.library-collapsed) {
+ 6716:   grid-template-columns: 220px minmax(0, 1fr) !important;
+ 6717: }
+ 6718: .workspace.opening-explorer-active.library-collapsed {
+ 6719:   grid-template-columns: minmax(0, 1fr) !important;
+ 6720: }
+ 6721: .workspace.opening-explorer-active > .reader-panel {
+ 6722:   display: none !important;
+ 6723: }
+ 6724: .workspace.opening-explorer-active > .board-panel {
+ 6725:   width: 100% !important;
+ 6726:   max-width: none !important;
+ 6727:   min-width: 0 !important;
+
+========== library-collapsed | LINE 6718 ==========
+ 6710:   grid-column: 1 / -1;
+ 6711:   color: var(--muted, #687168);
+ 6712: }
+ 6713: 
+ 6714: /* Dedicated Opening Explorer layout: hide the PDF reader and expand the board workspace. */
+ 6715: .workspace.opening-explorer-active:not(.library-collapsed) {
+ 6716:   grid-template-columns: 220px minmax(0, 1fr) !important;
+ 6717: }
+ 6718: .workspace.opening-explorer-active.library-collapsed {
+ 6719:   grid-template-columns: minmax(0, 1fr) !important;
+ 6720: }
+ 6721: .workspace.opening-explorer-active > .reader-panel {
+ 6722:   display: none !important;
+ 6723: }
+ 6724: .workspace.opening-explorer-active > .board-panel {
+ 6725:   width: 100% !important;
+ 6726:   max-width: none !important;
+ 6727:   min-width: 0 !important;
+ 6728: }
+ 6729: @media (max-width: 900px) {
+ 6730:   .workspace.opening-explorer-active:not(.library-collapsed),
+
+========== library-collapsed | LINE 6730 ==========
+ 6722:   display: none !important;
+ 6723: }
+ 6724: .workspace.opening-explorer-active > .board-panel {
+ 6725:   width: 100% !important;
+ 6726:   max-width: none !important;
+ 6727:   min-width: 0 !important;
+ 6728: }
+ 6729: @media (max-width: 900px) {
+ 6730:   .workspace.opening-explorer-active:not(.library-collapsed),
+ 6731:   .workspace.opening-explorer-active.library-collapsed {
+ 6732:     grid-template-columns: minmax(0, 1fr) !important;
+ 6733:   }
+ 6734: }
+ 6735: 
+ 6736: /* Opening Explorer: board left, explorer in the former PDF panel on the right. */
+ 6737: .workspace.opening-explorer-active:not(.library-collapsed) {
+ 6738:   grid-template-columns: 220px minmax(320px, 0.95fr) minmax(360px, 1.05fr) !important;
+ 6739: }
+ 6740: .workspace.opening-explorer-active.library-collapsed {
+ 6741:   grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr) !important;
+ 6742: }
+
+========== library-collapsed | LINE 6731 ==========
+ 6723: }
+ 6724: .workspace.opening-explorer-active > .board-panel {
+ 6725:   width: 100% !important;
+ 6726:   max-width: none !important;
+ 6727:   min-width: 0 !important;
+ 6728: }
+ 6729: @media (max-width: 900px) {
+ 6730:   .workspace.opening-explorer-active:not(.library-collapsed),
+ 6731:   .workspace.opening-explorer-active.library-collapsed {
+ 6732:     grid-template-columns: minmax(0, 1fr) !important;
+ 6733:   }
+ 6734: }
+ 6735: 
+ 6736: /* Opening Explorer: board left, explorer in the former PDF panel on the right. */
+ 6737: .workspace.opening-explorer-active:not(.library-collapsed) {
+ 6738:   grid-template-columns: 220px minmax(320px, 0.95fr) minmax(360px, 1.05fr) !important;
+ 6739: }
+ 6740: .workspace.opening-explorer-active.library-collapsed {
+ 6741:   grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr) !important;
+ 6742: }
+ 6743: .workspace.opening-explorer-active > .reader-panel {
+
+========== library-collapsed | LINE 6737 ==========
+ 6729: @media (max-width: 900px) {
+ 6730:   .workspace.opening-explorer-active:not(.library-collapsed),
+ 6731:   .workspace.opening-explorer-active.library-collapsed {
+ 6732:     grid-template-columns: minmax(0, 1fr) !important;
+ 6733:   }
+ 6734: }
+ 6735: 
+ 6736: /* Opening Explorer: board left, explorer in the former PDF panel on the right. */
+ 6737: .workspace.opening-explorer-active:not(.library-collapsed) {
+ 6738:   grid-template-columns: 220px minmax(320px, 0.95fr) minmax(360px, 1.05fr) !important;
+ 6739: }
+ 6740: .workspace.opening-explorer-active.library-collapsed {
+ 6741:   grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr) !important;
+ 6742: }
+ 6743: .workspace.opening-explorer-active > .reader-panel {
+ 6744:   display: flex !important;
+ 6745:   flex-direction: column;
+ 6746:   min-width: 0;
+ 6747:   overflow: auto !important;
+ 6748:   background: var(--panel, #252421);
+ 6749: }
+
+========== library-collapsed | LINE 6740 ==========
+ 6732:     grid-template-columns: minmax(0, 1fr) !important;
+ 6733:   }
+ 6734: }
+ 6735: 
+ 6736: /* Opening Explorer: board left, explorer in the former PDF panel on the right. */
+ 6737: .workspace.opening-explorer-active:not(.library-collapsed) {
+ 6738:   grid-template-columns: 220px minmax(320px, 0.95fr) minmax(360px, 1.05fr) !important;
+ 6739: }
+ 6740: .workspace.opening-explorer-active.library-collapsed {
+ 6741:   grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr) !important;
+ 6742: }
+ 6743: .workspace.opening-explorer-active > .reader-panel {
+ 6744:   display: flex !important;
+ 6745:   flex-direction: column;
+ 6746:   min-width: 0;
+ 6747:   overflow: auto !important;
+ 6748:   background: var(--panel, #252421);
+ 6749: }
+ 6750: .workspace.opening-explorer-active > .board-panel {
+ 6751:   min-width: 0;
+ 6752:   max-width: none;
+
+========== library-collapsed | LINE 6794 ==========
+ 6786: }
+ 6787: .opening-explorer-right-workspace .opening-explorer-notation button,
+ 6788: .opening-explorer-right-workspace .opening-explorer-moves button {
+ 6789:   color: #eeeae2;
+ 6790:   background: #302f2b;
+ 6791:   border-color: #55534b;
+ 6792: }
+ 6793: @media (max-width: 900px) {
+ 6794:   .workspace.opening-explorer-active:not(.library-collapsed),
+ 6795:   .workspace.opening-explorer-active.library-collapsed {
+ 6796:     grid-template-columns: minmax(0, 1fr) !important;
+ 6797:   }
+ 6798: }
+ 6799: 
+ 6800: /* OPENING EXPLORER GLASS HEADER */
+ 6801: .workspace.opening-explorer-active > .reader-panel > :not(.opening-explorer-right-workspace) {
+ 6802:   display: none !important;
+ 6803: }
+ 6804: 
+ 6805: .workspace.opening-explorer-active > .reader-panel {
+ 6806:   overflow-y: auto !important;
+
+========== library-collapsed | LINE 6795 ==========
+ 6787: .opening-explorer-right-workspace .opening-explorer-notation button,
+ 6788: .opening-explorer-right-workspace .opening-explorer-moves button {
+ 6789:   color: #eeeae2;
+ 6790:   background: #302f2b;
+ 6791:   border-color: #55534b;
+ 6792: }
+ 6793: @media (max-width: 900px) {
+ 6794:   .workspace.opening-explorer-active:not(.library-collapsed),
+ 6795:   .workspace.opening-explorer-active.library-collapsed {
+ 6796:     grid-template-columns: minmax(0, 1fr) !important;
+ 6797:   }
+ 6798: }
+ 6799: 
+ 6800: /* OPENING EXPLORER GLASS HEADER */
+ 6801: .workspace.opening-explorer-active > .reader-panel > :not(.opening-explorer-right-workspace) {
+ 6802:   display: none !important;
+ 6803: }
+ 6804: 
+ 6805: .workspace.opening-explorer-active > .reader-panel {
+ 6806:   overflow-y: auto !important;
+ 6807:   background:
+
+========== library-collapsed | LINE 6939 ==========
+ 6931: .workspace:not(.opening-explorer-active) > .reader-panel > .page-workspace,
+ 6932: .workspace:not(.opening-explorer-active) > .reader-panel > .engine-panel {
+ 6933:   visibility: visible !important;
+ 6934:   opacity: 1 !important;
+ 6935: }
+ 6936: 
+ 6937: /* ANALYSIS BOARD NO-BOOK LAYOUT */
+ 6938: /* Keep the library available, but give the Analysis Board the remaining workspace. */
+ 6939: .workspace.analysis-board-active:not(.library-collapsed) {
+ 6940:   grid-template-columns: 220px minmax(0, 1fr) !important;
+ 6941: }
+ 6942: .workspace.analysis-board-active.library-collapsed {
+ 6943:   grid-template-columns: minmax(0, 1fr) !important;
+ 6944: }
+ 6945: .workspace.analysis-board-active > .reader-panel {
+ 6946:   display: none !important;
+ 6947: }
+ 6948: .workspace.analysis-board-active > .board-panel {
+ 6949:   display: flex;
+ 6950:   min-width: 0;
+ 6951:   width: 100%;
+
+========== library-collapsed | LINE 6942 ==========
+ 6934:   opacity: 1 !important;
+ 6935: }
+ 6936: 
+ 6937: /* ANALYSIS BOARD NO-BOOK LAYOUT */
+ 6938: /* Keep the library available, but give the Analysis Board the remaining workspace. */
+ 6939: .workspace.analysis-board-active:not(.library-collapsed) {
+ 6940:   grid-template-columns: 220px minmax(0, 1fr) !important;
+ 6941: }
+ 6942: .workspace.analysis-board-active.library-collapsed {
+ 6943:   grid-template-columns: minmax(0, 1fr) !important;
+ 6944: }
+ 6945: .workspace.analysis-board-active > .reader-panel {
+ 6946:   display: none !important;
+ 6947: }
+ 6948: .workspace.analysis-board-active > .board-panel {
+ 6949:   display: flex;
+ 6950:   min-width: 0;
+ 6951:   width: 100%;
+ 6952:   max-width: none;
+ 6953: }
+ 6954: @media (max-width: 900px) {
+
+========== library-collapsed | LINE 6955 ==========
+ 6947: }
+ 6948: .workspace.analysis-board-active > .board-panel {
+ 6949:   display: flex;
+ 6950:   min-width: 0;
+ 6951:   width: 100%;
+ 6952:   max-width: none;
+ 6953: }
+ 6954: @media (max-width: 900px) {
+ 6955:   .workspace.analysis-board-active:not(.library-collapsed),
+ 6956:   .workspace.analysis-board-active.library-collapsed {
+ 6957:     grid-template-columns: minmax(0, 1fr) !important;
+ 6958:   }
+ 6959: }
+ 6960: 
+ 6961: /* Keep chess square base colors stable on hover and focus. */
+ 6962: button.square.light-square:hover,
+ 6963: button.square.light-square:focus,
+ 6964: button.square.light-square:focus-visible {
+ 6965:   background: var(--board-light);
+ 6966: }
+ 6967: 
+
+========== library-collapsed | LINE 6956 ==========
+ 6948: .workspace.analysis-board-active > .board-panel {
+ 6949:   display: flex;
+ 6950:   min-width: 0;
+ 6951:   width: 100%;
+ 6952:   max-width: none;
+ 6953: }
+ 6954: @media (max-width: 900px) {
+ 6955:   .workspace.analysis-board-active:not(.library-collapsed),
+ 6956:   .workspace.analysis-board-active.library-collapsed {
+ 6957:     grid-template-columns: minmax(0, 1fr) !important;
+ 6958:   }
+ 6959: }
+ 6960: 
+ 6961: /* Keep chess square base colors stable on hover and focus. */
+ 6962: button.square.light-square:hover,
+ 6963: button.square.light-square:focus,
+ 6964: button.square.light-square:focus-visible {
+ 6965:   background: var(--board-light);
+ 6966: }
+ 6967: 
+ 6968: button.square.dark-square:hover,
+
+========== library-collapsed | LINE 6996 ==========
+ 6988:    ========================================================== */
+ 6989: 
+ 6990: .workspace.notation-learner-active {
+ 6991:   grid-template-columns: 220px minmax(0, 1fr) !important;
+ 6992:   min-width: 0;
+ 6993:   min-height: 0;
+ 6994: }
+ 6995: 
+ 6996: .workspace.notation-learner-active.library-collapsed {
+ 6997:   grid-template-columns: minmax(0, 1fr) !important;
+ 6998: }
+ 6999: 
+ 7000: .workspace.notation-learner-active > .notation-workspace {
+ 7001:   grid-column: 2 / -1;
+ 7002:   width: 100%;
+ 7003:   max-width: none;
+ 7004:   min-width: 0;
+ 7005:   min-height: 0;
+ 7006: }
+ 7007: 
+ 7008: @media (max-width: 820px) {
+
+========== library-collapsed | LINE 7033 ==========
+ 7025:   min-height: 0;
+ 7026:   overflow: hidden;
+ 7027: }
+ 7028: 
+ 7029: .workspace.coordinate-training-active {
+ 7030:   grid-template-columns: 220px minmax(0, 1fr) !important;
+ 7031: }
+ 7032: 
+ 7033: .workspace.coordinate-training-active.library-collapsed {
+ 7034:   grid-template-columns: minmax(0, 1fr) !important;
+ 7035: }
+ 7036: 
+ 7037: .workspace.coordinate-training-active > .coordinate-training-workspace {
+ 7038:   grid-column: 2 / -1;
+ 7039:   min-width: 0;
+ 7040:   min-height: 0;
+ 7041:   width: 100%;
+ 7042: }
+ 7043: 
+ 7044: .workspace.notation-learner-active > .notation-workspace {
+ 7045:   min-height: 0;

@@ -1,0 +1,171 @@
+﻿
+============================================================
+FILE: src\components\LichessAnalysis\OpeningExplorerModal.tsx
+============================================================
+
+import React from "react";
+import type { OpeningExplorerData } from "./types";
+
+interface OpeningExplorerModalProps {
+  data: OpeningExplorerData | null;
+  loading: boolean;
+  onPlayUciMove: (uci: string) => void;
+}
+
+export const OpeningExplorerModal: React.FC<OpeningExplorerModalProps> = ({
+  data,
+  loading,
+  onPlayUciMove,
+}) => {
+  if (loading && !data) {
+    return <div className="li-explorer-panel">Loading opening database…</div>;
+  }
+  if (!data) return null;
+
+  const totalGames = data.white + data.draws + data.black;
+
+  return (
+    <div className="li-explorer-panel" aria-label="Opening Explorer">
+      <div className="li-explorer-header">
+        <strong>
+          {data.opening ? `${data.opening.eco} ${data.opening.name}` : "Masters Opening Explorer"}
+        </strong>
+        <span>{totalGames.toLocaleString()} games</span>
+      </div>
+
+      <table className="li-explorer-table">
+        <thead>
+          <tr>
+            <th>Move</th>
+            <th>Games</th>
+            <th>White / Draw / Black</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.moves.map((m) => {
+            const sum = m.white + m.draws + m.black || 1;
+            const wPct = Math.round((m.white / sum) * 100);
+            const dPct = Math.round((m.draws / sum) * 100);
+            const bPct = Math.max(0, 100 - wPct - dPct);
+
+            return (
+              <tr
+                key={m.uci}
+                className="li-explorer-row"
+                onClick={() => onPlayUciMove(m.uci)}
+              >
+                <td className="li-explorer-san">{m.san}</td>
+                <td className="li-explorer-count">{sum.toLocaleString()}</td>
+                <td className="li-explorer-bar-cell">
+                  <div className="li-explorer-tricolor-bar">
+                    <span className="li-bar-w" style={{ width: `${wPct}%` }}>
+                      {wPct >= 18 ? `${wPct}%` : ""}
+                    </span>
+                    <span className="li-bar-d" style={{ width: `${dPct}%` }}>
+                      {dPct >= 18 ? `${dPct}%` : ""}
+                    </span>
+                    <span className="li-bar-b" style={{ width: `${bPct}%` }}>
+                      {bPct >= 18 ? `${bPct}%` : ""}
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+============================================================
+FILE: src\components\LichessAnalysis\types.ts
+============================================================
+
+import type { Square } from "chess.js";
+
+export type ChessVariant =
+  | "Standard"
+  | "Chess960"
+  | "King of the Hill"
+  | "Three-check"
+  | "Antichess"
+  | "Atomic"
+  | "Horde"
+  | "Racing Kings"
+  | "Crazyhouse";
+
+export type ArrowBrush = "engine" | "threat" | "green" | "red" | "blue" | "yellow";
+
+export interface BoardArrowShape {
+  from: Square;
+  to: Square;
+  brush: ArrowBrush;
+}
+
+export interface BoardCircleShape {
+  square: Square;
+  brush: ArrowBrush;
+}
+
+export interface EngineEvaluation {
+  cp: number | null;      // Centipawns from White's perspective (+20 = +0.2)
+  mate: number | null;    // Mate in N from White's perspective
+  depth: number;
+  maxDepth: number;
+  knodes: number;
+  bestMoveUci: string;    // e.g. "e7e5"
+  threatMoveUci?: string;
+  pvUci: string[];        // e.g. ["e7e5", "g1f3", "b8c6", "f1b5", "g8f6", "e1g1"]
+  pvSan: string[];        // e.g. ["e5", "Nf3", "Nc6", "Bb5", "Nf6", "O-O"]
+  isCloud: boolean;
+  multiPvLines?: {
+    multipv: number;
+    cp: number | null;
+    mate: number | null;
+    pvSan: string[];
+    pvUci: string[];
+  }[];
+}
+
+export interface MoveNode {
+  ply: number;
+  moveNumber: number;
+  color: "w" | "b";
+  san: string;
+  uci: string;
+  from: Square;
+  to: Square;
+  fen: string;
+  evalFormatted?: string; // e.g. "+0.2"
+  evalCp?: number | null;
+}
+
+export interface WikiBookEntry {
+  eco: string;
+  title: string;          // e.g. "1. e4 Â· King's Pawn opening"
+  quote?: {
+    text: string;
+    author: string;
+  };
+  paragraphs: string[];
+  plans?: string[];
+}
+
+export interface OpeningExplorerMoveStat {
+  uci: string;
+  san: string;
+  white: number;
+  draws: number;
+  black: number;
+  averageRating: number;
+}
+
+export interface OpeningExplorerData {
+  opening: { eco: string; name: string } | null;
+  white: number;
+  draws: number;
+  black: number;
+  moves: OpeningExplorerMoveStat[];
+  source: "lichess-api" | "builtin-master-book";
+}

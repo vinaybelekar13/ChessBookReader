@@ -1,0 +1,391 @@
+﻿
+========== .\src\App.tsx : GAME REVIEW REFERENCES ==========
+
+
+  src\App.tsx:66:GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+  src\App.tsx:67:
+  src\App.tsx:68:import LichessAnalysisBoard from "./components/LichessAnalysis";
+  src\App.tsx:69:
+  src\App.tsx:70:type LibraryTab = "all" | "recent";
+> src\App.tsx:71:type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | 
+"coordinate-training" | "game-review";
+  src\App.tsx:72:
+  src\App.tsx:73:const FILE_LIMIT = 100 * 1024 * 1024;
+  src\App.tsx:74:const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+  src\App.tsx:75:const CROP_HANDLES: CropHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+  src\App.tsx:76:type CandidateInput = Omit<Candidate, "id" | "source" | "relativeScore"> &
+  src\App.tsx:77:  Partial<Pick<Candidate, "id" | "source" | "relativeScore">> & { relative_score?: number; confidence?: 
+number };
+  src\App.tsx:78:type RecognitionResult = {
+  src\App.tsx:79:  fen: string;
+  src\App.tsx:80:  orientation: "normal" | "flipped" | "unknown";
+  src\App.tsx:81:  board_confidence: number;
+  src\App.tsx:135:  const [ready, setReady] = useState(false);
+  src\App.tsx:136:  const [notice, setNotice] = useState("");
+  src\App.tsx:137:  const [error, setError] = useState("");
+  src\App.tsx:138:  const [libraryOpen, setLibraryOpen] = useState(() => window.innerWidth > 900);
+  src\App.tsx:139:  const [libraryTab, setLibraryTab] = useState<LibraryTab>("recent");
+> src\App.tsx:140:  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("library");
+  src\App.tsx:141:  const [bookSearch, setBookSearch] = useState("");
+  src\App.tsx:142:  const [openingExplorerInput, setOpeningExplorerInput] = useState("");
+  src\App.tsx:143:  const [openingExplorerPly, setOpeningExplorerPly] = useState(0);
+  src\App.tsx:144:  const [openingStats, setOpeningStats] = useState<OpeningExplorerStats | null>(null);
+  src\App.tsx:145:  const [openingStatsStatus, setOpeningStatsStatus] = useState<"idle" | "loading" | "ready" | 
+"error">("idle");
+  src\App.tsx:146:  const [lichessStatus, setLichessStatus] = useState<LichessConnectionStatus | null>(null);
+  src\App.tsx:147:  const [lichessStatusError, setLichessStatusError] = useState("");
+  src\App.tsx:148:  const [lichessActionBusy, setLichessActionBusy] = useState(false);
+  src\App.tsx:149:
+  src\App.tsx:150:  useEffect(() => {
+  src\App.tsx:400:  const openingPosition = useMemo(
+  src\App.tsx:401:    () => openingPositionAt(openingExplorerInput, openingExplorerPly),
+  src\App.tsx:402:    [openingExplorerInput, openingExplorerPly],
+  src\App.tsx:403:  );
+  src\App.tsx:404:  useEffect(() => {
+> src\App.tsx:405:    if (workspaceMode !== "opening-explorer") return;
+  src\App.tsx:406:
+  src\App.tsx:407:    if (!lichessStatus?.connected) {
+  src\App.tsx:408:      setOpeningStats(null);
+  src\App.tsx:409:      setOpeningStatsStatus("idle");
+  src\App.tsx:410:      return;
+  src\App.tsx:411:    }
+  src\App.tsx:412:
+  src\App.tsx:413:    if (openingPosition.error) {
+  src\App.tsx:414:      setOpeningStats(null);
+  src\App.tsx:415:      setOpeningStatsStatus("idle");
+  src\App.tsx:434:
+  src\App.tsx:435:    return () => {
+  src\App.tsx:436:      window.clearTimeout(timer);
+  src\App.tsx:437:      controller.abort();
+  src\App.tsx:438:    };
+> src\App.tsx:439:  }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+  src\App.tsx:440:  const boardSession: StudyBoardState | null =
+> src\App.tsx:441:    workspaceMode === "analysis"
+  src\App.tsx:442:      ? analysisBoard
+> src\App.tsx:443:      : workspaceMode === "opening-prep"
+  src\App.tsx:444:        ? openingPrepBoard
+> src\App.tsx:445:        : workspaceMode === "opening-explorer"
+  src\App.tsx:446:          ? {
+  src\App.tsx:447:              lineBaseFen: START_FEN,
+  src\App.tsx:448:              currentFen: openingPosition.fen,
+  src\App.tsx:449:              moves: openingPosition.sanMoves,
+  src\App.tsx:450:              moveIndex: openingPosition.sanMoves.length,
+  src\App.tsx:451:              flipped: false,
+  src\App.tsx:452:              coordinates: true,
+  src\App.tsx:453:            }
+  src\App.tsx:454:          : studyMode
+  src\App.tsx:455:            ? studyBoard
+  src\App.tsx:538:      return typeof change === "function" ? change(current) : { ...current, ...change };
+  src\App.tsx:539:    });
+  src\App.tsx:540:  }
+  src\App.tsx:541:
+  src\App.tsx:542:  function patchBoardSession(change: Partial<StudyBoardState>) {
+> src\App.tsx:543:    if (workspaceMode === "opening-explorer") {
+  src\App.tsx:544:      return;
+  src\App.tsx:545:    }
+  src\App.tsx:546:
+> src\App.tsx:547:    if (workspaceMode === "analysis") {
+  src\App.tsx:548:      setAnalysisBoard((current) => ({ ...current, ...change }));
+> src\App.tsx:549:    } else if (workspaceMode === "opening-prep") {
+  src\App.tsx:550:      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+  src\App.tsx:551:    } else if (studyMode) {
+  src\App.tsx:552:      setStudyBoard((current) => current ? { ...current, ...change } : current);
+  src\App.tsx:553:    } else {
+  src\App.tsx:554:      patchSession(change);
+  src\App.tsx:555:    }
+  src\App.tsx:556:  }
+  src\App.tsx:557:  async function toggleStudyMode() {
+  src\App.tsx:558:    if (!studyMode) {
+  src\App.tsx:559:      if (!session) {
+  src\App.tsx:904:        setPromotionRequest({ from, to });
+  src\App.tsx:905:        return;
+  src\App.tsx:906:      }
+  src\App.tsx:907:      const result = currentGame.move({ from, to });
+  src\App.tsx:908:      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+> src\App.tsx:909:      if (workspaceMode === "opening-explorer") {
+  src\App.tsx:910:        const line = nextMoves
+  src\App.tsx:911:          .map((move, index) => index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ${move}` : move)
+  src\App.tsx:912:          .join(" ");
+  src\App.tsx:913:        setOpeningExplorerInput(line);
+  src\App.tsx:914:        setOpeningExplorerPly(nextMoves.length);
+  src\App.tsx:915:      } else {
+  src\App.tsx:916:        patchBoardSession({
+  src\App.tsx:917:          currentFen: currentGame.fen(),
+  src\App.tsx:918:          moves: nextMoves,
+  src\App.tsx:919:          moveIndex: nextMoves.length,
+  src\App.tsx:1042:        currentFen: imported.finalFen,
+  src\App.tsx:1043:        moves: imported.moves,
+  src\App.tsx:1044:        moveIndex: imported.moves.length,
+  src\App.tsx:1045:      }));
+  src\App.tsx:1046:
+> src\App.tsx:1047:      setWorkspaceMode("analysis");
+  src\App.tsx:1048:      setStudyMode(false);
+  src\App.tsx:1049:      setLastMove(last ? { from: last.from, to: last.to } : null);
+  src\App.tsx:1050:      setSelectedSquare(null);
+  src\App.tsx:1051:
+  src\App.tsx:1052:      const white = imported.headers.White || "White";
+  src\App.tsx:1053:      const black = imported.headers.Black || "Black";
+  src\App.tsx:1054:      setNotice(`PGN loaded: ${white} vs ${black} Ãƒâ€šÃ‚Â· ${imported.moves.length} plies.`);
+  src\App.tsx:1055:      setError("");
+  src\App.tsx:1056:    } catch (cause) {
+  src\App.tsx:1057:      setError(`PGN import failed: ${messageOf(cause)}`);
+  src\App.tsx:1381:    patchSession((current) => ({ ...current, positions: [...current.positions, position] }));
+  src\App.tsx:1382:    setNotice("Position saved to this book.");
+  src\App.tsx:1383:  }
+  src\App.tsx:1384:
+  src\App.tsx:1385:  function resetBoard() {
+> src\App.tsx:1386:    if (workspaceMode === "opening-prep") {
+  src\App.tsx:1387:      const original = new Chess(openingPrepBoard.lineBaseFen);
+  src\App.tsx:1388:      patchBoardSession({
+  src\App.tsx:1389:        lineBaseFen: original.fen(),
+  src\App.tsx:1390:        currentFen: original.fen(),
+  src\App.tsx:1391:        moves: [],
+  src\App.tsx:1392:        moveIndex: 0,
+  src\App.tsx:1393:      });
+  src\App.tsx:1394:    } else if (studyMode) {
+  src\App.tsx:1395:      if (!studyBoard) return;
+  src\App.tsx:1396:      const original = new Chess(studyBoard.lineBaseFen);
+  src\App.tsx:1447:        <div className="top-spacer" />
+  src\App.tsx:1448:        <span className="storage-label"><i /> LOCAL LIBRARY</span>
+  src\App.tsx:1449:        <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) 
+=> !value)}>&#9881;</button>
+  src\App.tsx:1450:      </header>
+  src\App.tsx:1451:
+> src\App.tsx:1452:      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === 
+"opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} 
+${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? 
+"game-review-active" : ""}`}>
+  src\App.tsx:1453:        {libraryOpen && (
+  src\App.tsx:1454:          <aside className="library-panel" id="library-navigation">
+  src\App.tsx:1455:            <div className="library-heading"><span>LIBRARY</span><button className="text-button" 
+onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+  src\App.tsx:1456:            <input
+  src\App.tsx:1457:              ref={fileInput}
+  src\App.tsx:1458:              className="hidden-input"
+  src\App.tsx:1459:              type="file"
+  src\App.tsx:1460:              accept="application/pdf,.pdf"
+  src\App.tsx:1461:              onChange={(event) => void addBook(event.target.files?.[0])}
+  src\App.tsx:1462:            />
+  src\App.tsx:1463:            <label className="search-field"><Search size={16} aria-hidden={true} /><input 
+value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+  src\App.tsx:1464:            <nav className="library-nav" aria-label="Library sections">
+> src\App.tsx:1465:                            <LibraryNavItem active={workspaceMode === "library" && libraryTab === 
+"all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+> src\App.tsx:1466:              <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} 
+label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+> src\App.tsx:1467:              <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} 
+label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} /> 
+  src\App.tsx:1468:              <LibraryNavItem
+> src\App.tsx:1469:                active={workspaceMode === "game-review"}
+  src\App.tsx:1470:                icon={Crown}
+> src\App.tsx:1471:                label="Game Review"
+  src\App.tsx:1472:                onClick={() => {
+> src\App.tsx:1473:                  setWorkspaceMode("game-review");
+  src\App.tsx:1474:                  setStudyMode(false);
+  src\App.tsx:1475:                  setLibraryTab("all");
+  src\App.tsx:1476:                }}
+  src\App.tsx:1477:              />
+  src\App.tsx:1478:
+  src\App.tsx:1479:
+  src\App.tsx:1480:
+  src\App.tsx:1481:</nav>
+  src\App.tsx:1482:            <div className="library-list-title"><span>ALL 
+BOOKS</span><span>{visibleBooks.length}</span></div>
+  src\App.tsx:1483:            <div className="book-list">
+  src\App.tsx:1518:            </section>
+  src\App.tsx:1519:            <div className="library-footer"><span className="local-dot" /> Stored on this device <span 
+className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+  src\App.tsx:1520:          </aside>
+  src\App.tsx:1521:        )}
+  src\App.tsx:1522:
+> src\App.tsx:1523:        {workspaceMode === "game-review" ? (
+> src\App.tsx:1524:          <section className="external-game-review-panel" aria-label="Standalone Game Review">
+  src\App.tsx:1525:            <iframe
+  src\App.tsx:1526:              src="http://127.0.0.1:4174"
+> src\App.tsx:1527:              title="Chess Game Review"
+> src\App.tsx:1528:              className="external-game-review-frame"
+  src\App.tsx:1529:              allow="clipboard-read; clipboard-write"
+  src\App.tsx:1530:            />
+  src\App.tsx:1531:          </section>
+> src\App.tsx:1532:        ) : workspaceMode === "analysis" ? (
+  src\App.tsx:1533:          <LichessAnalysisBoard showSiteHeader={false} 
+stockfishWorkerPath={`${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`} />
+> src\App.tsx:1534:        ) : workspaceMode === "coordinate-training" ? (
+  src\App.tsx:1535:          <CoordinateTraining />
+  src\App.tsx:1536:        ) : <>
+  src\App.tsx:1537:        <section className="board-panel" aria-label="Chessboard analysis">
+  src\App.tsx:1538:          <div className="board-header">
+> src\App.tsx:1539:            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" 
+/>{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : 
+session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page 
+${session.page} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual 
+region" : "Board candidate"}` : "Ready for a position"}</span></div>
+  src\App.tsx:1540:            <div className="board-header-actions">
+  src\App.tsx:1541:              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle 
+full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+  src\App.tsx:1542:              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ 
+flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip 
+board</span></button>
+  src\App.tsx:1543:            </div>
+  src\App.tsx:1544:          </div>
+  src\App.tsx:1545:          <div className="board-area">
+  src\App.tsx:1546:            <div
+  src\App.tsx:1547:              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+  src\App.tsx:1548:              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's 
+perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+  src\App.tsx:1549:              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus 
+=== "error" ? engineMessage : "No valid engine score yet"}
+  src\App.tsx:1736:
+  src\App.tsx:1737:        </section>
+  src\App.tsx:1738:
+  src\App.tsx:1739:        <section className="reader-panel" aria-label="PDF book reader">
+  src\App.tsx:1740:          <div className="opening-explorer-right-workspace">
+> src\App.tsx:1741:          {workspaceMode === "opening-explorer" && (
+  src\App.tsx:1742:            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+  src\App.tsx:1743:              <h3>Opening Explorer</h3>
+  src\App.tsx:1744:              <div className="lichess-connection-controls">
+  src\App.tsx:1745:                {lichessStatus?.connected ? (
+  src\App.tsx:1746:                  <>
+  src\App.tsx:1747:                    <span role="status">Lichess connected</span>
+  src\App.tsx:1748:                    <button
+  src\App.tsx:1749:                      type="button"
+  src\App.tsx:1750:                      disabled={lichessActionBusy}
+  src\App.tsx:1751:                      onClick={() => {
+  src\App.tsx:1891:                        moveIndex: openingPosition.sanMoves.length,
+  src\App.tsx:1892:                        flipped: false,
+  src\App.tsx:1893:                        coordinates: true,
+  src\App.tsx:1894:                      });
+  src\App.tsx:1895:                      setStudyMode(false);
+> src\App.tsx:1896:                      setWorkspaceMode("analysis");
+  src\App.tsx:1897:                      setNotice("Opening position copied to the independent Analysis Board.");
+  src\App.tsx:1898:                    }}
+  src\App.tsx:1899:                  >Open position in Analysis Board</button>
+  src\App.tsx:1900:                  <p className="muted">Position FEN: {openingPosition.fen}</p>
+  src\App.tsx:1901:                </>
+  src\App.tsx:1902:              )}
+  src\App.tsx:1903:            </section>
+  src\App.tsx:1904:          )}
+  src\App.tsx:1905:          </div>
+  src\App.tsx:1906:
+
+========== .\src\styles.css : GAME REVIEW REFERENCES ==========
+
+  src\styles.css:1:@import 
+url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap");
+> src\styles.css:2:@import "./game-review-reference-tokens.css";
+  src\styles.css:3:/* Desktop viewport sizing */
+  src\styles.css:4:html, body, #root {
+  src\styles.css:5:  width: 100%;
+  src\styles.css:6:  min-width: 0;
+  src\styles.css:7:  height: 100%;
+  src\styles.css:8:  min-height: 0;
+  src\styles.css:9:  margin: 0;
+  src\styles.css:10:}
+  src\styles.css:11:
+  src\styles.css:12:#root {
+  src\styles.css:7056:    grid-column: 1 / -1;
+  src\styles.css:7057:  }
+  src\styles.css:7058:}
+  src\styles.css:7059:
+  src\styles.css:7060:/* ==========================================================
+> src\styles.css:7061:   STANDALONE GAME REVIEW WORKSPACE
+  src\styles.css:7062:   ========================================================== */
+  src\styles.css:7063:
+> src\styles.css:7064:.workspace.game-review-active {
+  src\styles.css:7065:  grid-template-columns: 240px minmax(0, 1fr);
+  src\styles.css:7066:  overflow: hidden;
+  src\styles.css:7067:}
+  src\styles.css:7068:
+> src\styles.css:7069:.workspace.game-review-active .library-heading,
+> src\styles.css:7070:.workspace.game-review-active .search-field,
+> src\styles.css:7071:.workspace.game-review-active .library-list-title,
+> src\styles.css:7072:.workspace.game-review-active .book-list,
+> src\styles.css:7073:.workspace.game-review-active .sidebar-moves-panel,
+> src\styles.css:7074:.workspace.game-review-active .library-footer {
+  src\styles.css:7075:  display: none;
+  src\styles.css:7076:}
+  src\styles.css:7077:
+> src\styles.css:7078:.external-game-review-panel {
+  src\styles.css:7079:  min-width: 0;
+  src\styles.css:7080:  min-height: 0;
+  src\styles.css:7081:  width: 100%;
+  src\styles.css:7082:  height: 100%;
+  src\styles.css:7083:  overflow: hidden;
+  src\styles.css:7084:  background: #17181c;
+  src\styles.css:7085:}
+  src\styles.css:7086:
+> src\styles.css:7087:.external-game-review-frame {
+  src\styles.css:7088:  display: block;
+  src\styles.css:7089:  width: 100%;
+  src\styles.css:7090:  height: 100%;
+  src\styles.css:7091:  min-height: 0;
+  src\styles.css:7092:  border: 0;
+  src\styles.css:7093:  background: #17181c;
+  src\styles.css:7094:}
+  src\styles.css:7095:
+> src\styles.css:7096:.workspace.game-review-active.library-collapsed {
+  src\styles.css:7097:  grid-template-columns: minmax(0, 1fr);
+  src\styles.css:7098:}
+  src\styles.css:7099:
+  src\styles.css:7100:@media (max-width: 820px) {
+> src\styles.css:7101:  .workspace.game-review-active {
+  src\styles.css:7102:    grid-template-columns: minmax(0, 1fr);
+  src\styles.css:7103:  }
+  src\styles.css:7104:
+> src\styles.css:7105:  .workspace.game-review-active .library-panel {
+  src\styles.css:7106:    display: none;
+  src\styles.css:7107:  }
+  src\styles.css:7108:}
+  src\styles.css:7109:
+> src\styles.css:7110:/* GAME REVIEW — FULL WORKSPACE OVERRIDE */
+  src\styles.css:7111:
+> src\styles.css:7112:.workspace.game-review-active {
+  src\styles.css:7113:  display: grid !important;
+  src\styles.css:7114:  grid-template-columns: 240px minmax(0, 1fr) !important;
+  src\styles.css:7115:  overflow: hidden !important;
+  src\styles.css:7116:}
+  src\styles.css:7117:
+> src\styles.css:7118:.workspace.game-review-active .library-panel {
+  src\styles.css:7119:  min-width: 0;
+  src\styles.css:7120:  overflow: hidden;
+  src\styles.css:7121:}
+  src\styles.css:7122:
+> src\styles.css:7123:.workspace.game-review-active .library-heading,
+> src\styles.css:7124:.workspace.game-review-active .search-field,
+> src\styles.css:7125:.workspace.game-review-active .library-list-title,
+> src\styles.css:7126:.workspace.game-review-active .book-list,
+> src\styles.css:7127:.workspace.game-review-active .sidebar-moves-panel,
+> src\styles.css:7128:.workspace.game-review-active .library-footer {
+  src\styles.css:7129:  display: none !important;
+  src\styles.css:7130:}
+  src\styles.css:7131:
+> src\styles.css:7132:.workspace.game-review-active .external-game-review-panel {
+  src\styles.css:7133:  grid-column: 2 / -1 !important;
+  src\styles.css:7134:  width: 100% !important;
+  src\styles.css:7135:  height: 100% !important;
+  src\styles.css:7136:  min-width: 0 !important;
+  src\styles.css:7137:  min-height: 0 !important;
+  src\styles.css:7138:  overflow: hidden !important;
+  src\styles.css:7139:  background: #17181c !important;
+  src\styles.css:7140:}
+  src\styles.css:7141:
+> src\styles.css:7142:.workspace.game-review-active .external-game-review-frame {
+  src\styles.css:7143:  display: block;
+  src\styles.css:7144:  width: 100% !important;
+  src\styles.css:7145:  height: 100% !important;
+  src\styles.css:7146:  min-width: 0;
+  src\styles.css:7147:  min-height: 0;
+  src\styles.css:7148:  border: 0;
+  src\styles.css:7149:}
+  src\styles.css:7150:
+> src\styles.css:7151:.workspace.game-review-active.library-collapsed {
+  src\styles.css:7152:  grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:7153:}
+  src\styles.css:7154:
+> src\styles.css:7155:.workspace.game-review-active.library-collapsed .external-game-review-panel {
+  src\styles.css:7156:  grid-column: 1 / -1 !important;
+  src\styles.css:7157:}
+  src\styles.css:7158:
+
+
+

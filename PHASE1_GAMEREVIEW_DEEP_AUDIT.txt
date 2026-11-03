@@ -1,0 +1,987 @@
+PHASE 1 — GAME REVIEW DEEP AUDIT
+
+========== GameReview.tsx ==========
+import { useMemo, useState } from "react";
+import {
+  ArrowLeft, ArrowRight, BarChart3, ChevronDown, ChevronRight,
+  CircleAlert, Crown, FileUp, Lightbulb, Play, RotateCcw,
+  Sparkles, Target, Trophy
+} from "lucide-react";
+
+type MoveTag = "Best" | "Excellent" | "Good" | "Inaccuracy" | "Mistake" | "Blunder";
+
+type ReviewMove = {
+  number: number;
+  white: string;
+  black: string;
+  whiteTag: MoveTag;
+  blackTag: MoveTag;
+  whiteEval: string;
+  blackEval: string;
+};
+
+const sampleMoves: ReviewMove[] = [
+  { number: 1, white: "e4", black: "e5", whiteTag: "Best", blackTag: "Best", whiteEval: "+0.2", blackEval: "+0.2" },
+  { number: 2, white: "Nf3", black: "Nc6", whiteTag: "Best", blackTag: "Excellent", whiteEval: "+0.3", blackEval: "+0.2" },
+  { number: 3, white: "Bb5", black: "a6", whiteTag: "Excellent", blackTag: "Good", whiteEval: "+0.4", blackEval: "+0.3" },
+  { number: 4, white: "Ba4", black: "Nf6", whiteTag: "Best", blackTag: "Best", whiteEval: "+0.3", blackEval: "+0.3" },
+  { number: 5, white: "O-O", black: "Be7", whiteTag: "Best", blackTag: "Good", whiteEval: "+0.4", blackEval: "+0.4" },
+  { number: 6, white: "Re1", black: "b5", whiteTag: "Good", blackTag: "Good", whiteEval: "+0.5", blackEval: "+0.5" },
+  { number: 7, white: "Bb3", black: "d6", whiteTag: "Excellent", blackTag: "Good", whiteEval: "+0.5", blackEval: "+0.6" },
+  { number: 8, white: "c3", black: "O-O", whiteTag: "Good", blackTag: "Best", whiteEval: "+0.6", blackEval: "+0.6" },
+  { number: 9, white: "h3", black: "Na5", whiteTag: "Inaccuracy", blackTag: "Good", whiteEval: "+0.1", blackEval: "+0.2" },
+  { number: 10, white: "Bc2", black: "c5", whiteTag: "Good", blackTag: "Excellent", whiteEval: "+0.2", blackEval: "+0.2" },
+  { number: 11, white: "d4", black: "Qc7", whiteTag: "Best", blackTag: "Mistake", whiteEval: "+0.8", blackEval: "+1.5" },
+  { number: 12, white: "Nbd2", black: "cxd4", whiteTag: "Excellent", blackTag: "Good", whiteEval: "+1.4", blackEval: "+1.4" },
+  { number: 13, white: "cxd4", black: "Bd7", whiteTag: "Best", blackTag: "Inaccuracy", whiteEval: "+1.8", blackEval: "+2.4" },
+  { number: 14, white: "Nf1", black: "Rac8", whiteTag: "Good", blackTag: "Good", whiteEval: "+2.1", blackEval: "+2.2" },
+  { number: 15, white: "Ne3", black: "Nxd4", whiteTag: "Blunder", blackTag: "Best", whiteEval: "-0.4", blackEval: "-0.4" },
+];
+
+const startBoard = [
+  ["?","?","?","?","?","?","?","?"],
+  ["?","?","?","","?","?","?","?"],
+  ["","","","","","","",""],
+  ["","?","","?","","","",""],
+  ["","","","","?","","","",""],
+  ["","","","","","?","",""],
+  ["?","?","?","?","","?","?","?"],
+  ["?","?","?","?","?","","","?"],
+];
+
+const tagClass: Record<MoveTag, string> = {
+  Best: "best", Excellent: "excellent", Good: "good",
+  Inaccuracy: "inaccuracy", Mistake: "mistake", Blunder: "blunder"
+};
+
+export function GameReview() {
+  const [activePly, setActivePly] = useState(0);
+  const [tab, setTab] = useState<"overview" | "moves">("overview");
+  const [filter, setFilter] = useState<"All" | MoveTag>("All");
+  const [showSampleNotice, setShowSampleNotice] = useState(true);
+
+  const currentMove = Math.floor(activePly / 2);
+  const currentSide = activePly % 2 === 0 ? "White" : "Black";
+
+  const filteredMoves = useMemo(() => sampleMoves.flatMap((move, index) => {
+    const white = { ply: index * 2 + 1, san: move.white, tag: move.whiteTag, side: "White" };
+    const black = { ply: index * 2 + 2, san: move.black, tag: move.blackTag, side: "Black" };
+    return [white, black].filter(item => filter === "All" || item.tag === filter);
+  }), [filter]);
+
+  function navigate(delta: number) {
+    setActivePly(value => Math.max(0, Math.min(sampleMoves.length * 2, value + delta)));
+  }
+
+  return (
+    <main className="game-review-page">
+      <div className="gr-topline">
+        <div>
+          <div className="gr-eyebrow">CHESS ANALYSIS / GAME REVIEW</div>
+          <h1>Game Review</h1>
+          <p>Understand your decisions. Find the moments that changed the game.</p>
+        </div>
+        <div className="gr-top-actions">
+          <button className="gr-button gr-button-secondary" onClick={() => setActivePly(0)}>
+            <RotateCcw size={15} /> Reset
+          </button>
+          <button className="gr-button gr-button-primary" onClick={() => document.getElementById("gr-pgn-input")?.click()}>
+            <FileUp size={16} /> Import PGN
+          </button>
+          <input id="gr-pgn-input" type="file" accept=".pgn,text/plain" hidden />
+        </div>
+      </div>
+
+      {showSampleNotice && (
+        <div className="gr-demo-notice">
+          <Sparkles size={16} />
+          <span><strong>Preview mode</strong> — this is sample review data. Engine analysis will be connected after the UI is approved.</span>
+          <button onClick={() => setShowSampleNotice(false)} aria-label="Dismiss preview notice">×</button>
+        </div>
+      )}
+
+      <section className="gr-game-card">
+        <div className="gr-game-players">
+          <div className="gr-player">
+            <div className="gr-avatar gr-white-avatar">W</div>
+            <div><strong>Magnus Carlsen</strong><span>White · 2847</span></div>
+          </div>
+          <div className="gr-result">1 – 0</div>
+          <div className="gr-player gr-player-black">
+            <div className="gr-avatar gr-black-avatar">B</div>
+            <div><strong>Hikaru Nakamura</strong><span>Black · 2789</span></div>
+          </div>
+        </div>
+        <div className="gr-game-meta">
+          <span>Ruy Lopez</span><i /> <span>Blitz · 5+3</span><i /> <span>Sample game</span><i /> <span>30 moves</span>
+        </div>
+      </section>
+
+      <section className="gr-stat-grid">
+        <article className="gr-stat-card">
+          <div className="gr-stat-label"><Target size={15} /> WHITE ACCURACY</div>
+          <div className="gr-stat-value">91.4<span>%</span></div>
+          <div className="gr-stat-foot"><span className="gr-dot gr-dot-green" /> Strong performance</div>
+        </article>
+        <article className="gr-stat-card">
+          <div className="gr-stat-label"><Target size={15} /> BLACK ACCURACY</div>
+          <div className="gr-stat-value">76.8<span>%</span></div>
+          <div className="gr-stat-foot"><span className="gr-dot gr-dot-amber" /> Inconsistent play</div>
+        </article>
+        <article className="gr-stat-card">
+          <div className="gr-stat-label"><BarChart3 size={15} /> MOVE QUALITY</div>
+          <div className="gr-quality-row"><strong>18</strong><span>Good or better</span></div>
+          <div className="gr-quality-bar"><i style={{ width: "72%" }} /></div>
+          <div className="gr-stat-foot">25 moves reviewed</div>
+        </article>
+        <article className="gr-stat-card">
+          <div className="gr-stat-label"><Trophy size={15} /> GAME RESULT</div>
+          <div className="gr-stat-value gr-result-value">1 – 0</div>
+          <div className="gr-stat-foot">White won · Sample result</div>
+        </article>
+      </section>
+
+      <div className="gr-tabs">
+        <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Overview</button>
+        <button className={tab === "moves" ? "active" : ""} onClick={() => setTab("moves")}>Move by move</button>
+      </div>
+
+      {tab === "overview" ? (
+        <div className="gr-main-grid">
+          <section className="gr-panel gr-board-panel">
+            <div className="gr-panel-heading">
+              <div><h2>Board replay</h2><span>Move {Math.ceil(activePly / 2)} · {currentSide} to play</span></div>
+              <span className="gr-preview-tag">SAMPLE POSITION</span>
+            </div>
+            <div className="gr-board-wrap">
+              <div className="gr-rank-labels">{[8,7,6,5,4,3,2,1].map(n => <span key={n}>{n}</span>)}</div>
+              <div className="gr-board">
+                {startBoard.flatMap((row, r) => row.map((piece, c) => (
+                  <div key={`${r}-${c}`} className={`gr-square ${(r + c) % 2 === 0 ? "light" : "dark"}`}>
+                    {piece && <span className={piece.charCodeAt(0) > 9817 ? "white-piece" : "black-piece"}>{piece}</span>}
+                  </div>
+                )))}
+              </div>
+              <div className="gr-file-labels">{["a","b","c","d","e","f","g","h"].map(f => <span key={f}>{f}</span>)}</div>
+            </div>
+            <div className="gr-board-controls">
+              <button onClick={() => setActivePly(0)} title="Start"><span>?</span></button>
+              <button onClick={() => navigate(-1)} title="Previous move"><ArrowLeft size={17} /></button>
+              <button className="gr-play-button" onClick={() => navigate(1)} title="Next move"><Play size={16} /></button>
+              <button onClick={() => navigate(1)} title="Next move"><ArrowRight size={17} /></button>
+              <button onClick={() => setActivePly(sampleMoves.length * 2)} title="End"><span>?</span></button>
+              <span className="gr-ply-counter">{activePly} / {sampleMoves.length * 2}</span>
+            </div>
+          </section>
+
+          <section className="gr-panel gr-insights-panel">
+            <div className="gr-panel-heading"><div><h2>Game insights</h2><span>Key moments from this game</span></div><Lightbulb size={19} /></div>
+            <div className="gr-insight-item">
+              <div className="gr-insight-icon gr-icon-amber"><CircleAlert size={17} /></div>
+              <div><span className="gr-insight-label">INACCURACY · 9...Na5</span><strong>A questionable knight maneuver</strong><p>White's position becomes less comfortable after this decision.</p></div>
+              <button onClick={() => { setActivePly(18); setTab("moves"); }}><ChevronRight size={17} /></button>
+            </div>
+            <div className="gr-insight-item">
+              <div className="gr-insight-icon gr-icon-red"><CircleAlert size={17} /></div>
+              <div><span className="gr-insight-label">MISTAKE · 11...Qc7</span><strong>Black gives up some control</strong><p>White gets a more promising position after the mistake.</p></div>
+              <button onClick={() => { setActivePly(22); setTab("moves"); }}><ChevronRight size={17} /></button>
+            </div>
+            <div className="gr-insight-item">
+              <div className="gr-insight-icon gr-icon-red"><Crown size={17} /></div>
+              <div><span className="gr-insight-label">BLUNDER · 15.Ne3</span><strong>A critical turning point</strong><p>This move changes the evaluation dramatically in the sample review.</p></div>
+              <button onClick={() => { setActivePly(29); setTab("moves"); }}><ChevronRight size={17} /></button>
+            </div>
+            <div className="gr-insight-footer">Insights shown here are illustrative, not engine-generated.</div>
+          </section>
+
+          <section className="gr-panel gr-move-preview">
+            <div className="gr-panel-heading"><div><h2>Move timeline</h2><span>Browse the game's decisions</span></div><button className="gr-text-link" onClick={() => setTab("moves")}>View all moves <ChevronRight size={14} /></button></div>
+            <div className="gr-timeline">
+              {sampleMoves.slice(0, 8).map((move, index) => (
+                <button key={move.number} className={currentMove === index ? "selected" : ""} onClick={() => setActivePly(index * 2 + 1)}>
+                  <span className="gr-timeline-number">{move.number}.</span>
+                  <span>{move.white}</span><i className={`gr-move-dot ${tagClass[move.whiteTag]}`} />
+                  <span>{move.black}</span><i className={`gr-move-dot ${tagClass[move.blackTag]}`} />
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : (
+        <section className="gr-panel gr-full-moves">
+          <div className="gr-panel-heading"><div><h2>Move-by-move analysis</h2><span>Review every decision and its classification</span></div></div>
+          <div className="gr-filter-row">
+            {(["All","Best","Excellent","Good","Inaccuracy","Mistake","Blunder"] as const).map(value => (
+              <button key={value} className={filter === value ? "active" : ""} onClick={() => setFilter(value)}>{value}</button>
+            ))}
+          </div>
+          <div className="gr-move-table">
+            <div className="gr-move-table-head"><span>PLY</span><span>MOVE</span><span>SIDE</span><span>CLASSIFICATION</span><span>EVALUATION</span></div>
+            {filteredMoves.map(item => (
+              <button key={item.ply} className={`gr-move-table-row ${activePly === item.ply ? "selected" : ""}`} onClick={() => setActivePly(item.ply)}>
+                <span>{item.ply}</span><strong>{item.san}</strong><span>{item.side}</span><span><i className={`gr-move-dot ${tagClass[item.tag]}`} />{item.tag}</span><span>{sampleMoves[Math.floor((item.ply - 1) / 2)][item.side === "White" ? "whiteEval" : "blackEval"]}</span>
+              </button>
+            ))}
+          </div>
+          {filteredMoves.length === 0 && <div className="gr-empty">No moves match this filter.</div>}
+        </section>
+      )}
+
+      <div className="gr-bottom-note"><ChevronDown size={15} /> Sample review interface · Real PGN import and engine-powered analysis will be connected in the next stage.</div>
+    </main>
+  );
+}
+
+========== Game Review CSS references ==========
+
+  src\App.tsx:66:GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+  src\App.tsx:67:
+> src\App.tsx:68:import { GameReview } from "./GameReview";
+  src\App.tsx:69:
+  src\App.tsx:70:type LibraryTab = "all" | "recent";
+> src\App.tsx:71:type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "game-review";
+  src\App.tsx:72:
+  src\App.tsx:73:const FILE_LIMIT = 100 * 1024 * 1024;
+  src\App.tsx:74:const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+  src\App.tsx:1432:      </header>
+  src\App.tsx:1433:
+> src\App.tsx:1434:      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} 
+${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+  src\App.tsx:1435:        {libraryOpen && (
+  src\App.tsx:1436:          <aside className="library-panel">
+  src\App.tsx:1437:            <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+  src\App.tsx:1448:              <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+  src\App.tsx:1449:              <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+> src\App.tsx:1450:              <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+  src\App.tsx:1451:
+  src\App.tsx:1452:
+  src\App.tsx:1453:
+  src\App.tsx:1494:        )}
+  src\App.tsx:1495:
+> src\App.tsx:1496:        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+  src\App.tsx:1497:        <section className="board-panel" aria-label="Chessboard analysis">
+  src\App.tsx:1498:          <div className="board-header">
+  src\App.tsx:1499:            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : 
+session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready 
+for a position"}</span></div>
+  src\GameReview.tsx:52:};
+  src\GameReview.tsx:53:
+> src\GameReview.tsx:54:export function GameReview() {
+  src\GameReview.tsx:55:  const [activePly, setActivePly] = useState(0);
+  src\GameReview.tsx:56:  const [tab, setTab] = useState<"overview" | "moves">("overview");
+  src\GameReview.tsx:57:  const [filter, setFilter] = useState<"All" | MoveTag>("All");
+  src\GameReview.tsx:72:
+  src\GameReview.tsx:73:  return (
+> src\GameReview.tsx:74:    <main className="game-review-page">
+> src\GameReview.tsx:75:      <div className="gr-topline">
+  src\GameReview.tsx:76:        <div>
+> src\GameReview.tsx:77:          <div className="gr-eyebrow">CHESS ANALYSIS / GAME REVIEW</div>
+  src\GameReview.tsx:78:          <h1>Game Review</h1>
+  src\GameReview.tsx:79:          <p>Understand your decisions. Find the moments that changed the game.</p>
+  src\GameReview.tsx:80:        </div>
+> src\GameReview.tsx:81:        <div className="gr-top-actions">
+> src\GameReview.tsx:82:          <button className="gr-button gr-button-secondary" onClick={() => setActivePly(0)}>
+  src\GameReview.tsx:83:            <RotateCcw size={15} /> Reset
+  src\GameReview.tsx:84:          </button>
+> src\GameReview.tsx:85:          <button className="gr-button gr-button-primary" onClick={() => document.getElementById("gr-pgn-input")?.click()}>
+  src\GameReview.tsx:86:            <FileUp size={16} /> Import PGN
+  src\GameReview.tsx:87:          </button>
+> src\GameReview.tsx:88:          <input id="gr-pgn-input" type="file" accept=".pgn,text/plain" hidden />
+  src\GameReview.tsx:89:        </div>
+  src\GameReview.tsx:90:      </div>
+  src\GameReview.tsx:91:
+  src\GameReview.tsx:92:      {showSampleNotice && (
+> src\GameReview.tsx:93:        <div className="gr-demo-notice">
+  src\GameReview.tsx:94:          <Sparkles size={16} />
+  src\GameReview.tsx:95:          <span><strong>Preview mode</strong> — this is sample review data. Engine analysis will be connected after the UI is approved.</span>
+  src\GameReview.tsx:96:          <button onClick={() => setShowSampleNotice(false)} aria-label="Dismiss preview notice">×</button>
+  src\GameReview.tsx:98:      )}
+  src\GameReview.tsx:99:
+> src\GameReview.tsx:100:      <section className="gr-game-card">
+> src\GameReview.tsx:101:        <div className="gr-game-players">
+> src\GameReview.tsx:102:          <div className="gr-player">
+> src\GameReview.tsx:103:            <div className="gr-avatar gr-white-avatar">W</div>
+  src\GameReview.tsx:104:            <div><strong>Magnus Carlsen</strong><span>White · 2847</span></div>
+  src\GameReview.tsx:105:          </div>
+> src\GameReview.tsx:106:          <div className="gr-result">1 – 0</div>
+> src\GameReview.tsx:107:          <div className="gr-player gr-player-black">
+> src\GameReview.tsx:108:            <div className="gr-avatar gr-black-avatar">B</div>
+  src\GameReview.tsx:109:            <div><strong>Hikaru Nakamura</strong><span>Black · 2789</span></div>
+  src\GameReview.tsx:110:          </div>
+  src\GameReview.tsx:111:        </div>
+> src\GameReview.tsx:112:        <div className="gr-game-meta">
+  src\GameReview.tsx:113:          <span>Ruy Lopez</span><i /> <span>Blitz · 5+3</span><i /> <span>Sample game</span><i /> <span>30 moves</span>
+  src\GameReview.tsx:114:        </div>
+  src\GameReview.tsx:115:      </section>
+  src\GameReview.tsx:116:
+> src\GameReview.tsx:117:      <section className="gr-stat-grid">
+> src\GameReview.tsx:118:        <article className="gr-stat-card">
+> src\GameReview.tsx:119:          <div className="gr-stat-label"><Target size={15} /> WHITE ACCURACY</div>
+> src\GameReview.tsx:120:          <div className="gr-stat-value">91.4<span>%</span></div>
+> src\GameReview.tsx:121:          <div className="gr-stat-foot"><span className="gr-dot gr-dot-green" /> Strong performance</div>
+  src\GameReview.tsx:122:        </article>
+> src\GameReview.tsx:123:        <article className="gr-stat-card">
+> src\GameReview.tsx:124:          <div className="gr-stat-label"><Target size={15} /> BLACK ACCURACY</div>
+> src\GameReview.tsx:125:          <div className="gr-stat-value">76.8<span>%</span></div>
+> src\GameReview.tsx:126:          <div className="gr-stat-foot"><span className="gr-dot gr-dot-amber" /> Inconsistent play</div>
+  src\GameReview.tsx:127:        </article>
+> src\GameReview.tsx:128:        <article className="gr-stat-card">
+> src\GameReview.tsx:129:          <div className="gr-stat-label"><BarChart3 size={15} /> MOVE QUALITY</div>
+> src\GameReview.tsx:130:          <div className="gr-quality-row"><strong>18</strong><span>Good or better</span></div>
+> src\GameReview.tsx:131:          <div className="gr-quality-bar"><i style={{ width: "72%" }} /></div>
+> src\GameReview.tsx:132:          <div className="gr-stat-foot">25 moves reviewed</div>
+  src\GameReview.tsx:133:        </article>
+> src\GameReview.tsx:134:        <article className="gr-stat-card">
+> src\GameReview.tsx:135:          <div className="gr-stat-label"><Trophy size={15} /> GAME RESULT</div>
+> src\GameReview.tsx:136:          <div className="gr-stat-value gr-result-value">1 – 0</div>
+> src\GameReview.tsx:137:          <div className="gr-stat-foot">White won · Sample result</div>
+  src\GameReview.tsx:138:        </article>
+  src\GameReview.tsx:139:      </section>
+  src\GameReview.tsx:140:
+> src\GameReview.tsx:141:      <div className="gr-tabs">
+  src\GameReview.tsx:142:        <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Overview</button>
+  src\GameReview.tsx:143:        <button className={tab === "moves" ? "active" : ""} onClick={() => setTab("moves")}>Move by move</button>
+  src\GameReview.tsx:144:      </div>
+  src\GameReview.tsx:145:
+  src\GameReview.tsx:146:      {tab === "overview" ? (
+> src\GameReview.tsx:147:        <div className="gr-main-grid">
+> src\GameReview.tsx:148:          <section className="gr-panel gr-board-panel">
+> src\GameReview.tsx:149:            <div className="gr-panel-heading">
+  src\GameReview.tsx:150:              <div><h2>Board replay</h2><span>Move {Math.ceil(activePly / 2)} · {currentSide} to play</span></div>
+> src\GameReview.tsx:151:              <span className="gr-preview-tag">SAMPLE POSITION</span>
+  src\GameReview.tsx:152:            </div>
+> src\GameReview.tsx:153:            <div className="gr-board-wrap">
+> src\GameReview.tsx:154:              <div className="gr-rank-labels">{[8,7,6,5,4,3,2,1].map(n => <span key={n}>{n}</span>)}</div>
+> src\GameReview.tsx:155:              <div className="gr-board">
+  src\GameReview.tsx:156:                {startBoard.flatMap((row, r) => row.map((piece, c) => (
+> src\GameReview.tsx:157:                  <div key={`${r}-${c}`} className={`gr-square ${(r + c) % 2 === 0 ? "light" : "dark"}`}>
+  src\GameReview.tsx:158:                    {piece && <span className={piece.charCodeAt(0) > 9817 ? "white-piece" : "black-piece"}>{piece}</span>}
+  src\GameReview.tsx:159:                  </div>
+  src\GameReview.tsx:160:                )))}
+  src\GameReview.tsx:161:              </div>
+> src\GameReview.tsx:162:              <div className="gr-file-labels">{["a","b","c","d","e","f","g","h"].map(f => <span key={f}>{f}</span>)}</div>
+  src\GameReview.tsx:163:            </div>
+> src\GameReview.tsx:164:            <div className="gr-board-controls">
+  src\GameReview.tsx:165:              <button onClick={() => setActivePly(0)} title="Start"><span>?</span></button>
+  src\GameReview.tsx:166:              <button onClick={() => navigate(-1)} title="Previous move"><ArrowLeft size={17} /></button>
+> src\GameReview.tsx:167:              <button className="gr-play-button" onClick={() => navigate(1)} title="Next move"><Play size={16} /></button>
+  src\GameReview.tsx:168:              <button onClick={() => navigate(1)} title="Next move"><ArrowRight size={17} /></button>
+  src\GameReview.tsx:169:              <button onClick={() => setActivePly(sampleMoves.length * 2)} title="End"><span>?</span></button>
+> src\GameReview.tsx:170:              <span className="gr-ply-counter">{activePly} / {sampleMoves.length * 2}</span>
+  src\GameReview.tsx:171:            </div>
+  src\GameReview.tsx:172:          </section>
+  src\GameReview.tsx:173:
+> src\GameReview.tsx:174:          <section className="gr-panel gr-insights-panel">
+> src\GameReview.tsx:175:            <div className="gr-panel-heading"><div><h2>Game insights</h2><span>Key moments from this game</span></div><Lightbulb size={19} /></div>
+> src\GameReview.tsx:176:            <div className="gr-insight-item">
+> src\GameReview.tsx:177:              <div className="gr-insight-icon gr-icon-amber"><CircleAlert size={17} /></div>
+> src\GameReview.tsx:178:              <div><span className="gr-insight-label">INACCURACY · 9...Na5</span><strong>A questionable knight maneuver</strong><p>White's position becomes less comfortable after this decision.</p></div>
+  src\GameReview.tsx:179:              <button onClick={() => { setActivePly(18); setTab("moves"); }}><ChevronRight size={17} /></button>
+  src\GameReview.tsx:180:            </div>
+> src\GameReview.tsx:181:            <div className="gr-insight-item">
+> src\GameReview.tsx:182:              <div className="gr-insight-icon gr-icon-red"><CircleAlert size={17} /></div>
+> src\GameReview.tsx:183:              <div><span className="gr-insight-label">MISTAKE · 11...Qc7</span><strong>Black gives up some control</strong><p>White gets a more promising position after the mistake.</p></div>
+  src\GameReview.tsx:184:              <button onClick={() => { setActivePly(22); setTab("moves"); }}><ChevronRight size={17} /></button>
+  src\GameReview.tsx:185:            </div>
+> src\GameReview.tsx:186:            <div className="gr-insight-item">
+> src\GameReview.tsx:187:              <div className="gr-insight-icon gr-icon-red"><Crown size={17} /></div>
+> src\GameReview.tsx:188:              <div><span className="gr-insight-label">BLUNDER · 15.Ne3</span><strong>A critical turning point</strong><p>This move changes the evaluation dramatically in the sample review.</p></div>
+  src\GameReview.tsx:189:              <button onClick={() => { setActivePly(29); setTab("moves"); }}><ChevronRight size={17} /></button>
+  src\GameReview.tsx:190:            </div>
+> src\GameReview.tsx:191:            <div className="gr-insight-footer">Insights shown here are illustrative, not engine-generated.</div>
+  src\GameReview.tsx:192:          </section>
+  src\GameReview.tsx:193:
+> src\GameReview.tsx:194:          <section className="gr-panel gr-move-preview">
+> src\GameReview.tsx:195:            <div className="gr-panel-heading"><div><h2>Move timeline</h2><span>Browse the game's decisions</span></div><button className="gr-text-link" onClick={() => setTab("moves")}>View all moves <ChevronRight 
+size={14} /></button></div>
+> src\GameReview.tsx:196:            <div className="gr-timeline">
+  src\GameReview.tsx:197:              {sampleMoves.slice(0, 8).map((move, index) => (
+  src\GameReview.tsx:198:                <button key={move.number} className={currentMove === index ? "selected" : ""} onClick={() => setActivePly(index * 2 + 1)}>
+> src\GameReview.tsx:199:                  <span className="gr-timeline-number">{move.number}.</span>
+> src\GameReview.tsx:200:                  <span>{move.white}</span><i className={`gr-move-dot ${tagClass[move.whiteTag]}`} />
+> src\GameReview.tsx:201:                  <span>{move.black}</span><i className={`gr-move-dot ${tagClass[move.blackTag]}`} />
+  src\GameReview.tsx:202:                </button>
+  src\GameReview.tsx:203:              ))}
+  src\GameReview.tsx:204:            </div>
+  src\GameReview.tsx:206:        </div>
+  src\GameReview.tsx:207:      ) : (
+> src\GameReview.tsx:208:        <section className="gr-panel gr-full-moves">
+> src\GameReview.tsx:209:          <div className="gr-panel-heading"><div><h2>Move-by-move analysis</h2><span>Review every decision and its classification</span></div></div>
+> src\GameReview.tsx:210:          <div className="gr-filter-row">
+  src\GameReview.tsx:211:            {(["All","Best","Excellent","Good","Inaccuracy","Mistake","Blunder"] as const).map(value => (
+  src\GameReview.tsx:212:              <button key={value} className={filter === value ? "active" : ""} onClick={() => setFilter(value)}>{value}</button>
+  src\GameReview.tsx:213:            ))}
+  src\GameReview.tsx:214:          </div>
+> src\GameReview.tsx:215:          <div className="gr-move-table">
+> src\GameReview.tsx:216:            <div className="gr-move-table-head"><span>PLY</span><span>MOVE</span><span>SIDE</span><span>CLASSIFICATION</span><span>EVALUATION</span></div>
+  src\GameReview.tsx:217:            {filteredMoves.map(item => (
+> src\GameReview.tsx:218:              <button key={item.ply} className={`gr-move-table-row ${activePly === item.ply ? "selected" : ""}`} onClick={() => setActivePly(item.ply)}>
+> src\GameReview.tsx:219:                <span>{item.ply}</span><strong>{item.san}</strong><span>{item.side}</span><span><i className={`gr-move-dot ${tagClass[item.tag]}`} />{item.tag}</span><span>{sampleMoves[Math.floor((item.ply - 1) / 
+2)][item.side === "White" ? "whiteEval" : "blackEval"]}</span>
+  src\GameReview.tsx:220:              </button>
+  src\GameReview.tsx:221:            ))}
+  src\GameReview.tsx:222:          </div>
+> src\GameReview.tsx:223:          {filteredMoves.length === 0 && <div className="gr-empty">No moves match this filter.</div>}
+  src\GameReview.tsx:224:        </section>
+  src\GameReview.tsx:225:      )}
+  src\GameReview.tsx:226:
+> src\GameReview.tsx:227:      <div className="gr-bottom-note"><ChevronDown size={15} /> Sample review interface · Real PGN import and engine-powered analysis will be connected in the next stage.</div>
+  src\GameReview.tsx:228:    </main>
+  src\GameReview.tsx:229:  );
+  src\GameReview.tsx:230:}
+  src\styles.css:7060:   GAME REVIEW WORKSPACE — UI FIRST / SAMPLE DATA ONLY
+  src\styles.css:7061:   ========================================================= */
+> src\styles.css:7062:.game-review-page {
+  src\styles.css:7063:  width: 100%;
+  src\styles.css:7064:  height: 100%;
+  src\styles.css:7065:  min-width: 0;
+  src\styles.css:7069:  background: var(--bg-app);
+  src\styles.css:7070:}
+> src\styles.css:7071:.gr-topline, .gr-top-actions, .gr-game-players, .gr-player,
+> src\styles.css:7072:.gr-game-meta, .gr-stat-label, .gr-stat-foot, .gr-panel-heading,
+> src\styles.css:7073:.gr-board-controls, .gr-tabs, .gr-filter-row, .gr-insight-item {
+  src\styles.css:7074:  display: flex;
+  src\styles.css:7075:  align-items: center;
+  src\styles.css:7076:}
+> src\styles.css:7077:.gr-topline { justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+> src\styles.css:7078:.gr-eyebrow { color: var(--text-muted); font-size: 10px; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 8px; }
+> src\styles.css:7079:.game-review-page h1 { font-size: clamp(25px, 3vw, 34px); line-height: 1.1; margin: 0; letter-spacing: -1px; }
+> src\styles.css:7080:.game-review-page .gr-topline p { margin: 8px 0 0; color: var(--text-muted); font-size: 13px; }
+> src\styles.css:7081:.gr-top-actions { gap: 9px; }
+> src\styles.css:7082:.gr-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; padding: 10px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
+> src\styles.css:7083:.gr-button-secondary { background: var(--panel-elevated); color: var(--text-primary); border: 1px solid var(--border-subtle); }
+> src\styles.css:7084:.gr-button-primary { color: white; background: var(--green-primary); border: 1px solid var(--green-primary); }
+> src\styles.css:7085:.gr-demo-notice { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border: 1px solid rgba(214,165,75,.25); background: rgba(214,165,75,.07); border-radius: 9px; color: var(--text-secondary); 
+font-size: 12px; margin-bottom: 17px; }
+> src\styles.css:7086:.gr-demo-notice svg { color: #d6a54b; flex: 0 0 auto; }
+> src\styles.css:7087:.gr-demo-notice strong { color: var(--text-primary); }
+> src\styles.css:7088:.gr-demo-notice button { margin-left: auto; background: none; border: 0; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+> src\styles.css:7089:.gr-game-card, .gr-stat-card, .gr-panel { background: var(--panel-primary); border: 1px solid var(--border-subtle); border-radius: 12px; }
+> src\styles.css:7090:.gr-game-card { padding: 17px 20px 13px; margin-bottom: 14px; }
+> src\styles.css:7091:.gr-game-players { justify-content: space-between; max-width: 720px; margin: 0 auto; }
+> src\styles.css:7092:.gr-player { gap: 11px; min-width: 0; }
+> src\styles.css:7093:.gr-player > div:last-child { display: grid; gap: 4px; }
+> src\styles.css:7094:.gr-player strong { font-size: 13px; }
+> src\styles.css:7095:.gr-player span { color: var(--text-muted); font-size: 11px; }
+> src\styles.css:7096:.gr-avatar { width: 37px; height: 37px; border-radius: 9px; display: grid; place-items: center; font-weight: 800; }
+> src\styles.css:7097:.gr-white-avatar { background: #e7e5df; color: #343434; }
+> src\styles.css:7098:.gr-black-avatar { background: #353a43; color: #f3f3f3; }
+> src\styles.css:7099:.gr-result { font-size: 17px; font-weight: 800; letter-spacing: 1px; }
+> src\styles.css:7100:.gr-game-meta { justify-content: center; gap: 11px; color: var(--text-muted); font-size: 10px; margin-top: 14px; }
+> src\styles.css:7101:.gr-game-meta i { width: 3px; height: 3px; border-radius: 50%; background: var(--text-muted); }
+> src\styles.css:7102:.gr-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 20px; }
+> src\styles.css:7103:.gr-stat-card { min-width: 0; padding: 15px 17px; }
+> src\styles.css:7104:.gr-stat-label { gap: 7px; color: var(--text-muted); font-size: 9px; font-weight: 800; letter-spacing: 1px; }
+> src\styles.css:7105:.gr-stat-label svg { color: var(--green-primary); }
+> src\styles.css:7106:.gr-stat-value { margin-top: 9px; font-size: 29px; line-height: 1.1; font-weight: 800; letter-spacing: -1px; }
+> src\styles.css:7107:.gr-stat-value span { font-size: 16px; color: var(--text-muted); margin-left: 2px; }
+> src\styles.css:7108:.gr-stat-foot { gap: 7px; color: var(--text-muted); font-size: 10px; margin-top: 9px; }
+> src\styles.css:7109:.gr-dot { width: 6px; height: 6px; border-radius: 50%; }
+> src\styles.css:7110:.gr-dot-green { background: #4cb987; }
+> src\styles.css:7111:.gr-dot-amber { background: #d6a54b; }
+> src\styles.css:7112:.gr-quality-row { display: flex; align-items: baseline; gap: 8px; margin-top: 8px; }
+> src\styles.css:7113:.gr-quality-row strong { font-size: 23px; }
+> src\styles.css:7114:.gr-quality-row span { color: var(--text-muted); font-size: 10px; }
+> src\styles.css:7115:.gr-quality-bar { height: 5px; background: var(--border-subtle); border-radius: 9px; overflow: hidden; margin-top: 7px; }
+> src\styles.css:7116:.gr-quality-bar i { display: block; height: 100%; background: var(--green-primary); border-radius: inherit; }
+> src\styles.css:7117:.gr-result-value { font-size: 26px; }
+> src\styles.css:7118:.gr-tabs { gap: 22px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 16px; }
+> src\styles.css:7119:.gr-tabs button { padding: 0 2px 11px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--text-muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+> src\styles.css:7120:.gr-tabs button.active { color: var(--text-primary); border-color: var(--green-primary); }
+> src\styles.css:7121:.gr-main-grid { display: grid; grid-template-columns: minmax(300px, 1.03fr) minmax(300px, .97fr); gap: 14px; align-items: start; }
+> src\styles.css:7122:.gr-panel { padding: 17px; min-width: 0; }
+> src\styles.css:7123:.gr-panel-heading { justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+> src\styles.css:7124:.gr-panel-heading h2 { font-size: 14px; margin: 0; }
+> src\styles.css:7125:.gr-panel-heading span { display: block; color: var(--text-muted); font-size: 10px; margin-top: 5px; }
+> src\styles.css:7126:.gr-preview-tag { padding: 5px 7px; border-radius: 5px; background: rgba(214,165,75,.1); color: #d6a54b !important; font-size: 8px !important; font-weight: 800; letter-spacing: .7px; }
+> src\styles.css:7127:.gr-board-wrap { width: min(100%, 390px); margin: 0 auto; position: relative; padding-left: 17px; padding-bottom: 17px; }
+> src\styles.css:7128:.gr-board { width: 100%; aspect-ratio: 1; display: grid; grid-template-columns: repeat(8,1fr); overflow: hidden; border-radius: 3px; }
+> src\styles.css:7129:.gr-square { display: grid; place-items: center; aspect-ratio: 1; }
+> src\styles.css:7130:.gr-square.light { background: #e9e4d7; }
+> src\styles.css:7131:.gr-square.dark { background: #77917e; }
+> src\styles.css:7132:.gr-square span { font-family: "Arial Unicode MS", "Segoe UI Symbol", sans-serif; font-size: clamp(22px, 4vw, 39px); line-height: 1; }
+> src\styles.css:7133:.gr-square .white-piece { color: #fff; text-shadow: 0 1px 2px #333, 0 0 2px #333; }
+> src\styles.css:7134:.gr-square .black-piece { color: #20242a; text-shadow: 0 1px 1px #fff7; }
+> src\styles.css:7135:.gr-rank-labels { position: absolute; left: 0; top: 0; height: calc(100% - 17px); display: flex; flex-direction: column; justify-content: space-around; color: var(--text-muted); font-size: 9px; }
+> src\styles.css:7136:.gr-file-labels { position: absolute; bottom: 0; left: 17px; width: calc(100% - 17px); display: flex; justify-content: space-around; color: var(--text-muted); font-size: 9px; }
+> src\styles.css:7137:.gr-board-controls { justify-content: center; gap: 7px; margin-top: 4px; }
+> src\styles.css:7138:.gr-board-controls button { width: 32px; height: 30px; display: grid; place-items: center; border-radius: 6px; border: 1px solid var(--border-subtle); color: var(--text-secondary); background: var(--panel-elevated); 
+cursor: pointer; }
+> src\styles.css:7139:.gr-board-controls button.gr-play-button { color: white; background: var(--green-primary); border-color: var(--green-primary); }
+> src\styles.css:7140:.gr-ply-counter { margin-left: 9px; color: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+> src\styles.css:7141:.gr-insights-panel > .gr-panel-heading > svg { color: #d6a54b; }
+> src\styles.css:7142:.gr-insight-item { gap: 11px; padding: 13px 0; border-top: 1px solid var(--border-subtle); align-items: flex-start; }
+> src\styles.css:7143:.gr-insight-icon { width: 31px; height: 31px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 8px; }
+> src\styles.css:7144:.gr-icon-amber { color: #d6a54b; background: rgba(214,165,75,.12); }
+> src\styles.css:7145:.gr-icon-red { color: #e07878; background: rgba(224,120,120,.12); }
+> src\styles.css:7146:.gr-insight-item > div:nth-child(2) { min-width: 0; flex: 1; }
+> src\styles.css:7147:.gr-insight-label { display: block; font-size: 8px; font-weight: 800; letter-spacing: .8px; color: #d6a54b; margin-bottom: 5px; }
+> src\styles.css:7148:.gr-insight-item strong { font-size: 11px; }
+> src\styles.css:7149:.gr-insight-item p { color: var(--text-muted); font-size: 10px; line-height: 1.5; margin: 4px 0 0; }
+> src\styles.css:7150:.gr-insight-item > button { border: 0; background: none; color: var(--text-muted); cursor: pointer; padding: 3px; }
+> src\styles.css:7151:.gr-insight-footer { color: var(--text-muted); font-size: 9px; border-top: 1px solid var(--border-subtle); padding-top: 11px; }
+> src\styles.css:7152:.gr-move-preview { grid-column: 1 / -1; }
+> src\styles.css:7153:.gr-text-link { display: flex; align-items: center; gap: 3px; background: none; border: 0; color: var(--green-primary); font-size: 10px; cursor: pointer; }
+> src\styles.css:7154:.gr-timeline { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 7px; }
+> src\styles.css:7155:.gr-timeline button { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 9px; border: 1px solid var(--border-subtle); background: var(--panel-elevated); border-radius: 6px; color: 
+var(--text-secondary); font-size: 11px; cursor: pointer; }
+> src\styles.css:7156:.gr-timeline button.selected { border-color: var(--green-primary); background: rgba(24,178,132,.08); }
+> src\styles.css:7157:.gr-timeline-number { color: var(--text-muted); font-size: 9px; }
+> src\styles.css:7158:.gr-move-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+> src\styles.css:7159:.gr-move-dot.best, .gr-move-dot.excellent { background: #4cb987; }
+> src\styles.css:7160:.gr-move-dot.good { background: #8a9c91; }
+> src\styles.css:7161:.gr-move-dot.inaccuracy { background: #d6a54b; }
+> src\styles.css:7162:.gr-move-dot.mistake, .gr-move-dot.blunder { background: #e07878; }
+> src\styles.css:7163:.gr-full-moves { width: 100%; }
+> src\styles.css:7164:.gr-filter-row { gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
+> src\styles.css:7165:.gr-filter-row button { padding: 7px 11px; border: 1px solid var(--border-subtle); border-radius: 6px; background: var(--panel-elevated); color: var(--text-muted); font-size: 10px; cursor: pointer; }
+> src\styles.css:7166:.gr-filter-row button.active { border-color: var(--green-primary); color: var(--text-primary); background: rgba(24,178,132,.08); }
+> src\styles.css:7167:.gr-move-table-head, .gr-move-table-row { display: grid; grid-template-columns: .55fr .7fr .8fr 1.3fr .8fr; align-items: center; gap: 10px; padding: 11px 12px; }
+> src\styles.css:7168:.gr-move-table-head { color: var(--text-muted); font-size: 8px; font-weight: 800; letter-spacing: .8px; border-bottom: 1px solid var(--border-subtle); }
+> src\styles.css:7169:.gr-move-table-row { width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); font-size: 11px; cursor: pointer; }
+> src\styles.css:7170:.gr-move-table-row:hover, .gr-move-table-row.selected { background: rgba(24,178,132,.07); }
+> src\styles.css:7171:.gr-move-table-row strong { color: var(--text-primary); }
+> src\styles.css:7172:.gr-move-table-row > span:nth-child(4) { display: flex; align-items: center; gap: 7px; }
+> src\styles.css:7173:.gr-empty { padding: 30px; text-align: center; color: var(--text-muted); font-size: 12px; }
+> src\styles.css:7174:.gr-bottom-note { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10px; margin-top: 16px; }
+> src\styles.css:7175:.workspace.game-review-active { display: block; overflow: hidden; }
+> src\styles.css:7176:.workspace.game-review-active > .game-review-page { height: 100%; }
+> src\styles.css:7177:.workspace.game-review-active .library-panel { display: none; }
+  src\styles.css:7178:
+  src\styles.css:7179:@media (max-width: 1050px) {
+> src\styles.css:7180:  .gr-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+> src\styles.css:7181:  .gr-main-grid { grid-template-columns: 1fr; }
+> src\styles.css:7182:  .gr-move-preview { grid-column: auto; }
+  src\styles.css:7183:}
+  src\styles.css:7184:@media (max-width: 650px) {
+> src\styles.css:7185:  .game-review-page { padding: 20px 13px; }
+> src\styles.css:7186:  .gr-topline { align-items: flex-start; flex-direction: column; }
+> src\styles.css:7187:  .gr-top-actions { width: 100%; }
+> src\styles.css:7188:  .gr-top-actions .gr-button { flex: 1; }
+> src\styles.css:7189:  .gr-game-card { padding: 13px 10px; }
+> src\styles.css:7190:  .gr-player { gap: 7px; }
+> src\styles.css:7191:  .gr-player strong { font-size: 10px; }
+> src\styles.css:7192:  .gr-avatar { width: 30px; height: 30px; }
+> src\styles.css:7193:  .gr-game-meta { flex-wrap: wrap; gap: 7px; font-size: 9px; }
+> src\styles.css:7194:  .gr-stat-grid { gap: 8px; }
+> src\styles.css:7195:  .gr-stat-card { padding: 12px; }
+> src\styles.css:7196:  .gr-stat-value { font-size: 24px; }
+> src\styles.css:7197:  .gr-timeline { grid-template-columns: repeat(2,minmax(0,1fr)); }
+> src\styles.css:7198:  .gr-move-table-head, .gr-move-table-row { grid-template-columns: .45fr .6fr .7fr 1.2fr .6fr; gap: 5px; padding: 10px 6px; font-size: 9px; }
+  src\styles.css:7199:}
+  src\styles.css:7200:
+  src\styles.css:7201:/* ==========================================================================
+  src\styles.css:7202:   GAME REVIEW WORKSPACE (60/40 CHESS.COM PREMIUM & LICHESS INSPIRED LAYOUT)
+  src\styles.css:7203:   ========================================================================== */
+> src\styles.css:7204:.gr-workspace {
+  src\styles.css:7205:  display: flex;
+  src\styles.css:7206:  flex-direction: column;
+  src\styles.css:7207:  gap: 14px;
+  src\styles.css:7213:  box-sizing: border-box;
+  src\styles.css:7214:}
+> src\styles.css:7215:.gr-demo-banner {
+  src\styles.css:7216:  display: flex;
+  src\styles.css:7217:  align-items: center;
+  src\styles.css:7218:  justify-content: space-between;
+  src\styles.css:7225:  font-size: 0.84rem;
+  src\styles.css:7226:}
+> src\styles.css:7227:.gr-demo-badge {
+  src\styles.css:7228:  display: inline-flex;
+  src\styles.css:7229:  align-items: center;
+  src\styles.css:7230:  gap: 6px;
+  src\styles.css:7237:  font-size: 0.75rem;
+  src\styles.css:7238:}
+> src\styles.css:7239:.gr-demo-text { color: #cbd5e1; flex: 1; }
+> src\styles.css:7240:.gr-game-meta-pills { display: flex; align-items: center; gap: 8px; }
+> src\styles.css:7241:.gr-meta-pill {
+  src\styles.css:7242:  display: inline-flex;
+  src\styles.css:7243:  align-items: center;
+  src\styles.css:7244:  gap: 5px;
+  src\styles.css:7250:  font-size: 0.78rem;
+  src\styles.css:7251:}
+> src\styles.css:7252:.gr-result-pill { color: #81b64c; border-color: rgba(129, 182, 76, 0.4); font-weight: 600; }
+> src\styles.css:7253:.gr-main-grid {
+  src\styles.css:7254:  display: grid;
+  src\styles.css:7255:  grid-template-columns: minmax(480px, 58%) minmax(360px, 42%);
+  src\styles.css:7256:  gap: 20px;
+  src\styles.css:7258:}
+  src\styles.css:7259:@media (max-width: 1180px) {
+> src\styles.css:7260:  .gr-main-grid { grid-template-columns: 1fr; }
+  src\styles.css:7261:}
+> src\styles.css:7262:.gr-left-column {
+  src\styles.css:7263:  display: flex;
+  src\styles.css:7264:  flex-direction: column;
+  src\styles.css:7265:  gap: 10px;
+  src\styles.css:7269:  padding: 14px 18px;
+  src\styles.css:7270:}
+> src\styles.css:7271:.gr-player-card {
+  src\styles.css:7272:  display: flex;
+  src\styles.css:7273:  align-items: center;
+  src\styles.css:7274:  justify-content: space-between;
+  src\styles.css:7278:  border-radius: 8px;
+  src\styles.css:7279:}
+> src\styles.css:7280:.gr-player-identity { display: flex; align-items: center; gap: 10px; }
+> src\styles.css:7281:.gr-avatar {
+  src\styles.css:7282:  width: 36px; height: 36px; border-radius: 8px;
+  src\styles.css:7283:  display: flex; align-items: center; justify-content: center;
+  src\styles.css:7284:  font-weight: 700; font-size: 0.85rem;
+  src\styles.css:7285:}
+> src\styles.css:7286:.gr-avatar-white { background: #e2e8f0; color: #0f172a; }
+> src\styles.css:7287:.gr-avatar-black { background: #334155; color: #f8fafc; }
+> src\styles.css:7288:.gr-player-name-row { display: flex; align-items: center; gap: 8px; }
+> src\styles.css:7289:.gr-player-name { font-weight: 700; font-size: 0.95rem; color: #f8fafc; }
+> src\styles.css:7290:.gr-player-rating { font-size: 0.84rem; color: #94a3b8; }
+> src\styles.css:7291:.gr-accuracy-chip {
+  src\styles.css:7292:  font-size: 0.75rem; padding: 2px 8px; border-radius: 999px;
+  src\styles.css:7293:  background: rgba(148, 163, 184, 0.16); color: #cbd5e1; font-weight: 600;
+  src\styles.css:7294:}
+> src\styles.css:7295:.gr-accuracy-chip-highlight { background: rgba(129, 182, 76, 0.2); color: #a3e635; }
+> src\styles.css:7296:.gr-captured-row { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #94a3b8; }
+> src\styles.css:7297:.gr-clock-box {
+  src\styles.css:7298:  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  src\styles.css:7299:  font-size: 0.95rem; font-weight: 700; padding: 6px 12px;
+  src\styles.css:7300:  border-radius: 6px; background: #0f172a; border: 1px solid #334155; color: #e2e8f0;
+  src\styles.css:7301:}
+> src\styles.css:7302:.gr-board-stage {
+  src\styles.css:7303:  display: flex; align-items: stretch; justify-content: center; gap: 12px; padding: 4px 0;
+  src\styles.css:7304:}
+> src\styles.css:7305:.gr-eval-bar {
+  src\styles.css:7306:  position: relative; width: 28px; border-radius: 6px; overflow: hidden;
+  src\styles.css:7307:  border: 1px solid #334155; display: flex; flex-direction: column;
+  src\styles.css:7308:  background: #1e293b; flex-shrink: 0;
+  src\styles.css:7309:}
+> src\styles.css:7310:.gr-eval-fill-black { background: #262421; transition: height 0.25s ease; }
+> src\styles.css:7311:.gr-eval-fill-white { background: #e2e8f0; transition: height 0.25s ease; }
+> src\styles.css:7312:.gr-eval-score {
+  src\styles.css:7313:  position: absolute; left: 0; right: 0; text-align: center;
+  src\styles.css:7314:  font-size: 0.66rem; font-weight: 800;
+  src\styles.css:7315:}
+> src\styles.css:7316:.gr-eval-score-bottom { bottom: 6px; color: #0f172a; }
+> src\styles.css:7317:.gr-eval-score-top { top: 6px; color: #f8fafc; }
+> src\styles.css:7318:.gr-board-frame {
+  src\styles.css:7319:  width: min(100%, 560px); aspect-ratio: 1 / 1; border-radius: 8px;
+  src\styles.css:7320:  overflow: hidden; border: 2px solid #334155;
+  src\styles.css:7321:  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  src\styles.css:7322:}
+> src\styles.css:7323:.gr-board-grid {
+  src\styles.css:7324:  display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+  src\styles.css:7325:  width: 100%; height: 100%;
+  src\styles.css:7326:}
+> src\styles.css:7327:.gr-square {
+  src\styles.css:7328:  position: relative; display: flex; align-items: center; justify-content: center; user-select: none;
+  src\styles.css:7329:}
+> src\styles.css:7330:.gr-sq-light { background-color: #ebecd0; color: #739552; }
+> src\styles.css:7331:.gr-sq-dark { background-color: #739552; color: #ebecd0; }
+> src\styles.css:7332:.gr-sq-from { box-shadow: inset 0 0 0 999px rgba(255, 255, 51, 0.42); }
+> src\styles.css:7333:.gr-sq-to { box-shadow: inset 0 0 0 999px rgba(255, 255, 51, 0.56); }
+> src\styles.css:7334:.gr-coord-rank { position: absolute; top: 3px; left: 5px; font-size: 0.68rem; font-weight: 700; line-height: 1; }
+> src\styles.css:7335:.gr-coord-file { position: absolute; bottom: 3px; right: 5px; font-size: 0.68rem; font-weight: 700; line-height: 1; }
+> src\styles.css:7336:.gr-piece { font-size: clamp(1.9rem, 3.6vw, 2.85rem); line-height: 1; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35)); }
+> src\styles.css:7337:.gr-piece-white { color: #ffffff; text-shadow: 0 0 2px #000, 0 1px 2px #000; }
+> src\styles.css:7338:.gr-piece-black { color: #111827; }
+> src\styles.css:7339:.gr-board-badge {
+  src\styles.css:7340:  position: absolute; top: -3px; right: -3px; min-width: 20px; height: 20px; padding: 0 4px;
+  src\styles.css:7341:  border-radius: 999px; color: #0f172a; font-size: 0.68rem; font-weight: 900;
+  src\styles.css:7342:  display: flex; align-items: center; justify-content: center;
+  src\styles.css:7343:  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); border: 1.5px solid #ffffff;
+  src\styles.css:7344:}
+> src\styles.css:7345:.gr-controls-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-top: 6px; }
+> src\styles.css:7346:.gr-nav-buttons { display: flex; align-items: center; gap: 6px; }
+> src\styles.css:7347:.gr-ctrl-btn {
+  src\styles.css:7348:  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  src\styles.css:7349:  padding: 8px 12px; border-radius: 8px; background: #1e293b; border: 1px solid #334155;
+  src\styles.css:7350:  color: #f1f5f9; cursor: pointer; font-size: 0.82rem; font-weight: 600;
+  src\styles.css:7351:}
+> src\styles.css:7352:.gr-ctrl-btn:hover:not(:disabled) { background: #334155; }
+> src\styles.css:7353:.gr-ctrl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+> src\styles.css:7354:.gr-progress-status { display: flex; align-items: center; gap: 10px; flex: 1; justify-content: flex-end; }
+> src\styles.css:7355:.gr-ply-label { font-size: 0.85rem; font-weight: 700; color: #e2e8f0; }
+> src\styles.css:7356:.gr-progress-track { width: 110px; height: 6px; background: #0f172a; border-radius: 999px; overflow: hidden; border: 1px solid #334155; }
+> src\styles.css:7357:.gr-progress-fill { height: 100%; background: #26c2a3; transition: width 0.2s ease; }
+> src\styles.css:7358:.gr-fen-pill { font-size: 0.75rem; color: #94a3b8; background: #0f172a; padding: 3px 8px; border-radius: 6px; border: 1px solid #334155; }
+> src\styles.css:7359:.gr-right-column {
+  src\styles.css:7360:  display: flex; flex-direction: column; gap: 12px;
+  src\styles.css:7361:  background: #162032; border: 1px solid #26354d; border-radius: 12px; padding: 14px;
+  src\styles.css:7362:}
+> src\styles.css:7363:.gr-tabs-header {
+  src\styles.css:7364:  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  src\styles.css:7365:  background: #0f172a; padding: 5px; border-radius: 10px; border: 1px solid #26354d;
+  src\styles.css:7366:}
+> src\styles.css:7367:.gr-tab-btn {
+  src\styles.css:7368:  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  src\styles.css:7369:  padding: 8px 10px; border-radius: 7px; border: none; background: transparent;
+  src\styles.css:7370:  color: #94a3b8; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  src\styles.css:7371:}
+> src\styles.css:7372:.gr-tab-btn.active { background: #1e293b; color: #f8fafc; }
+> src\styles.css:7373:.gr-coach-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 12px 14px; }
+> src\styles.css:7374:.gr-coach-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+> src\styles.css:7375:.gr-classification-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; border: 1px solid; font-size: 0.8rem; }
+> src\styles.css:7376:.gr-coach-eval { font-size: 0.82rem; color: #cbd5e1; }
+> src\styles.css:7377:.gr-coach-explanation { margin: 0 0 8px 0; font-size: 0.86rem; line-height: 1.45; color: #e2e8f0; }
+> src\styles.css:7378:.gr-coach-meta-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; color: #94a3b8; }
+> src\styles.css:7379:.gr-motif-tag { padding: 2px 8px; border-radius: 6px; background: rgba(92, 139, 176, 0.2); color: #7dd3fc; font-weight: 600; }
+> src\styles.css:7380:.gr-coach-empty { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: #94a3b8; }
+> src\styles.css:7381:.gr-tab-body { min-height: 290px; }
+> src\styles.css:7382:.gr-tab-pane { display: flex; flex-direction: column; gap: 12px; }
+> src\styles.css:7383:.gr-accuracy-panel {
+  src\styles.css:7384:  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  src\styles.css:7385:  background: #0f172a; border: 1px solid #26354d; border-radius: 10px; padding: 12px; text-align: center;
+  src\styles.css:7386:}
+> src\styles.css:7387:.gr-acc-player { display: block; font-size: 0.76rem; color: #94a3b8; margin-bottom: 4px; }
+> src\styles.css:7388:.gr-acc-score { font-size: 1.45rem; font-weight: 800; }
+> src\styles.css:7389:.gr-acc-white { color: #81b64c; }
+> src\styles.css:7390:.gr-acc-black { color: #f7c631; }
+> src\styles.css:7391:.gr-acc-sub { font-size: 0.72rem; color: #64748b; }
+> src\styles.css:7392:.gr-acc-divider { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: #64748b; padding: 0 10px; }
+> src\styles.css:7393:.gr-classifications-table {
+  src\styles.css:7394:  display: flex; flex-direction: column; gap: 4px;
+  src\styles.css:7395:  background: #0f172a; border: 1px solid #26354d; border-radius: 10px; padding: 10px 14px;
+  src\styles.css:7396:}
+> src\styles.css:7397:.gr-class-row { display: grid; grid-template-columns: 36px 1fr 36px; align-items: center; font-size: 0.82rem; padding: 3px 0; }
+> src\styles.css:7398:.gr-class-count { font-weight: 700; text-align: center; color: #e2e8f0; }
+> src\styles.css:7399:.gr-class-label-group { display: flex; align-items: center; justify-content: center; gap: 8px; }
+> src\styles.css:7400:.gr-class-dot {
+  src\styles.css:7401:  width: 20px; height: 20px; border-radius: 999px;
+  src\styles.css:7402:  display: inline-flex; align-items: center; justify-content: center;
+  src\styles.css:7403:  font-size: 0.68rem; font-weight: 800; color: #0f172a;
+  src\styles.css:7404:}
+> src\styles.css:7405:.gr-section-block { background: #0f172a; border: 1px solid #26354d; border-radius: 10px; padding: 10px 12px; }
+> src\styles.css:7406:.gr-section-title { margin: 0 0 8px 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; }
+> src\styles.css:7407:.gr-key-moments-list { display: flex; flex-direction: column; gap: 6px; max-height: 150px; overflow-y: auto; }
+> src\styles.css:7408:.gr-key-moment-item {
+  src\styles.css:7409:  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  src\styles.css:7410:  padding: 7px 10px; border-radius: 8px; background: #1e293b; border: 1px solid #334155;
+  src\styles.css:7411:  color: #e2e8f0; cursor: pointer; font-size: 0.8rem;
+  src\styles.css:7412:}
+> src\styles.css:7413:.gr-key-moment-item.selected { border-color: #26c2a3; background: rgba(38, 194, 163, 0.12); }
+> src\styles.css:7414:.gr-km-badge { padding: 2px 8px; border-radius: 6px; font-weight: 700; white-space: nowrap; }
+> src\styles.css:7415:.gr-km-desc { color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+> src\styles.css:7416:.gr-engine-header-box {
+  src\styles.css:7417:  display: flex; align-items: center; justify-content: space-between;
+  src\styles.css:7418:  background: #0f172a; border: 1px solid #26354d; border-radius: 10px; padding: 10px 14px;
+  src\styles.css:7419:}
+> src\styles.css:7420:.gr-engine-title { display: block; font-weight: 700; font-size: 0.88rem; }
+> src\styles.css:7421:.gr-engine-sub { font-size: 0.75rem; color: #94a3b8; }
+> src\styles.css:7422:.gr-engine-eval-big { font-size: 1.25rem; font-weight: 800; color: #26c2a3; }
+> src\styles.css:7423:.gr-eval-graph-card { background: #0f172a; border: 1px solid #26354d; border-radius: 10px; padding: 10px 12px; }
+> src\styles.css:7424:.gr-graph-label-row { display: flex; justify-content: space-between; font-size: 0.75rem; color: #94a3b8; margin-bottom: 6px; }
+> src\styles.css:7425:.gr-eval-svg { width: 100%; height: 90px; background: #162032; border-radius: 6px; }
+> src\styles.css:7426:.gr-pv-list { display: flex; flex-direction: column; gap: 8px; }
+> src\styles.css:7427:.gr-pv-item { background: #0f172a; border: 1px solid #26354d; border-radius: 8px; padding: 8px 12px; }
+> src\styles.css:7428:.gr-pv-top { display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 4px; color: #94a3b8; }
+> src\styles.css:7429:.gr-pv-moves { font-size: 0.82rem; color: #e2e8f0; }
+> src\styles.css:7430:.gr-phase-grid { display: flex; flex-direction: column; gap: 8px; }
+> src\styles.css:7431:.gr-phase-card { background: #0f172a; border: 1px solid #26354d; border-radius: 8px; padding: 10px 12px; }
+> src\styles.css:7432:.gr-phase-name { display: block; font-weight: 700; font-size: 0.84rem; margin-bottom: 4px; }
+> src\styles.css:7433:.gr-phase-scores { display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; }
+> src\styles.css:7434:.gr-motifs-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+> src\styles.css:7435:.gr-motif-chip { padding: 4px 10px; border-radius: 999px; background: #1e293b; border: 1px solid #334155; font-size: 0.78rem; color: #cbd5e1; }
+> src\styles.css:7436:.gr-opening-hero { background: #0f172a; border: 1px solid #26354d; border-radius: 10px; padding: 12px 14px; }
+> src\styles.css:7437:.gr-eco-badge {
+  src\styles.css:7438:  display: inline-block; padding: 2px 8px; border-radius: 6px;
+  src\styles.css:7439:  background: rgba(213, 164, 125, 0.2); color: #d5a47d; font-size: 0.74rem; font-weight: 700; margin-bottom: 4px;
+  src\styles.css:7440:}
+> src\styles.css:7441:.gr-opening-name { margin: 4px 0; font-size: 1rem; }
+> src\styles.css:7442:.gr-opening-seq { margin: 0; font-size: 0.82rem; color: #94a3b8; }
+> src\styles.css:7443:.gr-book-lines { display: flex; flex-direction: column; gap: 6px; }
+> src\styles.css:7444:.gr-book-line-row { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 6px 8px; background: #1e293b; border-radius: 6px; }
+> src\styles.css:7445:.gr-book-stats { color: #94a3b8; }
+> src\styles.css:7446:.gr-movelist-container { background: #0f172a; border: 1px solid #26354d; border-radius: 10px; overflow: hidden; }
+> src\styles.css:7447:.gr-movelist-header {
+  src\styles.css:7448:  display: flex; justify-content: space-between; padding: 8px 12px;
+  src\styles.css:7449:  background: #1e293b; border-bottom: 1px solid #26354d; font-size: 0.76rem; font-weight: 700; color: #94a3b8;
+  src\styles.css:7450:}
+> src\styles.css:7451:.gr-movelist-scroll { max-height: 190px; overflow-y: auto; padding: 6px; }
+> src\styles.css:7452:.gr-move-row { display: grid; grid-template-columns: 42px 1fr 1fr; align-items: center; gap: 6px; padding: 2px 4px; font-size: 0.83rem; }
+> src\styles.css:7453:.gr-move-num { color: #64748b; font-weight: 600; }
+> src\styles.css:7454:.gr-move-cell {
+  src\styles.css:7455:  display: flex; align-items: center; justify-content: space-between;
+  src\styles.css:7456:  padding: 5px 10px; border-radius: 6px; border: none; background: transparent;
+  src\styles.css:7457:  color: #e2e8f0; cursor: pointer; text-align: left; font-size: 0.83rem;
+  src\styles.css:7458:}
+> src\styles.css:7459:.gr-move-cell:hover { background: #1e293b; }
+> src\styles.css:7460:.gr-move-cell.active { background: rgba(38, 194, 163, 0.22); color: #ffffff; font-weight: 700; }
+> src\styles.css:7461:.gr-move-mini-badge { font-weight: 800; font-size: 0.76rem; }
+  src\styles.css:7462:
+  src\styles.css:7463:/* ============================================================================
+  src\styles.css:7464:   CHESS.COM PREMIUM GAME REVIEW & LICHESS EXACT REFERENCE UI STYLES
+
+
+
+
+========== Stockfish implementation ==========
+export type EngineStatus = "off" | "loading" | "ready" | "analyzing" | "error";
+export type EngineScore = { kind: "cp" | "mate"; value: number; depth: number; bestMove?: string; pv?: string[] };
+
+type UciRequest = { fen: string; depth: number };
+
+export function parseUciInfo(line: string, sideToMove: "w" | "b"): Omit<EngineScore, "bestMove"> | null {
+  if (!line.startsWith("info ")) return null;
+  const depth = Number(line.match(/\bdepth (\d+)/)?.[1]);
+  const score = line.match(/\bscore (cp|mate) (-?\d+)/);
+  if (!score || !Number.isFinite(depth)) return null;
+  const value = Number(score[2]);
+  const whiteValue = sideToMove === "w" ? value : -value;
+  const kind = score[1] as "cp" | "mate";
+  const orientedValue = kind === "mate" && value === 0
+    ? (sideToMove === "w" ? -1 : 1)
+    : whiteValue;
+  const pv = line.match(/\bpv (.+)$/)?.[1]?.trim().split(/\s+/);
+  return {
+    kind,
+    value: orientedValue,
+    depth,
+    ...(pv?.length ? { pv } : {}),
+  };
+}
+
+export function formatEvaluation(score: EngineScore): string {
+  if (score.kind === "mate") return `#${score.value > 0 ? "+" : ""}${score.value}`;
+  const pawns = score.value / 100;
+  return `${pawns > 0 ? "+" : ""}${pawns.toFixed(2)}`;
+}
+
+export function whiteScoreShare(score: EngineScore): number {
+  if (score.kind === "mate") return score.value > 0 ? 0.96 : 0.04;
+  const bounded = Math.max(-1000, Math.min(1000, score.value));
+  return Math.max(0.04, Math.min(0.96, 1 / (1 + 10 ** (-bounded / 400))));
+}
+
+export class StockfishEngine {
+  private readonly worker: Worker;
+  private ready = false;
+  private searching = false;
+  private awaitingStop = false;
+  private queued: UciRequest | null = null;
+  private currentSide: "w" | "b" = "w";
+  private latestScore: EngineScore | null = null;
+
+  constructor(
+    workerUrl: string,
+    private readonly onStatus: (status: EngineStatus, message?: string) => void,
+    private readonly onScore: (score: EngineScore | null) => void,
+  ) {
+    this.worker = new Worker(workerUrl);
+    this.worker.onmessage = (event: MessageEvent<string>) => this.handleLine(String(event.data));
+    this.worker.onerror = (event) => {
+      this.onStatus("error", event.message || "The Stockfish worker failed to load.");
+      this.dispose();
+    };
+    this.onStatus("loading");
+    this.worker.postMessage("uci");
+  }
+
+  analyze(fen: string, depth: number): void {
+    this.queued = { fen, depth: Math.max(1, Math.min(24, Math.floor(depth))) };
+    this.latestScore = null;
+    this.onScore(null);
+    if (!this.ready) return;
+    if (this.searching) {
+      if (!this.awaitingStop) {
+        this.awaitingStop = true;
+        this.worker.postMessage("stop");
+      }
+      return;
+    }
+    this.startQueuedAnalysis();
+  }
+
+  dispose(): void {
+    this.worker.terminate();
+    this.ready = false;
+    this.searching = false;
+    this.queued = null;
+  }
+
+  private handleLine(line: string): void {
+    if (/^Error:/i.test(line)) {
+      this.onStatus("error", line);
+      this.dispose();
+      return;
+    }
+    if (line === "uciok") {
+      this.worker.postMessage("isready");
+      return;
+    }
+    if (line === "readyok") {
+      this.ready = true;
+      this.onStatus("ready");
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (line.startsWith("info ")) {
+      if (this.awaitingStop) return;
+      const score = parseUciInfo(line, this.currentSide);
+      if (score) {
+        // Use the current principal variation's first move for a live arrow.
+        // Stockfish's final "bestmove" will replace this provisional move.
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+          ...score,
+          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+        };
+        this.onScore(this.latestScore);
+      }
+      return;
+    }
+    const bestMove = line.match(/^bestmove (\S+)/)?.[1];
+    if (!bestMove) return;
+    this.searching = false;
+    if (this.awaitingStop) {
+      this.awaitingStop = false;
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (this.latestScore) {
+      this.latestScore = { ...this.latestScore, bestMove: bestMove === "(none)" ? undefined : bestMove };
+      this.onScore(this.latestScore);
+    }
+    this.onStatus("ready");
+  }
+
+  private startQueuedAnalysis(): void {
+    if (!this.ready || this.searching || !this.queued) return;
+    const request = this.queued;
+    this.queued = null;
+    this.currentSide = request.fen.split(/\s+/)[1] === "b" ? "b" : "w";
+    this.searching = true;
+    this.latestScore = null;
+    this.onStatus("analyzing");
+    this.worker.postMessage(`position fen ${request.fen}`);
+    this.worker.postMessage(`go depth ${request.depth}`);
+  }
+}
+
+========== Package scripts and dependencies ==========
+{
+  "name": "chessbook-reader",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.61.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^5.0.4"
+  }
+}

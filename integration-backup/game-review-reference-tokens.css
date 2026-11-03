@@ -1,0 +1,30 @@
+.game-review-page {
+  --gr-reference-review-shell: #2F2E2A;
+  --gr-reference-analysis-dark: #21201C;
+  --gr-reference-analysis-dark-alt: #1F1E1A;
+  --gr-reference-review-panel: #FFFFFF;
+  --gr-reference-review-surface: #F1F1F1;
+  --gr-reference-review-card: #EDEDEB;
+  --gr-reference-review-action: #9AB26F;
+  --gr-reference-review-text: #3A3A3A;
+  --gr-reference-review-muted: #7F7F7F;
+  --gr-reference-review-divider: #D8D8D8;
+  --gr-eval-black: #403D39;
+  --gr-eval-white: #FFFFFF;
+  --gr-class-best: #81B64C;
+  --gr-class-excellent: #96BC4B;
+  --gr-class-good: #97AF8B;
+  --gr-class-inaccuracy: #F0C15C;
+  --gr-class-mistake: #E6912C;
+  --gr-class-blunder: #CA3431;
+  --gr-explorer-draw: #A5A5A2;
+  --gr-explorer-black: #42413F;
+  --gr-reference-board-green-1-light: #ECECD2;
+  --gr-reference-board-green-1-dark: #729551;
+  --gr-reference-board-brown-light: #EBD5B0;
+  --gr-reference-board-brown-dark: #B38561;
+  --gr-reference-board-green-2-light: #E9EDCC;
+  --gr-reference-board-green-2-dark: #789954;
+  --gr-reference-board-green-3-light: #EAECD5;
+  --gr-reference-board-green-3-dark: #829263;
+}

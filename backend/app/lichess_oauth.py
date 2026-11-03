@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import time
 import urllib.error
@@ -153,6 +154,43 @@ def _get_json(url: str, token: str) -> dict:
     return data
 
 
+def _get_public_json(url: str) -> dict:
+    """Fetch public Lichess Opening Explorer data without OAuth credentials."""
+    req = urllib.request.Request(
+        url,
+        method="GET",
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "ChessBookReader/0.1",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            data = json.loads(response.read(2 * 1024 * 1024))
+    except urllib.error.HTTPError as exc:
+        if exc.code == 429:
+            raise HTTPException(
+                status_code=429,
+                detail="Lichess rate limit reached. Try again shortly.",
+            ) from exc
+        raise HTTPException(
+            status_code=502,
+            detail="Lichess Opening Explorer request failed.",
+        ) from exc
+    except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Lichess Opening Explorer is unavailable.",
+        ) from exc
+
+    if not isinstance(data, dict):
+        raise HTTPException(
+            status_code=502,
+            detail="Invalid response from Lichess Opening Explorer.",
+        )
+    return data
+
+
 @router.get("/status")
 def status(request: Request):
     # If the secret is not configured, return an explicit disconnected status.
@@ -283,6 +321,36 @@ def disconnect(request: Request):
             _sessions.pop(session[0], None)
     response = JSONResponse({"connected": False})
     _clear_cookie(response)
+    return response
+
+
+@router.get("/opening-explorer/public")
+def public_opening_explorer(
+    variant: str = "standard",
+    moves: int = 8,
+    play: str = "",
+):
+    """Public opening statistics for the Analysis Board; no OAuth session required."""
+    if variant != "standard":
+        raise HTTPException(status_code=400, detail="Only standard chess is supported.")
+    if not 1 <= moves <= 15:
+        raise HTTPException(status_code=400, detail="Moves must be between 1 and 15.")
+
+    uci_moves = [move for move in play.split(",") if move]
+    if len(uci_moves) > 200 or any(
+        re.fullmatch(r"[a-h][1-8][a-h][1-8][qrbn]?", move) is None
+        for move in uci_moves
+    ):
+        raise HTTPException(status_code=400, detail="Invalid move sequence.")
+
+    query = urllib.parse.urlencode({
+        "variant": variant,
+        "moves": str(moves),
+        "play": ",".join(uci_moves),
+    })
+    result = _get_public_json(LICHESS_EXPLORER + "?" + query)
+    response = JSONResponse(result)
+    response.headers["Cache-Control"] = "no-store"
     return response
 
 

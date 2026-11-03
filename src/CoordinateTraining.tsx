@@ -1,124 +1,314 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import "./coordinate-training.css";
 
+type Mode = "findSquare" | "nameSquare";
 type Orientation = "white" | "black";
-type Mode = "timed" | "untimed" | "streak";
-type SessionResult = { date: string; score: number; accuracy: number; duration: number };
+type Session = { date: string; score: number; mode: Mode; orientation: Orientation };
 
 const FILES = "abcdefgh";
 const RANKS = "12345678";
-const randomSquare = (avoid?: string) => {
-  let next = `${FILES[Math.floor(Math.random() * 8)]}${RANKS[Math.floor(Math.random() * 8)]}`;
-  while (next === avoid) next = `${FILES[Math.floor(Math.random() * 8)]}${RANKS[Math.floor(Math.random() * 8)]}`;
-  return next;
-};
-const STORAGE_KEY = "chessbook-coordinate-training-v1";
+const KEY = "chessbook-coordinate-training-v2";
+const PIECES = [
+  ["br","bn","bb","bq","bk","bb","bn","br"],
+  ["bp","bp","bp","bp","bp","bp","bp","bp"],
+  ["","","","","","","",""],
+  ["","","","","","","",""],
+  ["","","","","","","",""],
+  ["","","","","","","",""],
+  ["wp","wp","wp","wp","wp","wp","wp","wp"],
+  ["wr","wn","wb","wq","wk","wb","wn","wr"],
+];
+
+function nextSquare(previous: string, avoidLine = true) {
+  let choices: string[] = [];
+  for (const file of FILES) for (const rank of RANKS) {
+    if (!avoidLine || (file !== previous[0] && rank !== previous[1])) choices.push(file + rank);
+  }
+  return choices[Math.floor(Math.random() * choices.length)];
+}
+
+function readHistory(): Session[] {
+  try { return JSON.parse(localStorage.getItem(KEY) || "[]"); }
+  catch { return []; }
+}
 
 export default function CoordinateTraining() {
+  const [mode, setMode] = useState<Mode>("findSquare");
   const [orientation, setOrientation] = useState<Orientation>("white");
-  const [mode, setMode] = useState<Mode>("timed");
-  const [duration, setDuration] = useState(60);
-  const [remaining, setRemaining] = useState(60);
-  const [target, setTarget] = useState(() => randomSquare());
+  const [timed, setTimed] = useState(true);
+  const [showCoordinates, setShowCoordinates] = useState(true);
+  const [showPieces, setShowPieces] = useState(true);
+  const [sound, setSound] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [remaining, setRemaining] = useState(30);
+  const [target, setTarget] = useState(() => nextSquare(""));
+  const [nextTarget, setNextTarget] = useState(() => nextSquare(""));
   const [score, setScore] = useState(0);
+  const [attempts, setAttempts] = useState(0);
   const [correct, setCorrect] = useState(0);
-  const [wrong, setWrong] = useState(0);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
-  const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState<"correct" | "wrong" | "">("");
-  const [sound, setSound] = useState(false);
-  const [showCoordinates, setShowCoordinates] = useState(true);
-  const [history, setHistory] = useState<SessionResult[]>(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as SessionResult[]; } catch { return []; }
-  });
-  const finished = mode === "timed" && remaining <= 0;
-  const attempts = correct + wrong;
-  const accuracy = attempts ? Math.round((correct / attempts) * 100) : 0;
-  const squares = useMemo(() => {
-    const files = orientation === "white" ? [...FILES] : [...FILES].reverse();
-    const ranks = orientation === "white" ? [...RANKS].reverse() : [...RANKS];
-    return ranks.flatMap((rank) => files.map((file) => `${file}${rank}`));
-  }, [orientation]);
+  const [wrong, setWrong] = useState(false);
+  const [history, setHistory] = useState<Session[]>(readHistory);
+  const [answer, setAnswer] = useState("");
+  const [started, setStarted] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const wrongTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioRef = useRef<AudioContext | null>(null);
+  const accuracy = attempts ? Math.round((correct / attempts) * 100) : 100;
+  const finished = timed && remaining <= 0;
+
+  const playTone = (good: boolean) => {
+    if (!sound) return;
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!audioRef.current) audioRef.current = new AudioContextClass();
+      const ctx = audioRef.current;
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.frequency.value = good ? 660 : 180;
+      gain.gain.value = 0.06;
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 0.09);
+    } catch { /* Audio is optional */ }
+  };
+
+  const saveSession = () => {
+    if (!started) return;
+    const entry: Session = { date: new Date().toISOString(), score, mode, orientation };
+    setHistory(previous => {
+      const next = [entry, ...previous].slice(0, 20);
+      try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* Storage unavailable */ }
+      return next;
+    });
+    setStarted(false);
+  };
+
+  const start = () => {
+    if (wrongTimer.current) clearTimeout(wrongTimer.current);
+    setScore(0);
+    setAttempts(0);
+    setCorrect(0);
+    setStreak(0);
+    setBestStreak(0);
+    setRemaining(30);
+    setWrong(false);
+    setAnswer("");
+    const first = nextSquare("");
+    setTarget(first);
+    setNextTarget(nextSquare(first));
+    setStarted(true);
+    setPlaying(true);
+    if (mode === "nameSquare") setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const stop = () => {
+    setPlaying(false);
+    saveSession();
+  };
 
   useEffect(() => {
-    if (!startedAt || finished || mode !== "timed") return;
-    const timer = window.setInterval(() => setRemaining((value) => Math.max(0, value - 1)), 1000);
+    if (!playing || !timed) return;
+    const startAt = Date.now();
+    const timer = window.setInterval(() => {
+      const left = Math.max(0, 30 - Math.floor((Date.now() - startAt) / 1000));
+      setRemaining(left);
+      if (left === 0) {
+        window.clearInterval(timer);
+        setPlaying(false);
+      }
+    }, 100);
     return () => window.clearInterval(timer);
-  }, [startedAt, finished, mode]);
+  }, [playing, timed]);
 
   useEffect(() => {
-    if (finished && startedAt) {
-      const result = { date: new Date().toISOString(), score, accuracy, duration: duration - remaining };
-      setHistory((previous) => {
-        const next = [result, ...previous].slice(0, 30);
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* storage may be unavailable */ }
-        return next;
-      });
-      setStartedAt(null);
-    }
+    if (finished && started) saveSession();
   }, [finished]);
 
-  function restart(nextMode = mode, nextDuration = duration) {
-    setMode(nextMode);
-    setDuration(nextDuration);
-    setRemaining(nextDuration);
-    setTarget(randomSquare());
-    setScore(0); setCorrect(0); setWrong(0); setStreak(0);
-    setFeedback(""); setStartedAt(null);
-  }
+  useEffect(() => () => {
+    if (wrongTimer.current) clearTimeout(wrongTimer.current);
+    if (audioRef.current) void audioRef.current.close();
+  }, []);
 
-  function chooseSquare(square: string) {
-    if (finished) return;
-    if (!startedAt) setStartedAt(Date.now());
-    if (square === target) {
-      setCorrect((value) => value + 1);
-      setScore((value) => value + 1);
-      setStreak((value) => { const next = value + 1; setBestStreak((best) => Math.max(best, next)); return next; });
-      setFeedback("correct");
-    } else {
-      setWrong((value) => value + 1);
-      setStreak(0);
-      setFeedback("wrong");
+  const markWrong = () => {
+    setAttempts(v => v + 1);
+    setStreak(0);
+    setWrong(true);
+    playTone(false);
+    if (wrongTimer.current) clearTimeout(wrongTimer.current);
+    wrongTimer.current = setTimeout(() => setWrong(false), 500);
+  };
+
+  const markCorrect = () => {
+    setAttempts(v => v + 1);
+    setCorrect(v => v + 1);
+    setScore(v => v + 1);
+    setStreak(v => {
+      const next = v + 1;
+      setBestStreak(best => Math.max(best, next));
+      return next;
+    });
+    setWrong(false);
+    playTone(true);
+    setTarget(nextTarget);
+    setNextTarget(nextSquare(nextTarget));
+    setAnswer("");
+  };
+
+  const chooseSquare = (square: string) => {
+    if (!playing || mode !== "findSquare") return;
+    if (square === target) markCorrect();
+    else markWrong();
+  };
+
+  const submitAnswer = (value: string) => {
+    if (!playing || mode !== "nameSquare") return;
+    const normalized = value.toLowerCase().replace(/[^a-h1-8]/g, "").slice(0, 2);
+    setAnswer(normalized);
+    if (normalized.length === 2) {
+      if (/^[a-h][1-8]$/.test(normalized) && normalized === target) markCorrect();
+      else if (/^[a-h][1-8]$/.test(normalized)) {
+        markWrong();
+        setAnswer("");
+      }
     }
-    setTarget(randomSquare(target));
-  }
+  };
 
-  return <main className="coordinate-training-workspace">
-    <header className="ct-header">
-      <div><span className="ct-eyebrow">CHESSBOOK TRAINING</span><h1>Coordinate Training</h1><p>Build instant board vision. Find the square before the clock runs out.</p></div>
-      <div className="ct-header-actions"><button onClick={() => restart()}>↻ Restart</button><button className="ct-primary" onClick={() => restart(mode, duration)}>New session</button></div>
-    </header>
-    <div className="ct-layout">
-      <section className="ct-board-card">
-        <div className="ct-board-top"><span>Find this square</span><strong className="ct-target">{finished ? "TIME!" : target}</strong><span className={`ct-feedback ${feedback}`}>{feedback === "correct" ? "Correct" : feedback === "wrong" ? "Try the next one" : "Select a square"}</span></div>
-        <div className="ct-board" role="group" aria-label="Coordinate training chessboard">
-          {squares.map((square) => {
-            const file = FILES.indexOf(square[0]);
-            const rank = Number(square[1]);
-            const dark = (file + rank) % 2 === 0;
-            return <button key={square} type="button" disabled={finished} onClick={() => chooseSquare(square)} className={`ct-square ${dark ? "dark" : "light"}`} aria-label={square}>
-              {showCoordinates && ((orientation === "white" && file === 0) || (orientation === "black" && file === 7)) && <span className="ct-rank">{rank}</span>}
-              {showCoordinates && ((orientation === "white" && rank === 1) || (orientation === "black" && rank === 8)) && <span className="ct-file">{square[0]}</span>}
-            </button>;
-          })}
+  const files = orientation === "white" ? [...FILES] : [...FILES].reverse();
+  const ranks = orientation === "white" ? [...RANKS].reverse() : [...RANKS];
+
+  return (
+    <main className="coordinate-training-workspace">
+      <header className="ct-topbar">
+        <div className="ct-brand">
+          <span className="ct-brand-mark"><span className="ct-grass-icon" aria-hidden="true"><i></i><i></i><i></i></span></span>
+          <div><strong>Coordinate Training</strong><small>Improve your board vision</small></div>
         </div>
-        <div className="ct-board-footer"><span>{orientation === "white" ? "White perspective" : "Black perspective"}</span><button onClick={() => setOrientation((value) => value === "white" ? "black" : "white")}>⇅ Flip board</button></div>
-      </section>
-      <aside className="ct-side">
-        <section className="ct-card ct-stats"><div className="ct-card-heading">SESSION</div><div className="ct-timer">{mode === "untimed" ? "∞" : mode === "streak" ? "—" : `00:${String(remaining).padStart(2, "0")}`}</div><div className="ct-progress"><i style={{ width: `${mode === "timed" ? ((duration - remaining) / duration) * 100 : 0}%` }} /></div>
-          <div className="ct-stat-grid"><div><strong>{score}</strong><span>Score</span></div><div><strong>{accuracy}%</strong><span>Accuracy</span></div><div><strong>{streak}</strong><span>Streak</span></div><div><strong>{bestStreak}</strong><span>Best streak</span></div></div>
-          {!startedAt && <p className="ct-start-note">Your timer starts with your first answer.</p>}
-          {finished && <div className="ct-finished">Session complete · {score} correct squares</div>}
+        <div className="ct-top-actions">
+          <button type="button" onClick={() => setOrientation(v => v === "white" ? "black" : "white")}>⇅ Flip board</button>
+          {playing
+            ? <button type="button" className="ct-start-button" onClick={stop}>Stop training</button>
+            : <button type="button" className="ct-start-button" onClick={start}>Start training</button>}
+        </div>
+      </header>
+
+      <div className="ct-main">
+        <section className="ct-play-area">
+          <div className="ct-mode-tabs">
+            <button className={mode === "findSquare" ? "active" : ""} onClick={() => { setMode("findSquare"); setPlaying(false); setStarted(false); }}>Find the square</button>
+            <button className={mode === "nameSquare" ? "active" : ""} onClick={() => { setMode("nameSquare"); setPlaying(false); setStarted(false); }}>Name the square</button>
+          </div>
+
+          <div className="ct-instruction">
+            <span>{mode === "findSquare" ? "Find this square" : "Which square is highlighted?"}</span>
+            <small className={wrong ? "ct-feedback-error" : ""}>
+              {!playing ? (finished ? "Time is up!" : "Press Start training to begin") : wrong ? "Not quite — try again" : "Select the correct square"}
+            </small>
+          </div>
+
+          <div className={`ct-board-frame ${wrong ? "is-wrong" : ""}`}>
+            <div className="ct-board" role="group" aria-label="Coordinate training chessboard">
+              {ranks.flatMap((rank, row) => files.map((file, col) => {
+                const square = file + rank;
+                const light = (FILES.indexOf(file) + Number(rank)) % 2 === 1;
+                const isHighlighted = mode === "nameSquare" && playing && square === target;
+                const piece = PIECES[8 - Number(rank)][FILES.indexOf(file)];
+                const showRank = mode === "findSquare" && showCoordinates && (orientation === "white" ? col === 0 : col === 7);
+                const showFile = mode === "findSquare" && showCoordinates && (orientation === "white" ? row === 7 : row === 0);
+                return (
+                  <button
+                    key={square}
+                    type="button"
+                    aria-label={square}
+                    disabled={!playing || mode !== "findSquare"}
+                    onClick={() => chooseSquare(square)}
+                    className={`ct-square ${light ? "light" : "dark"} ${isHighlighted ? "ct-highlight" : ""}`}
+                  >
+                    {showPieces && piece && <img draggable="false" alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece}.svg`} />}
+                    {showRank && <span className="ct-coordinate ct-rank">{rank}</span>}
+                    {showFile && <span className="ct-coordinate ct-file">{file}</span>}
+                  </button>
+                );
+              }))}
+              {playing && mode === "findSquare" && (
+                <div className="ct-board-targets" aria-hidden="true">
+                  <span className="ct-board-current">{mode === "findSquare" ? target : target}</span>
+                  <span className="ct-board-next">{nextTarget}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {mode === "nameSquare" && (
+            <form className="ct-answer-form" onSubmit={e => { e.preventDefault(); if (answer.length === 2) submitAnswer(answer); }}>
+              <input
+                ref={inputRef}
+                value={answer}
+                disabled={!playing}
+                onChange={e => submitAnswer(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") e.preventDefault(); }}
+                placeholder="Type square (e.g. e4)"
+                maxLength={2}
+                autoComplete="off"
+                aria-label="Enter square coordinate"
+              />
+            </form>
+          )}
+
+          <div className="ct-board-footer">
+            <span>{orientation === "white" ? "White perspective" : "Black perspective"}</span>
+            <span>{playing ? "Training in progress" : "Ready when you are"}</span>
+          </div>
         </section>
-        <section className="ct-card"><div className="ct-card-heading">TRAINING SETTINGS</div><label>Mode<select value={mode} onChange={(e) => restart(e.target.value as Mode)}><option value="timed">Timed challenge</option><option value="untimed">Untimed practice</option><option value="streak">Streak challenge</option></select></label>
-          <label>Duration<select value={duration} onChange={(e) => restart(mode, Number(e.target.value))}><option value={30}>30 seconds</option><option value={60}>60 seconds</option><option value={120}>2 minutes</option><option value={180}>3 minutes</option></select></label>
-          <label className="ct-toggle"><input type="checkbox" checked={showCoordinates} onChange={(e) => setShowCoordinates(e.target.checked)} /> Show board coordinates</label>
-          <label className="ct-toggle"><input type="checkbox" checked={sound} onChange={(e) => setSound(e.target.checked)} /> Sound feedback (coming soon)</label>
-          <button className="ct-primary ct-full" onClick={() => restart()}>Start / Restart training</button>
-        </section>
-        <section className="ct-card"><div className="ct-card-heading">RECENT SESSIONS</div>{history.length ? history.slice(0, 4).map((item, index) => <div className="ct-history-row" key={`${item.date}-${index}`}><span>{new Date(item.date).toLocaleDateString()}</span><strong>{item.score} correct</strong><em>{item.accuracy}%</em></div>) : <p className="ct-empty">Your completed timed sessions will appear here.</p>}</section>
-      </aside>
-    </div>
-  </main>;
+
+        <aside className="ct-sidebar">
+          <section className="ct-panel ct-score-panel">
+            <div className="ct-panel-title">YOUR SESSION</div>
+            <div className="ct-clock">{timed ? `00:${String(remaining).padStart(2, "0")}` : "∞"}</div>
+            <div className="ct-time-track"><span style={{ width: `${timed ? (remaining / 30) * 100 : 100}%` }} /></div>
+            <div className="ct-score-grid">
+              <div><strong>{score}</strong><small>Score</small></div>
+              <div><strong>{accuracy}%</strong><small>Accuracy</small></div>
+              <div><strong>{streak}</strong><small>Streak</small></div>
+              <div><strong>{bestStreak}</strong><small>Best streak</small></div>
+            </div>
+            {!playing && !finished && <p className="ct-hint">Your challenge starts when you press Start training.</p>}
+            {finished && <p className="ct-complete">Challenge complete · {score} correct</p>}
+          </section>
+
+          <section className="ct-panel">
+            <div className="ct-panel-title">SETTINGS</div>
+            <label className="ct-setting-row">
+              <span>Time control</span>
+              <select value={timed ? "timed" : "untimed"} onChange={e => { setTimed(e.target.value === "timed"); setPlaying(false); setStarted(false); setRemaining(30); }}>
+                <option value="timed">30 seconds</option>
+                <option value="untimed">Unlimited</option>
+              </select>
+            </label>
+            <label className="ct-setting-toggle"><span>Show coordinates</span><input type="checkbox" checked={showCoordinates} onChange={e => setShowCoordinates(e.target.checked)} /></label>
+            <label className="ct-setting-toggle"><span>Show pieces</span><input type="checkbox" checked={showPieces} onChange={e => setShowPieces(e.target.checked)} /></label>
+            <label className="ct-setting-toggle"><span>Sound</span><input type="checkbox" checked={sound} onChange={e => setSound(e.target.checked)} /></label>
+            <button className="ct-start-button ct-wide-button" onClick={playing ? stop : start}>{playing ? "Stop training" : "Start training"}</button>
+          </section>
+
+          <section className="ct-panel ct-history-panel">
+            <div className="ct-panel-title">RECENT SCORES</div>
+            {history.length === 0
+              ? <p className="ct-empty">Your completed 30-second sessions will appear here.</p>
+              : history.slice(0, 5).map((item, index) => (
+                <div className="ct-history-row" key={`${item.date}-${index}`}>
+                  <span>{new Date(item.date).toLocaleDateString()}</span>
+                  <small>{item.mode === "findSquare" ? "Find square" : "Name square"} · {item.orientation}</small>
+                  <strong>{item.score}</strong>
+                </div>
+              ))}
+          </section>
+        </aside>
+      </div>
+    </main>
+  );
 }
+
+

@@ -1,0 +1,1731 @@
+========== COORDINATE TRAINING STYLESHEET ==========
+
+/* ==========================================================
+   COORDINATE TRAINING - RESPONSIVE VIEWPORT LAYOUT
+   ========================================================== */
+
+.coordinate-training-workspace,
+.coordinate-training-workspace * {
+  box-sizing: border-box;
+}
+
+.coordinate-training-workspace {
+  --ct-bg: #111a15;
+  --ct-card: #1b2921;
+  --ct-border: #304237;
+  --ct-text: #edf3eb;
+  --ct-muted: #9eafa1;
+  --ct-accent: #a3d66b;
+  --ct-light: #e8e2d2;
+  --ct-dark: #7d9d76;
+
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: clamp(14px, 1.8vw, 26px);
+  color: var(--ct-text);
+  background: radial-gradient(ellipse at 12% 0%, rgba(131,166,103,.09), transparent 38%), var(--ct-bg);
+  font-family: Inter, "Segoe UI", sans-serif;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.coordinate-training-workspace button,
+.coordinate-training-workspace select {
+  font: inherit;
+}
+
+.ct-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.ct-eyebrow {
+  color: var(--ct-accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.7px;
+}
+
+.ct-header h1 {
+  margin: 7px 0 5px;
+  color: #f4f7f2;
+  font-size: clamp(25px, 2.4vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -1px;
+}
+
+.ct-header p {
+  margin: 0;
+  color: var(--ct-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ct-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.ct-header-actions button,
+.ct-primary {
+  min-height: 39px;
+  padding: 9px 14px;
+  border: 1px solid var(--ct-border);
+  border-radius: 9px;
+  background: #24342a;
+  color: var(--ct-text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ct-header-actions .ct-primary,
+.ct-primary {
+  border-color: transparent;
+  background: #8fc653;
+  color: #172014;
+}
+
+.ct-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr);
+  align-items: stretch;
+  gap: 18px;
+  min-width: 0;
+}
+
+.ct-layout > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+.ct-board-card,
+.ct-layout > :last-child > *,
+.ct-layout > :last-child {
+  border: 1px solid var(--ct-border);
+  border-radius: 15px;
+  background: linear-gradient(155deg, #202f26, #1a2820);
+  box-shadow: 0 10px 28px rgba(0,0,0,.13);
+}
+
+.ct-board-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 17px;
+}
+
+.ct-board-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: #b6c4b8;
+  font-size: 12px;
+}
+
+.ct-target {
+  color: #b8e78c;
+  font-size: clamp(25px, 2.5vw, 34px);
+  font-weight: 800;
+}
+
+.ct-feedback {
+  color: var(--ct-muted);
+  text-align: right;
+  font-size: 11px;
+}
+
+.ct-board {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  width: min(100%, 470px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 4px solid #344338;
+  border-radius: 6px;
+  box-shadow: 0 10px 26px rgba(0,0,0,.24);
+}
+
+.ct-square {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+.ct-square.light {
+  background: var(--ct-light);
+}
+
+.ct-square.dark {
+  background: var(--ct-dark);
+}
+
+.ct-square:disabled {
+  cursor: default;
+}
+
+.ct-square:focus-visible {
+  z-index: 2;
+  outline: 3px solid #b8e78c;
+  outline-offset: -4px;
+}
+
+.ct-rank,
+.ct-file {
+  position: absolute;
+  z-index: 1;
+  color: #526c4e;
+  font-family: "DM Mono", Consolas, monospace;
+  font-size: clamp(8px, .8vw, 11px);
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.ct-rank {
+  top: 4px;
+  left: 5px;
+}
+
+.ct-file {
+  right: 5px;
+  bottom: 4px;
+}
+
+.ct-square.dark .ct-rank,
+.ct-square.dark .ct-file {
+  color: #f1ead9;
+}
+
+.ct-layout > :last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ct-layout > :last-child > * {
+  min-width: 0;
+  padding: 17px;
+}
+
+.ct-layout > :last-child h2,
+.ct-layout > :last-child h3 {
+  margin-top: 0;
+}
+
+.ct-layout label {
+  color: #c0cec1;
+}
+
+.ct-layout select {
+  max-width: 100%;
+}
+
+@media (min-width: 901px) and (min-height: 700px) {
+  .coordinate-training-workspace {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    padding: clamp(12px, 1.5vw, 20px);
+  }
+
+  .ct-header {
+    flex: 0 0 auto;
+    margin-bottom: 12px;
+  }
+
+  .ct-layout {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1.1fr) minmax(300px, .9fr);
+    gap: 14px;
+    overflow: hidden;
+  }
+
+  .ct-board-card {
+    justify-content: flex-start;
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  .ct-board-top {
+    flex: 0 0 auto;
+    margin-bottom: 8px;
+  }
+
+  .ct-board {
+    flex: 0 1 auto;
+    width: min(100%, 440px, max(250px, calc(100dvh - 560px)));
+  }
+
+  .ct-layout > :last-child {
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+    scrollbar-width: thin;
+  }
+
+  .ct-layout > :last-child > * {
+    flex: 0 0 auto;
+    padding: 13px;
+  }
+}
+
+@media (max-width: 900px) {
+  .coordinate-training-workspace {
+    height: auto;
+    overflow: visible;
+  }
+
+  .ct-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-board {
+    width: min(100%, 620px);
+  }
+
+  .ct-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 600px) {
+  .coordinate-training-workspace {
+    padding: 13px;
+  }
+
+  .ct-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .ct-header-actions button {
+    flex: 1 1 auto;
+  }
+
+  .ct-board-card,
+  .ct-layout > :last-child > * {
+    padding: 11px;
+  }
+
+  .ct-board-top {
+    gap: 6px;
+  }
+}
+
+
+========== WORKSPACE CONTAINER RULES ==========
+
+  src\styles.css:13:  flex-direction: column;
+  src\styles.css:14:  overflow: hidden;
+  src\styles.css:15:}
+  src\styles.css:16:
+> src\styles.css:17:.workspace {
+  src\styles.css:18:  flex: 1 1 auto;
+  src\styles.css:19:  min-width: 0;
+  src\styles.css:20:  min-height: 0;
+  src\styles.css:21:  height: auto;
+  src\styles.css:22:  max-height: none;
+  src\styles.css:23:  overflow: hidden;
+  src\styles.css:24:}
+  src\styles.css:25:
+> src\styles.css:26:.library-panel,
+  src\styles.css:27:.board-panel,
+  src\styles.css:28:.reader-panel {
+  src\styles.css:29:  min-width: 0;
+  src\styles.css:30:  min-height: 0;
+  src\styles.css:31:  box-sizing: border-box;
+  src\styles.css:32:}
+  src\styles.css:33:
+  src\styles.css:34:.board-panel {
+  src\styles.css:35:  overflow-x: hidden;
+  src\styles.css:36:  overflow-y: auto;
+  src\styles.css:65:  flex: 0 0 auto;
+  src\styles.css:66:  min-width: 0;
+  src\styles.css:67:}
+  src\styles.css:68:
+> src\styles.css:69:.page-workspace {
+  src\styles.css:70:  flex: 1 1 auto;
+  src\styles.css:71:  min-height: 0;
+  src\styles.css:72:  min-width: 0;
+  src\styles.css:73:  overflow: auto;
+  src\styles.css:74:}
+  src\styles.css:75:
+  src\styles.css:76:.reader-footer,
+  src\styles.css:77:.analysis-strip {
+  src\styles.css:78:  flex: 0 0 auto;
+  src\styles.css:79:  min-width: 0;
+  src\styles.css:81:  box-sizing: border-box;
+  src\styles.css:82:}
+  src\styles.css:83:
+  src\styles.css:84:@media (max-width: 1280px) and (min-width: 821px) {
+> src\styles.css:85:  .workspace {
+  src\styles.css:86:    grid-template-columns: 190px minmax(300px, 340px) minmax(0, 1fr);
+  src\styles.css:87:  }
+  src\styles.css:88:
+  src\styles.css:89:  .board-panel {
+  src\styles.css:90:    padding-left: 8px;
+  src\styles.css:91:    padding-right: 8px;
+  src\styles.css:92:  }
+  src\styles.css:93:
+  src\styles.css:94:  .board-frame {
+  src\styles.css:95:    width: min(100%, 42vh, 340px);
+  src\styles.css:96:  }
+  src\styles.css:97:}
+  src\styles.css:98:
+  src\styles.css:99:@media (max-width: 820px) {
+> src\styles.css:100:  .workspace,
+> src\styles.css:101:  .workspace.library-collapsed {
+  src\styles.css:102:    grid-template-columns: minmax(0, 1fr);
+  src\styles.css:103:  }
+  src\styles.css:104:
+> src\styles.css:105:  .library-panel {
+  src\styles.css:106:    display: none;
+  src\styles.css:107:  }
+  src\styles.css:108:
+  src\styles.css:109:  .board-panel {
+  src\styles.css:110:    max-height: 48vh;
+  src\styles.css:111:  }
+  src\styles.css:112:
+  src\styles.css:113:  .board-frame {
+  src\styles.css:114:    width: min(100%, 38vh, 300px);
+  src\styles.css:115:  }
+  src\styles.css:431:  flex-shrink: 0;
+  src\styles.css:432:}
+  src\styles.css:433:
+  src\styles.css:434:/* ==========================================================
+> src\styles.css:435:   4. MAIN WORKSPACE THREE-COLUMN LAYOUT
+  src\styles.css:436:   ========================================================== */
+  src\styles.css:437:
+> src\styles.css:438:.workspace {
+  src\styles.css:439:  flex: 1 1 auto;
+  src\styles.css:440:  min-height: 0;
+  src\styles.css:441:  display: grid;
+  src\styles.css:442:  grid-template-columns: minmax(190px, 220px) minmax(320px, 380px) minmax(0, 1fr);
+  src\styles.css:443:  background: var(--bg-app);
+  src\styles.css:444:  overflow: hidden;
+  src\styles.css:445:}
+  src\styles.css:446:
+> src\styles.css:447:.workspace.library-collapsed {
+  src\styles.css:448:  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  src\styles.css:449:}
+  src\styles.css:450:
+  src\styles.css:451:/* ==========================================================
+  src\styles.css:452:   5. LEFT SIDEBAR: LIBRARY & NAVIGATION
+  src\styles.css:453:   ========================================================== */
+  src\styles.css:454:
+> src\styles.css:455:.library-panel {
+  src\styles.css:456:  background: var(--panel-primary);
+  src\styles.css:457:  border-right: 1px solid var(--border-subtle);
+  src\styles.css:458:  min-width: 0;
+  src\styles.css:459:  display: flex;
+  src\styles.css:460:  flex-direction: column;
+  src\styles.css:461:  overflow: hidden;
+  src\styles.css:462:}
+  src\styles.css:463:
+  src\styles.css:464:.library-heading {
+  src\styles.css:465:  height: 46px;
+  src\styles.css:1291:  letter-spacing: 0.6px;
+  src\styles.css:1292:}
+  src\styles.css:1293:
+  src\styles.css:1294:/* ==========================================================
+> src\styles.css:1295:   9. RIGHT PANEL: PDF READER & WORKSPACE
+  src\styles.css:1296:   ========================================================== */
+  src\styles.css:1297:
+  src\styles.css:1298:.reader-panel {
+  src\styles.css:1299:  min-width: 0;
+  src\styles.css:1300:  min-height: 0;
+  src\styles.css:1301:  display: flex;
+  src\styles.css:1302:  flex-direction: column;
+  src\styles.css:1303:  background: #1C1B18;
+  src\styles.css:1304:  overflow: hidden;
+  src\styles.css:1305:}
+  src\styles.css:1464:  margin-left: 2px;
+  src\styles.css:1465:}
+  src\styles.css:1466:
+  src\styles.css:1467:/* Page canvas viewport */
+> src\styles.css:1468:.page-workspace {
+  src\styles.css:1469:  flex: 1 1 auto;
+  src\styles.css:1470:  min-height: 0;
+  src\styles.css:1471:  position: relative;
+  src\styles.css:1472:  overflow: auto;
+  src\styles.css:1473:  display: flex;
+  src\styles.css:1474:  flex-direction: column;
+  src\styles.css:1475:}
+  src\styles.css:1476:
+  src\styles.css:1477:.reader-empty {
+  src\styles.css:1478:  margin: auto;
+  src\styles.css:1943:@keyframes spin {
+  src\styles.css:1944:  to { transform: rotate(360deg); }
+  src\styles.css:1945:}
+  src\styles.css:1946:
+> src\styles.css:1947:/* Manual editor workspace: board on left, palette on right */
+> src\styles.css:1948:.manual-editor-workspace {
+  src\styles.css:1949:  display: grid;
+  src\styles.css:1950:  grid-template-columns: minmax(280px, 340px) minmax(220px, 1fr);
+  src\styles.css:1951:  gap: 20px;
+  src\styles.css:1952:  align-items: start;
+  src\styles.css:1953:  margin-top: 6px;
+  src\styles.css:1954:}
+  src\styles.css:1955:
+  src\styles.css:1956:.manual-board-container {
+  src\styles.css:1957:  display: flex;
+  src\styles.css:1958:  flex-direction: column;
+  src\styles.css:2365:   13. RESPONSIVE BREAKPOINTS (DESKTOP TO LAPTOP & MOBILE)
+  src\styles.css:2366:   ========================================================== */
+  src\styles.css:2367:
+  src\styles.css:2368:@media (max-width: 1280px) {
+> src\styles.css:2369:  .workspace {
+  src\styles.css:2370:    grid-template-columns: 210px minmax(340px, 380px) minmax(0, 1fr);
+  src\styles.css:2371:  }
+> src\styles.css:2372:  .workspace.library-collapsed {
+  src\styles.css:2373:    grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+  src\styles.css:2374:  }
+  src\styles.css:2375:}
+  src\styles.css:2376:
+  src\styles.css:2377:@media (max-width: 1024px) {
+> src\styles.css:2378:  .workspace {
+  src\styles.css:2379:    grid-template-columns: 200px minmax(320px, 360px) minmax(0, 1fr);
+  src\styles.css:2380:  }
+> src\styles.css:2381:  .workspace.library-collapsed {
+  src\styles.css:2382:    grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+  src\styles.css:2383:  }
+  src\styles.css:2384:}
+  src\styles.css:2385:
+  src\styles.css:2386:@media (max-width: 820px) {
+> src\styles.css:2387:  .workspace:not(.library-collapsed) {
+  src\styles.css:2388:    grid-template-columns: 100%;
+  src\styles.css:2389:  }
+> src\styles.css:2390:  .library-panel {
+  src\styles.css:2391:    display: none;
+  src\styles.css:2392:  }
+> src\styles.css:2393:  .workspace.library-collapsed {
+  src\styles.css:2394:    grid-template-columns: 100%;
+  src\styles.css:2395:  }
+> src\styles.css:2396:  .manual-editor-workspace {
+  src\styles.css:2397:    grid-template-columns: 1fr;
+  src\styles.css:2398:  }
+  src\styles.css:2399:  .manual-chessboard {
+  src\styles.css:2400:    width: min(100%, 300px);
+  src\styles.css:2401:    margin-inline: auto;
+  src\styles.css:2402:  }
+  src\styles.css:2403:  .recognition-layout {
+  src\styles.css:2404:    grid-template-columns: 1fr;
+  src\styles.css:2405:  }
+  src\styles.css:2406:}
+  src\styles.css:2735:    grid-column: 1 / -1;
+  src\styles.css:2736:  }
+  src\styles.css:2737:}
+  src\styles.css:2738:
+> src\styles.css:2739:/* FINAL LAYOUT OVERRIDES — stable chess analysis workspace */
+> src\styles.css:2740:.workspace {
+  src\styles.css:2741:  align-items: start;
+  src\styles.css:2742:  min-width: 0;
+  src\styles.css:2743:}
+  src\styles.css:2744:
+> src\styles.css:2745:.library-panel,
+  src\styles.css:2746:.board-panel,
+  src\styles.css:2747:.reader-panel {
+  src\styles.css:2748:  min-width: 0;
+  src\styles.css:2749:  box-sizing: border-box;
+  src\styles.css:2750:}
+  src\styles.css:2751:
+  src\styles.css:2752:.board-panel {
+  src\styles.css:2753:  display: flex;
+  src\styles.css:2754:  flex-direction: column;
+  src\styles.css:2755:  align-items: stretch;
+  src\styles.css:3210:  .board-frame { width: min(100%, 46vh, 390px); }
+  src\styles.css:3211:}
+  src\styles.css:3212:
+  src\styles.css:3213:/* ChessBookReader: wider analysis board and compact PDF reader */
+> src\styles.css:3214:.workspace {
+  src\styles.css:3215:  grid-template-columns: 220px minmax(450px, 36%) minmax(0, 1fr) !important;
+  src\styles.css:3216:}
+  src\styles.css:3217:
+> src\styles.css:3218:.workspace.library-collapsed {
+  src\styles.css:3219:  grid-template-columns: minmax(450px, 36%) minmax(0, 1fr) !important;
+  src\styles.css:3220:}
+  src\styles.css:3221:
+  src\styles.css:3222:.board-panel {
+  src\styles.css:3223:  min-width: 0;
+  src\styles.css:3224:  padding-left: 12px;
+  src\styles.css:3225:  padding-right: 12px;
+  src\styles.css:3226:  overflow-y: auto;
+  src\styles.css:3227:}
+  src\styles.css:3228:
+  src\styles.css:3282:  min-width: 0;
+  src\styles.css:3283:}
+  src\styles.css:3284:
+  src\styles.css:3285:@media (max-width: 1280px) {
+> src\styles.css:3286:  .workspace {
+  src\styles.css:3287:    grid-template-columns: 200px minmax(410px, 38%) minmax(0, 1fr) !important;
+  src\styles.css:3288:  }
+> src\styles.css:3289:  .workspace.library-collapsed {
+  src\styles.css:3290:    grid-template-columns: minmax(410px, 38%) minmax(0, 1fr) !important;
+  src\styles.css:3291:  }
+  src\styles.css:3292:  .board-frame {
+  src\styles.css:3293:    width: min(100%, 54vh, 480px);
+  src\styles.css:3294:  }
+  src\styles.css:3295:}
+  src\styles.css:3296:
+  src\styles.css:3297:@media (max-width: 900px) {
+> src\styles.css:3298:  .workspace,
+> src\styles.css:3299:  .workspace.library-collapsed {
+  src\styles.css:3300:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:3301:  }
+  src\styles.css:3302:  .board-frame {
+  src\styles.css:3303:    width: min(100%, 68vw, 480px);
+  src\styles.css:3304:  }
+  src\styles.css:3305:  .board-header-actions {
+  src\styles.css:3306:    flex-wrap: wrap;
+  src\styles.css:3307:  }
+  src\styles.css:3308:}
+  src\styles.css:3309:
+  src\styles.css:3310:/* Compact, viewport-fitted analysis layout */
+> src\styles.css:3311:.workspace {
+  src\styles.css:3312:  min-height: 0;
+  src\styles.css:3313:  height: 100%;
+  src\styles.css:3314:  overflow: hidden;
+  src\styles.css:3315:  grid-template-columns: 220px minmax(470px, 39%) minmax(0, 1fr) !important;
+  src\styles.css:3316:}
+  src\styles.css:3317:
+> src\styles.css:3318:.workspace.library-collapsed {
+  src\styles.css:3319:  grid-template-columns: minmax(470px, 39%) minmax(0, 1fr) !important;
+  src\styles.css:3320:}
+  src\styles.css:3321:
+  src\styles.css:3322:.board-panel {
+  src\styles.css:3323:  min-height: 0;
+  src\styles.css:3324:  height: 100%;
+  src\styles.css:3325:  overflow-y: auto;
+  src\styles.css:3326:  overflow-x: hidden;
+  src\styles.css:3327:  padding: 5px 10px 8px;
+  src\styles.css:3328:  gap: 4px;
+  src\styles.css:3434:.reader-toolbar {
+  src\styles.css:3435:  flex: 0 0 auto;
+  src\styles.css:3436:}
+  src\styles.css:3437:
+> src\styles.css:3438:.page-workspace {
+  src\styles.css:3439:  min-height: 0;
+  src\styles.css:3440:  overflow: auto;
+  src\styles.css:3441:}
+  src\styles.css:3442:
+  src\styles.css:3443:.analysis-strip {
+  src\styles.css:3444:  flex: 0 0 auto;
+  src\styles.css:3445:  min-height: 64px;
+  src\styles.css:3446:  max-height: 76px;
+  src\styles.css:3447:  overflow: auto;
+  src\styles.css:3448:}
+  src\styles.css:3473:  }
+  src\styles.css:3474:}
+  src\styles.css:3475:
+  src\styles.css:3476:@media (max-width: 1280px) {
+> src\styles.css:3477:  .workspace {
+  src\styles.css:3478:    grid-template-columns: 205px minmax(430px, 40%) minmax(0, 1fr) !important;
+  src\styles.css:3479:  }
+  src\styles.css:3480:
+> src\styles.css:3481:  .workspace.library-collapsed {
+  src\styles.css:3482:    grid-template-columns: minmax(430px, 40%) minmax(0, 1fr) !important;
+  src\styles.css:3483:  }
+  src\styles.css:3484:}
+  src\styles.css:3485:
+  src\styles.css:3486:@media (max-width: 900px) {
+> src\styles.css:3487:  .workspace,
+> src\styles.css:3488:  .workspace.library-collapsed {
+  src\styles.css:3489:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:3490:  }
+  src\styles.css:3491:
+  src\styles.css:3492:  .board-frame {
+  src\styles.css:3493:    width: min(100%, calc(100vh - 300px), 460px);
+  src\styles.css:3494:  }
+  src\styles.css:3495:
+  src\styles.css:3496:  .board-header {
+  src\styles.css:3497:    flex-wrap: wrap;
+  src\styles.css:3498:  }
+  src\styles.css:3569:}
+  src\styles.css:3570:
+  src\styles.css:3571:
+  src\styles.css:3572:/* Move history lives beneath the library list, not beneath the chessboard. */
+> src\styles.css:3573:.library-panel {
+  src\styles.css:3574:  min-height: 0;
+  src\styles.css:3575:}
+  src\styles.css:3576:
+> src\styles.css:3577:.library-panel .book-list {
+  src\styles.css:3578:  flex: 0 1 34%;
+  src\styles.css:3579:  min-height: 90px;
+  src\styles.css:3580:  overflow-y: auto;
+  src\styles.css:3581:}
+  src\styles.css:3582:
+  src\styles.css:3583:.sidebar-moves-panel {
+  src\styles.css:3584:  display: flex;
+  src\styles.css:3585:  flex: 1 1 0;
+  src\styles.css:3586:  flex-direction: column;
+  src\styles.css:3587:  min-height: 110px;
+  src\styles.css:3630:  overflow: hidden;
+  src\styles.css:3631:  text-overflow: ellipsis;
+  src\styles.css:3632:}
+  src\styles.css:3633:
+> src\styles.css:3634:.library-panel .library-footer {
+  src\styles.css:3635:  flex: 0 0 auto;
+  src\styles.css:3636:}
+  src\styles.css:3637:
+  src\styles.css:3638:
+  src\styles.css:3639:/* Final compact fit: fill the sidebar move-list area and keep board controls visible */
+> src\styles.css:3640:.library-panel {
+  src\styles.css:3641:  display: flex;
+  src\styles.css:3642:  flex-direction: column;
+  src\styles.css:3643:  min-height: 0;
+  src\styles.css:3644:  overflow: hidden;
+  src\styles.css:3645:}
+  src\styles.css:3646:
+> src\styles.css:3647:.library-panel .sidebar-moves-panel {
+  src\styles.css:3648:  flex: 1 1 0 !important;
+  src\styles.css:3649:  min-height: 0 !important;
+  src\styles.css:3650:  max-height: none !important;
+  src\styles.css:3651:  margin: 0 !important;
+  src\styles.css:3652:  padding: 0 8px 6px !important;
+  src\styles.css:3653:  overflow: hidden !important;
+  src\styles.css:3654:}
+  src\styles.css:3655:
+  src\styles.css:3656:.sidebar-moves-panel .moves-panel {
+  src\styles.css:3657:  flex: 1 1 0 !important;
+  src\styles.css:3669:  overflow-x: hidden !important;
+  src\styles.css:3670:  align-content: start;
+  src\styles.css:3671:}
+  src\styles.css:3672:
+> src\styles.css:3673:.library-panel .library-footer {
+  src\styles.css:3674:  flex: 0 0 auto !important;
+  src\styles.css:3675:}
+  src\styles.css:3676:
+  src\styles.css:3677:/* Remove excess vertical gaps around the board and its controls */
+  src\styles.css:3678:.board-panel {
+  src\styles.css:3679:  min-height: 0 !important;
+  src\styles.css:3680:  gap: 2px !important;
+  src\styles.css:3681:  padding-top: 3px !important;
+  src\styles.css:3682:  padding-bottom: 4px !important;
+  src\styles.css:3683:  overflow-y: auto !important;
+  src\styles.css:3869:  padding: 7px 9px !important;
+  src\styles.css:3870:}
+  src\styles.css:3871:
+  src\styles.css:3872:/* The move list belongs below the library, filling the remaining height */
+> src\styles.css:3873:.library-panel .sidebar-moves-panel {
+  src\styles.css:3874:  display: flex !important;
+  src\styles.css:3875:  flex: 1 1 0 !important;
+  src\styles.css:3876:  min-height: 150px !important;
+  src\styles.css:3877:  max-height: none !important;
+  src\styles.css:3878:  padding: 0 8px 8px !important;
+  src\styles.css:3879:  overflow: hidden !important;
+  src\styles.css:3880:}
+  src\styles.css:3881:
+  src\styles.css:3882:.sidebar-moves-panel .moves-panel {
+  src\styles.css:3883:  display: flex !important;
+  src\styles.css:3939:}
+  src\styles.css:3940:
+  src\styles.css:3941:
+  src\styles.css:3942:/* Use the empty lower sidebar area for a taller move list */
+> src\styles.css:3943:.library-panel {
+  src\styles.css:3944:  display: flex !important;
+  src\styles.css:3945:  flex-direction: column !important;
+  src\styles.css:3946:  min-height: 0 !important;
+  src\styles.css:3947:  overflow: hidden !important;
+  src\styles.css:3948:}
+  src\styles.css:3949:
+> src\styles.css:3950:.library-panel .sidebar-moves-panel {
+  src\styles.css:3951:  flex: 1 1 auto !important;
+  src\styles.css:3952:  min-height: 0 !important;
+  src\styles.css:3953:  max-height: none !important;
+  src\styles.css:3954:  margin: 0 !important;
+  src\styles.css:3955:  padding: 0 8px 8px !important;
+  src\styles.css:3956:  overflow: hidden !important;
+  src\styles.css:3957:}
+  src\styles.css:3958:
+  src\styles.css:3959:.sidebar-moves-panel .moves-panel {
+  src\styles.css:3960:  display: flex !important;
+  src\styles.css:4229:
+  src\styles.css:4230:
+  src\styles.css:4231:/* MOVE LIST: stretch its PANEL across all remaining sidebar height.
+  src\styles.css:4232:   The list box stays large even when it contains only a few moves. */
+> src\styles.css:4233:.library-panel {
+  src\styles.css:4234:  display: flex !important;
+  src\styles.css:4235:  flex-direction: column !important;
+  src\styles.css:4236:  height: 100% !important;
+  src\styles.css:4237:  min-height: 0 !important;
+  src\styles.css:4238:  overflow: hidden !important;
+  src\styles.css:4239:}
+  src\styles.css:4240:
+> src\styles.css:4241:.library-panel .sidebar-moves-panel {
+  src\styles.css:4242:  display: flex !important;
+  src\styles.css:4243:  flex: 1 1 auto !important;
+  src\styles.css:4244:  flex-direction: column !important;
+  src\styles.css:4245:  min-height: 0 !important;
+  src\styles.css:4246:  height: auto !important;
+  src\styles.css:4247:  max-height: none !important;
+  src\styles.css:4248:  margin: 0 !important;
+  src\styles.css:4249:  padding-bottom: 0 !important;
+  src\styles.css:4250:  overflow: hidden !important;
+  src\styles.css:4251:}
+  src\styles.css:4252:
+> src\styles.css:4253:.library-panel .sidebar-moves-panel .moves-panel {
+  src\styles.css:4254:  display: flex !important;
+  src\styles.css:4255:  flex: 1 1 auto !important;
+  src\styles.css:4256:  flex-direction: column !important;
+  src\styles.css:4257:  min-height: 0 !important;
+  src\styles.css:4258:  height: 100% !important;
+  src\styles.css:4259:  max-height: none !important;
+  src\styles.css:4260:  margin: 0 !important;
+  src\styles.css:4261:  overflow: hidden !important;
+  src\styles.css:4262:}
+  src\styles.css:4263:
+> src\styles.css:4264:.library-panel .sidebar-moves-panel .move-list {
+  src\styles.css:4265:  display: block !important;
+  src\styles.css:4266:  flex: 1 1 auto !important;
+  src\styles.css:4267:  min-height: 0 !important;
+  src\styles.css:4268:  height: 100% !important;
+  src\styles.css:4269:  max-height: none !important;
+  src\styles.css:4270:  overflow-y: auto !important;
+  src\styles.css:4271:  overflow-x: hidden !important;
+  src\styles.css:4272:  align-content: start !important;
+  src\styles.css:4273:}
+  src\styles.css:4274:
+  src\styles.css:4275:/* If the list is short or empty, the border/background still fills the panel. */
+> src\styles.css:4276:.library-panel .sidebar-moves-panel .move-list:empty {
+  src\styles.css:4277:  flex: 1 1 auto !important;
+  src\styles.css:4278:  min-height: 100% !important;
+  src\styles.css:4279:  height: 100% !important;
+  src\styles.css:4280:}
+  src\styles.css:4281:
+  src\styles.css:4282:/* Keep book entries in their own scrollable area instead of pushing moves down. */
+> src\styles.css:4283:.library-panel .book-list,
+> src\styles.css:4284:.library-panel .recent-books,
+> src\styles.css:4285:.library-panel .local-books-list {
+  src\styles.css:4286:  flex: 0 1 auto !important;
+  src\styles.css:4287:  min-height: 0 !important;
+  src\styles.css:4288:  max-height: 22vh !important;
+  src\styles.css:4289:  overflow-y: auto !important;
+  src\styles.css:4290:  overflow-x: hidden !important;
+  src\styles.css:4291:}
+  src\styles.css:4292:
+  src\styles.css:4293:/* Footer stays at the bottom; move-list panel consumes all space above it. */
+> src\styles.css:4294:.library-panel .library-footer {
+  src\styles.css:4295:  flex: 0 0 auto !important;
+  src\styles.css:4296:  margin-top: 0 !important;
+  src\styles.css:4297:}
+  src\styles.css:4298:
+  src\styles.css:4299:
+  src\styles.css:4300:/* Hide the extra section-label row above the board. */
+  src\styles.css:4301:.board-panel .section-eyebrow,
+  src\styles.css:4302:.board-panel .panel-eyebrow,
+  src\styles.css:4303:.board-panel .position-analysis-label,
+  src\styles.css:4304:.board-panel .engine-status,
+  src\styles.css:5400:
+  src\styles.css:5401:
+  src\styles.css:5402:
+  src\styles.css:5403:/* ==========================================================
+> src\styles.css:5404:   STABLE RESPONSIVE WORKSPACE LAYOUT
+  src\styles.css:5405:   One authoritative grid; keep every panel inside the viewport.
+  src\styles.css:5406:   ========================================================== */
+  src\styles.css:5407:
+> src\styles.css:5408:.workspace {
+  src\styles.css:5409:  display: grid;
+  src\styles.css:5410:  grid-template-columns: 220px minmax(0, 1.05fr) minmax(280px, 0.95fr);
+  src\styles.css:5411:  width: 100%;
+  src\styles.css:5412:  min-width: 0;
+  src\styles.css:5413:  min-height: 0;
+  src\styles.css:5414:  overflow: hidden;
+  src\styles.css:5415:  box-sizing: border-box;
+  src\styles.css:5416:}
+  src\styles.css:5417:
+> src\styles.css:5418:.workspace.library-collapsed {
+  src\styles.css:5419:  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+  src\styles.css:5420:}
+  src\styles.css:5421:
+> src\styles.css:5422:.workspace > .library-panel,
+> src\styles.css:5423:.workspace > .board-panel,
+> src\styles.css:5424:.workspace > .reader-panel {
+  src\styles.css:5425:  width: 100%;
+  src\styles.css:5426:  min-width: 0;
+  src\styles.css:5427:  max-width: 100%;
+  src\styles.css:5428:  box-sizing: border-box;
+  src\styles.css:5429:}
+  src\styles.css:5430:
+> src\styles.css:5431:.workspace > .library-panel {
+  src\styles.css:5432:  overflow: hidden;
+  src\styles.css:5433:}
+  src\styles.css:5434:
+> src\styles.css:5435:.workspace .library-nav {
+  src\styles.css:5436:  width: 100%;
+  src\styles.css:5437:  min-width: 0;
+  src\styles.css:5438:  padding-inline: 8px;
+  src\styles.css:5439:  box-sizing: border-box;
+  src\styles.css:5440:}
+  src\styles.css:5441:
+> src\styles.css:5442:.workspace .library-nav-item {
+  src\styles.css:5443:  display: grid;
+  src\styles.css:5444:  grid-template-columns: 20px minmax(0, 1fr);
+  src\styles.css:5445:  justify-content: stretch;
+  src\styles.css:5446:  align-items: center;
+  src\styles.css:5447:  gap: 10px;
+  src\styles.css:5448:  width: 100%;
+  src\styles.css:5449:  min-width: 0;
+  src\styles.css:5450:  box-sizing: border-box;
+  src\styles.css:5451:  overflow: hidden;
+  src\styles.css:5452:  white-space: nowrap;
+  src\styles.css:5453:  text-align: left;
+  src\styles.css:5454:}
+  src\styles.css:5455:
+> src\styles.css:5456:.workspace .library-nav-item > span {
+  src\styles.css:5457:  min-width: 0;
+  src\styles.css:5458:  overflow: hidden;
+  src\styles.css:5459:  text-overflow: ellipsis;
+  src\styles.css:5460:  white-space: nowrap;
+  src\styles.css:5461:}
+  src\styles.css:5462:
+> src\styles.css:5463:.workspace > .board-panel {
+  src\styles.css:5464:  overflow-x: hidden;
+  src\styles.css:5465:  overflow-y: auto;
+  src\styles.css:5466:}
+  src\styles.css:5467:
+> src\styles.css:5468:.workspace .board-area {
+  src\styles.css:5469:  display: flex;
+  src\styles.css:5470:  justify-content: center;
+  src\styles.css:5471:  align-items: flex-start;
+  src\styles.css:5472:  width: 100%;
+  src\styles.css:5473:  min-width: 0;
+  src\styles.css:5474:  box-sizing: border-box;
+  src\styles.css:5475:}
+  src\styles.css:5476:
+> src\styles.css:5477:.workspace .board-frame {
+  src\styles.css:5478:  width: min(100%, 56vh, 520px);
+  src\styles.css:5479:  max-width: 100%;
+  src\styles.css:5480:  min-width: 0;
+  src\styles.css:5481:  flex: 0 1 auto;
+  src\styles.css:5482:  aspect-ratio: 1 / 1;
+  src\styles.css:5483:  box-sizing: border-box;
+  src\styles.css:5484:}
+  src\styles.css:5485:
+> src\styles.css:5486:.workspace .board-controls {
+  src\styles.css:5487:  width: 100%;
+  src\styles.css:5488:  min-width: 0;
+  src\styles.css:5489:  box-sizing: border-box;
+  src\styles.css:5490:}
+  src\styles.css:5491:
+> src\styles.css:5492:.workspace > .reader-panel {
+  src\styles.css:5493:  overflow: hidden;
+  src\styles.css:5494:}
+  src\styles.css:5495:
+> src\styles.css:5496:.workspace .page-workspace {
+  src\styles.css:5497:  min-width: 0;
+  src\styles.css:5498:  max-width: 100%;
+  src\styles.css:5499:  overflow: auto;
+  src\styles.css:5500:  box-sizing: border-box;
+  src\styles.css:5501:}
+  src\styles.css:5502:
+  src\styles.css:5503:@media (max-width: 1150px) and (min-width: 901px) {
+> src\styles.css:5504:  .workspace {
+  src\styles.css:5505:    grid-template-columns: 190px minmax(0, 1.1fr) minmax(240px, 0.9fr);
+  src\styles.css:5506:  }
+  src\styles.css:5507:
+> src\styles.css:5508:  .workspace.library-collapsed {
+  src\styles.css:5509:    grid-template-columns: minmax(0, 1.1fr) minmax(240px, 0.9fr);
+  src\styles.css:5510:  }
+  src\styles.css:5511:
+> src\styles.css:5512:  .workspace .board-frame {
+  src\styles.css:5513:    width: min(100%, 48vh, 430px);
+  src\styles.css:5514:  }
+  src\styles.css:5515:}
+  src\styles.css:5516:
+  src\styles.css:5517:@media (max-width: 900px) {
+> src\styles.css:5518:  .workspace,
+> src\styles.css:5519:  .workspace.library-collapsed {
+  src\styles.css:5520:    grid-template-columns: minmax(0, 1fr);
+  src\styles.css:5521:    overflow-y: auto;
+  src\styles.css:5522:    overflow-x: hidden;
+  src\styles.css:5523:  }
+  src\styles.css:5524:
+> src\styles.css:5525:  .workspace > .library-panel {
+  src\styles.css:5526:    max-height: 42vh;
+  src\styles.css:5527:  }
+  src\styles.css:5528:
+> src\styles.css:5529:  .workspace > .board-panel {
+  src\styles.css:5530:    max-height: none;
+  src\styles.css:5531:  }
+  src\styles.css:5532:
+> src\styles.css:5533:  .workspace .board-frame {
+  src\styles.css:5534:    width: min(100%, 64vw, 440px);
+  src\styles.css:5535:  }
+  src\styles.css:5536:
+> src\styles.css:5537:  .workspace > .reader-panel {
+  src\styles.css:5538:    min-height: 420px;
+  src\styles.css:5539:  }
+  src\styles.css:5540:}
+  src\styles.css:5541:
+  src\styles.css:5542:/* Sidebar labels: readable, full text, no unnecessary truncation */
+> src\styles.css:5543:.workspace .library-nav-item {
+  src\styles.css:5544:  grid-template-columns: 20px minmax(0, 1fr) !important;
+  src\styles.css:5545:  justify-content: stretch !important;
+  src\styles.css:5546:  column-gap: 12px !important;
+  src\styles.css:5547:  padding-left: 12px !important;
+  src\styles.css:5548:  padding-right: 12px !important;
+  src\styles.css:5549:  overflow: visible !important;
+  src\styles.css:5550:}
+  src\styles.css:5551:
+> src\styles.css:5552:.workspace .library-nav-item > span {
+  src\styles.css:5553:  display: block !important;
+  src\styles.css:5554:  min-width: 0 !important;
+  src\styles.css:5555:  width: 100% !important;
+  src\styles.css:5556:  overflow: visible !important;
+  src\styles.css:5557:  text-overflow: clip !important;
+  src\styles.css:5558:  white-space: nowrap !important;
+  src\styles.css:5559:  font-size: 14px !important;
+  src\styles.css:5560:  line-height: 1.5 !important;
+  src\styles.css:5561:  letter-spacing: 0 !important;
+  src\styles.css:5562:}
+  src\styles.css:5563:
+> src\styles.css:5564:.workspace .library-nav-item svg {
+  src\styles.css:5565:  width: 18px !important;
+  src\styles.css:5566:  height: 18px !important;
+  src\styles.css:5567:  flex-shrink: 0 !important;
+  src\styles.css:5568:}
+  src\styles.css:5569:
+> src\styles.css:5570:.workspace .library-nav-item.nav-active {
+  src\styles.css:5571:  padding-left: 12px !important;
+  src\styles.css:5572:  padding-right: 12px !important;
+  src\styles.css:5573:}
+  src\styles.css:5574:
+  src\styles.css:5575:/* Prevent navigation labels from inheriting centered or clipped text */
+> src\styles.css:5576:.workspace .library-nav {
+  src\styles.css:5577:  align-items: stretch !important;
+  src\styles.css:5578:  overflow: visible !important;
+  src\styles.css:5579:}
+  src\styles.css:5580:
+  src\styles.css:5581:/* Final icon alignment: engine badge and side-to-move buttons */
+  src\styles.css:5582:.analysis-name .stockfish-mark,
+  src\styles.css:5583:.analysis-strip .stockfish-mark {
+  src\styles.css:5584:  display: inline-flex !important;
+  src\styles.css:5585:  align-items: center !important;
+  src\styles.css:5586:  justify-content: center !important;
+  src\styles.css:5710:.board-header .setup-position-btn:hover {
+  src\styles.css:5711:  background: rgba(139, 195, 74, 0.16);
+  src\styles.css:5712:}
+  src\styles.css:5713:
+> src\styles.css:5714:/* Analysis workspace title bar */
+  src\styles.css:5715:.board-panel .board-header {
+  src\styles.css:5716:  display: flex !important;
+  src\styles.css:5717:  align-items: center !important;
+  src\styles.css:5718:  justify-content: space-between !important;
+  src\styles.css:5719:  gap: 16px !important;
+  src\styles.css:5720:  width: 100% !important;
+  src\styles.css:5721:  min-width: 0 !important;
+  src\styles.css:5722:  margin: -1px 0 12px !important;
+  src\styles.css:5723:  padding: 12px 14px !important;
+  src\styles.css:5724:  background: linear-gradient(
+  src\styles.css:6461:}
+  src\styles.css:6462:
+  src\styles.css:6463:
+  src\styles.css:6464:/* Refined search focus styling */
+> src\styles.css:6465:.library-panel input:focus,
+> src\styles.css:6466:.library-panel input:focus-visible,
+> src\styles.css:6467:.library-panel textarea:focus,
+> src\styles.css:6468:.library-panel textarea:focus-visible,
+  src\styles.css:6469:.study-library input:focus,
+  src\styles.css:6470:.study-library input:focus-visible,
+  src\styles.css:6471:.study-library textarea:focus,
+  src\styles.css:6472:.study-library textarea:focus-visible {
+  src\styles.css:6473:  outline: none;
+  src\styles.css:6474:  border-color: rgba(139, 190, 86, 0.7);
+  src\styles.css:6475:  box-shadow: 0 0 0 2px rgba(139, 190, 86, 0.16);
+  src\styles.css:6476:}
+  src\styles.css:6477:
+> src\styles.css:6478:.library-panel input:focus:not(:focus-visible),
+  src\styles.css:6479:.study-library input:focus:not(:focus-visible) {
+  src\styles.css:6480:  box-shadow: none;
+  src\styles.css:6481:}
+  src\styles.css:6482:
+  src\styles.css:6483:
+  src\styles.css:6484:/* STUDY FOCUS LAYOUT */
+  src\styles.css:6485:@media (min-width: 901px) {
+  src\styles.css:6486:  .app-shell.study-focus-mode {
+  src\styles.css:6487:    width: 100%;
+  src\styles.css:6488:    max-width: 100%;
+  src\styles.css:6489:  }
+  src\styles.css:6490:
+> src\styles.css:6491:  .app-shell.study-focus-mode .workspace {
+  src\styles.css:6492:    grid-template-columns: minmax(0, 1.12fr) minmax(360px, 0.88fr) !important;
+  src\styles.css:6493:    width: 100%;
+  src\styles.css:6494:    min-width: 0;
+  src\styles.css:6495:  }
+  src\styles.css:6496:
+> src\styles.css:6497:  .app-shell.study-focus-mode .workspace > .library-panel {
+  src\styles.css:6498:    display: none !important;
+  src\styles.css:6499:  }
+  src\styles.css:6500:
+> src\styles.css:6501:  .app-shell.study-focus-mode .workspace > .board-panel,
+> src\styles.css:6502:  .app-shell.study-focus-mode .workspace > .reader-panel {
+  src\styles.css:6503:    width: 100% !important;
+  src\styles.css:6504:    min-width: 0 !important;
+  src\styles.css:6505:    max-width: none !important;
+  src\styles.css:6506:  }
+  src\styles.css:6507:
+  src\styles.css:6508:  .app-shell.study-focus-mode .board-panel {
+  src\styles.css:6509:    border-left: 0;
+  src\styles.css:6510:  }
+  src\styles.css:6511:}
+  src\styles.css:6512:
+  src\styles.css:6513:@media (max-width: 900px) {
+> src\styles.css:6514:  .app-shell.study-focus-mode .workspace > .library-panel {
+  src\styles.css:6515:    display: none !important;
+  src\styles.css:6516:  }
+  src\styles.css:6517:}
+  src\styles.css:6518:
+  src\styles.css:6519:
+  src\styles.css:6520:/* FULL-VIEWPORT FOCUS MODE */
+  src\styles.css:6521:html:has(.app-shell.study-focus-mode),
+  src\styles.css:6522:body:has(.app-shell.study-focus-mode),
+  src\styles.css:6523:#root:has(.app-shell.study-focus-mode) {
+  src\styles.css:6524:  width: 100%;
+  src\styles.css:6546:.app-shell.study-focus-mode > .topbar {
+  src\styles.css:6547:  display: none !important;
+  src\styles.css:6548:}
+  src\styles.css:6549:
+> src\styles.css:6550:.app-shell.study-focus-mode > .workspace {
+  src\styles.css:6551:  flex: 1 1 auto !important;
+  src\styles.css:6552:  min-height: 0 !important;
+  src\styles.css:6553:  height: 100% !important;
+  src\styles.css:6554:  max-height: none !important;
+  src\styles.css:6555:  width: 100% !important;
+  src\styles.css:6556:  grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr) !important;
+  src\styles.css:6557:  overflow: hidden !important;
+  src\styles.css:6558:}
+  src\styles.css:6559:
+> src\styles.css:6560:.app-shell.study-focus-mode .workspace > .library-panel {
+  src\styles.css:6561:  display: none !important;
+  src\styles.css:6562:}
+  src\styles.css:6563:
+> src\styles.css:6564:.app-shell.study-focus-mode .workspace > .board-panel,
+> src\styles.css:6565:.app-shell.study-focus-mode .workspace > .reader-panel {
+  src\styles.css:6566:  height: 100% !important;
+  src\styles.css:6567:  min-height: 0 !important;
+  src\styles.css:6568:  max-height: none !important;
+  src\styles.css:6569:  width: 100% !important;
+  src\styles.css:6570:  min-width: 0 !important;
+  src\styles.css:6571:  max-width: none !important;
+  src\styles.css:6572:  overflow-y: auto !important;
+  src\styles.css:6573:}
+  src\styles.css:6574:
+> src\styles.css:6575:.app-shell.study-focus-mode .workspace > .reader-panel {
+  src\styles.css:6576:  overflow: hidden !important;
+  src\styles.css:6577:}
+  src\styles.css:6578:
+  src\styles.css:6579:.app-shell.study-focus-mode .board-panel .board-frame {
+  src\styles.css:6580:  width: min(100%, calc(100dvh - 300px), 760px) !important;
+  src\styles.css:6581:  max-width: 100% !important;
+  src\styles.css:6582:}
+  src\styles.css:6583:
+  src\styles.css:6584:@media (max-width: 900px) {
+> src\styles.css:6585:  .app-shell.study-focus-mode > .workspace {
+  src\styles.css:6586:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:6587:    grid-template-rows: minmax(400px, 1fr) minmax(300px, 0.9fr) !important;
+  src\styles.css:6588:    overflow-y: auto !important;
+  src\styles.css:6589:  }
+  src\styles.css:6590:
+> src\styles.css:6591:  .app-shell.study-focus-mode .workspace > .board-panel,
+> src\styles.css:6592:  .app-shell.study-focus-mode .workspace > .reader-panel {
+  src\styles.css:6593:    min-height: 0 !important;
+  src\styles.css:6594:  }
+  src\styles.css:6595:}
+  src\styles.css:6596:
+  src\styles.css:6597:
+> src\styles.css:6598:/* Opening Explorer workspace */
+  src\styles.css:6599:.opening-explorer-panel {
+  src\styles.css:6600:  display: grid;
+  src\styles.css:6601:  gap: 10px;
+  src\styles.css:6602:  margin-top: 14px;
+  src\styles.css:6603:  padding: 16px;
+  src\styles.css:6604:  border: 1px solid var(--border, #d9ded8);
+  src\styles.css:6605:  border-radius: 12px;
+  src\styles.css:6606:  background: var(--panel, #fff);
+  src\styles.css:6607:}
+  src\styles.css:6608:.opening-explorer-panel h3,
+  src\styles.css:6710:  grid-column: 1 / -1;
+  src\styles.css:6711:  color: var(--muted, #687168);
+  src\styles.css:6712:}
+  src\styles.css:6713:
+> src\styles.css:6714:/* Dedicated Opening Explorer layout: hide the PDF reader and expand the board workspace. */
+> src\styles.css:6715:.workspace.opening-explorer-active:not(.library-collapsed) {
+  src\styles.css:6716:  grid-template-columns: 220px minmax(0, 1fr) !important;
+  src\styles.css:6717:}
+> src\styles.css:6718:.workspace.opening-explorer-active.library-collapsed {
+  src\styles.css:6719:  grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:6720:}
+> src\styles.css:6721:.workspace.opening-explorer-active > .reader-panel {
+  src\styles.css:6722:  display: none !important;
+  src\styles.css:6723:}
+> src\styles.css:6724:.workspace.opening-explorer-active > .board-panel {
+  src\styles.css:6725:  width: 100% !important;
+  src\styles.css:6726:  max-width: none !important;
+  src\styles.css:6727:  min-width: 0 !important;
+  src\styles.css:6728:}
+  src\styles.css:6729:@media (max-width: 900px) {
+> src\styles.css:6730:  .workspace.opening-explorer-active:not(.library-collapsed),
+> src\styles.css:6731:  .workspace.opening-explorer-active.library-collapsed {
+  src\styles.css:6732:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:6733:  }
+  src\styles.css:6734:}
+  src\styles.css:6735:
+  src\styles.css:6736:/* Opening Explorer: board left, explorer in the former PDF panel on the right. */
+> src\styles.css:6737:.workspace.opening-explorer-active:not(.library-collapsed) {
+  src\styles.css:6738:  grid-template-columns: 220px minmax(320px, 0.95fr) minmax(360px, 1.05fr) !important;
+  src\styles.css:6739:}
+> src\styles.css:6740:.workspace.opening-explorer-active.library-collapsed {
+  src\styles.css:6741:  grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr) !important;
+  src\styles.css:6742:}
+> src\styles.css:6743:.workspace.opening-explorer-active > .reader-panel {
+  src\styles.css:6744:  display: flex !important;
+  src\styles.css:6745:  flex-direction: column;
+  src\styles.css:6746:  min-width: 0;
+  src\styles.css:6747:  overflow: auto !important;
+  src\styles.css:6748:  background: var(--panel, #252421);
+  src\styles.css:6749:}
+> src\styles.css:6750:.workspace.opening-explorer-active > .board-panel {
+  src\styles.css:6751:  min-width: 0;
+  src\styles.css:6752:  max-width: none;
+  src\styles.css:6753:}
+> src\styles.css:6754:.opening-explorer-right-workspace {
+  src\styles.css:6755:  display: block;
+  src\styles.css:6756:  min-width: 0;
+  src\styles.css:6757:  padding: 18px;
+  src\styles.css:6758:  color: var(--text, #eeeae2);
+  src\styles.css:6759:  background: var(--panel, #252421);
+  src\styles.css:6760:}
+> src\styles.css:6761:.opening-explorer-right-workspace .opening-explorer-panel {
+  src\styles.css:6762:  color: var(--text, #eeeae2);
+  src\styles.css:6763:  background: transparent;
+  src\styles.css:6764:  border: 0;
+  src\styles.css:6765:  padding: 0;
+  src\styles.css:6766:  box-shadow: none;
+  src\styles.css:6767:}
+> src\styles.css:6768:.opening-explorer-right-workspace .opening-stats {
+  src\styles.css:6769:  color: var(--text, #eeeae2) !important;
+  src\styles.css:6770:  background: #302f2b !important;
+  src\styles.css:6771:  border: 1px solid #484740;
+  src\styles.css:6772:  border-radius: 10px;
+  src\styles.css:6773:  padding: 14px;
+  src\styles.css:6774:}
+> src\styles.css:6775:.opening-explorer-right-workspace .opening-stats h4,
+> src\styles.css:6776:.opening-explorer-right-workspace .opening-stats h5,
+> src\styles.css:6777:.opening-explorer-right-workspace .opening-stats p,
+> src\styles.css:6778:.opening-explorer-right-workspace .opening-stats strong,
+> src\styles.css:6779:.opening-explorer-right-workspace .opening-stats span {
+  src\styles.css:6780:  color: inherit;
+  src\styles.css:6781:}
+> src\styles.css:6782:.opening-explorer-right-workspace textarea {
+  src\styles.css:6783:  color: #f1eee7;
+  src\styles.css:6784:  background: #302f2b;
+  src\styles.css:6785:  border-color: #55534b;
+  src\styles.css:6786:}
+> src\styles.css:6787:.opening-explorer-right-workspace .opening-explorer-notation button,
+> src\styles.css:6788:.opening-explorer-right-workspace .opening-explorer-moves button {
+  src\styles.css:6789:  color: #eeeae2;
+  src\styles.css:6790:  background: #302f2b;
+  src\styles.css:6791:  border-color: #55534b;
+  src\styles.css:6792:}
+  src\styles.css:6793:@media (max-width: 900px) {
+> src\styles.css:6794:  .workspace.opening-explorer-active:not(.library-collapsed),
+> src\styles.css:6795:  .workspace.opening-explorer-active.library-collapsed {
+  src\styles.css:6796:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:6797:  }
+  src\styles.css:6798:}
+  src\styles.css:6799:
+  src\styles.css:6800:/* OPENING EXPLORER GLASS HEADER */
+> src\styles.css:6801:.workspace.opening-explorer-active > .reader-panel > :not(.opening-explorer-right-workspace) {
+  src\styles.css:6802:  display: none !important;
+  src\styles.css:6803:}
+  src\styles.css:6804:
+> src\styles.css:6805:.workspace.opening-explorer-active > .reader-panel {
+  src\styles.css:6806:  overflow-y: auto !important;
+  src\styles.css:6807:  background:
+  src\styles.css:6808:    radial-gradient(ellipse at 85% 0%, rgba(139, 195, 74, 0.08), transparent 48%),
+  src\styles.css:6809:    #22211f !important;
+  src\styles.css:6810:}
+  src\styles.css:6811:
+> src\styles.css:6812:.opening-explorer-right-workspace {
+  src\styles.css:6813:  flex: 1 0 auto;
+  src\styles.css:6814:  min-height: 100%;
+  src\styles.css:6815:  padding: 22px !important;
+  src\styles.css:6816:  box-sizing: border-box;
+  src\styles.css:6817:  background: transparent !important;
+  src\styles.css:6818:}
+  src\styles.css:6819:
+> src\styles.css:6820:.opening-explorer-right-workspace .opening-explorer-panel > h3 {
+  src\styles.css:6821:  position: relative;
+  src\styles.css:6822:  overflow: hidden;
+  src\styles.css:6823:  padding: 20px 22px;
+  src\styles.css:6824:  margin: 0 0 18px;
+  src\styles.css:6825:  border: 1px solid rgba(157, 211, 100, 0.35);
+  src\styles.css:6826:  border-radius: 16px;
+  src\styles.css:6827:  color: #f4f7ee;
+  src\styles.css:6828:  font-size: 1.45rem;
+  src\styles.css:6829:  font-weight: 750;
+  src\styles.css:6830:  letter-spacing: 0.2px;
+  src\styles.css:6839:  -webkit-backdrop-filter: blur(16px);
+  src\styles.css:6840:  animation: opening-explorer-arrive 500ms ease-out both;
+  src\styles.css:6841:}
+  src\styles.css:6842:
+> src\styles.css:6843:.opening-explorer-right-workspace .opening-explorer-panel > h3::before {
+  src\styles.css:6844:  content: "";
+  src\styles.css:6845:  position: absolute;
+  src\styles.css:6846:  inset: 0 auto 0 0;
+  src\styles.css:6847:  width: 4px;
+  src\styles.css:6848:  background: linear-gradient(180deg, #c5ef91, #83bd43);
+  src\styles.css:6849:  box-shadow: 0 0 14px rgba(139, 195, 74, 0.48);
+  src\styles.css:6850:}
+  src\styles.css:6851:
+> src\styles.css:6852:.opening-explorer-right-workspace .opening-explorer-panel > h3::after {
+  src\styles.css:6853:  content: "";
+  src\styles.css:6854:  position: absolute;
+  src\styles.css:6855:  top: -80%;
+  src\styles.css:6856:  bottom: -80%;
+  src\styles.css:6857:  left: -45%;
+  src\styles.css:6858:  width: 24%;
+  src\styles.css:6859:  transform: rotate(20deg);
+  src\styles.css:6860:  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+  src\styles.css:6861:  animation: opening-explorer-glint 7s ease-in-out infinite;
+  src\styles.css:6862:  pointer-events: none;
+  src\styles.css:6863:}
+  src\styles.css:6864:
+> src\styles.css:6865:.opening-explorer-right-workspace .opening-explorer-panel > p {
+  src\styles.css:6866:  color: #c6c5bd;
+  src\styles.css:6867:  line-height: 1.65;
+  src\styles.css:6868:}
+  src\styles.css:6869:
+> src\styles.css:6870:.opening-explorer-right-workspace .opening-stats {
+  src\styles.css:6871:  color: #eeeee8 !important;
+  src\styles.css:6872:  background: linear-gradient(145deg, #302f2b, #282825) !important;
+  src\styles.css:6873:  border: 1px solid #484840 !important;
+  src\styles.css:6874:  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  src\styles.css:6875:}
+  src\styles.css:6876:
+> src\styles.css:6877:.opening-explorer-right-workspace .opening-stats a {
+  src\styles.css:6878:  color: #a6d875;
+  src\styles.css:6879:}
+  src\styles.css:6880:
+> src\styles.css:6881:.opening-explorer-right-workspace textarea:focus {
+  src\styles.css:6882:  outline: 2px solid rgba(139, 195, 74, 0.65);
+  src\styles.css:6883:  outline-offset: 2px;
+  src\styles.css:6884:}
+  src\styles.css:6885:
+  src\styles.css:6886:@keyframes opening-explorer-arrive {
+  src\styles.css:6887:  from { opacity: 0; transform: translateY(8px); }
+  src\styles.css:6888:  to { opacity: 1; transform: translateY(0); }
+  src\styles.css:6889:}
+  src\styles.css:6890:
+  src\styles.css:6891:@keyframes opening-explorer-glint {
+  src\styles.css:6893:  90%, 100% { left: 125%; }
+  src\styles.css:6894:}
+  src\styles.css:6895:
+  src\styles.css:6896:@media (prefers-reduced-motion: reduce) {
+> src\styles.css:6897:  .opening-explorer-right-workspace .opening-explorer-panel > h3,
+> src\styles.css:6898:  .opening-explorer-right-workspace .opening-explorer-panel > h3::after {
+  src\styles.css:6899:    animation: none !important;
+  src\styles.css:6900:  }
+  src\styles.css:6901:}
+  src\styles.css:6902:
+  src\styles.css:6903:/* READER VISIBILITY FINAL OVERRIDE */
+> src\styles.css:6904:/* Normal workspaces must retain the PDF reader and its direct children. */
+> src\styles.css:6905:.workspace:not(.opening-explorer-active) > .reader-panel {
+  src\styles.css:6906:  display: flex !important;
+  src\styles.css:6907:  flex-direction: column;
+  src\styles.css:6908:  min-width: 0;
+  src\styles.css:6909:  visibility: visible !important;
+  src\styles.css:6910:  opacity: 1 !important;
+  src\styles.css:6911:}
+  src\styles.css:6912:
+  src\styles.css:6913:/* Explorer mode shows the Explorer instead of the PDF toolbar and page. */
+> src\styles.css:6914:.workspace.opening-explorer-active > .reader-panel {
+  src\styles.css:6915:  display: flex !important;
+  src\styles.css:6916:  flex-direction: column;
+  src\styles.css:6917:  visibility: visible !important;
+  src\styles.css:6918:  opacity: 1 !important;
+  src\styles.css:6919:}
+  src\styles.css:6920:
+> src\styles.css:6921:.workspace.opening-explorer-active > .reader-panel > :not(.opening-explorer-right-workspace) {
+  src\styles.css:6922:  display: none !important;
+  src\styles.css:6923:}
+  src\styles.css:6924:
+> src\styles.css:6925:.workspace:not(.opening-explorer-active) > .reader-panel > .opening-explorer-right-workspace {
+  src\styles.css:6926:  display: none !important;
+  src\styles.css:6927:}
+  src\styles.css:6928:
+> src\styles.css:6929:.workspace:not(.opening-explorer-active) > .reader-panel > .reader-toolbar,
+> src\styles.css:6930:.workspace:not(.opening-explorer-active) > .reader-panel > .page-navigation,
+> src\styles.css:6931:.workspace:not(.opening-explorer-active) > .reader-panel > .page-workspace,
+> src\styles.css:6932:.workspace:not(.opening-explorer-active) > .reader-panel > .engine-panel {
+  src\styles.css:6933:  visibility: visible !important;
+  src\styles.css:6934:  opacity: 1 !important;
+  src\styles.css:6935:}
+  src\styles.css:6936:
+  src\styles.css:6937:/* ANALYSIS BOARD NO-BOOK LAYOUT */
+> src\styles.css:6938:/* Keep the library available, but give the Analysis Board the remaining workspace. */
+> src\styles.css:6939:.workspace.analysis-board-active:not(.library-collapsed) {
+  src\styles.css:6940:  grid-template-columns: 220px minmax(0, 1fr) !important;
+  src\styles.css:6941:}
+> src\styles.css:6942:.workspace.analysis-board-active.library-collapsed {
+  src\styles.css:6943:  grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:6944:}
+> src\styles.css:6945:.workspace.analysis-board-active > .reader-panel {
+  src\styles.css:6946:  display: none !important;
+  src\styles.css:6947:}
+> src\styles.css:6948:.workspace.analysis-board-active > .board-panel {
+  src\styles.css:6949:  display: flex;
+  src\styles.css:6950:  min-width: 0;
+  src\styles.css:6951:  width: 100%;
+  src\styles.css:6952:  max-width: none;
+  src\styles.css:6953:}
+  src\styles.css:6954:@media (max-width: 900px) {
+> src\styles.css:6955:  .workspace.analysis-board-active:not(.library-collapsed),
+> src\styles.css:6956:  .workspace.analysis-board-active.library-collapsed {
+  src\styles.css:6957:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:6958:  }
+  src\styles.css:6959:}
+  src\styles.css:6960:
+  src\styles.css:6961:/* Keep chess square base colors stable on hover and focus. */
+  src\styles.css:6962:button.square.light-square:hover,
+  src\styles.css:6963:button.square.light-square:focus,
+  src\styles.css:6964:button.square.light-square:focus-visible {
+  src\styles.css:6965:  background: var(--board-light);
+  src\styles.css:6966:}
+  src\styles.css:6982:}
+  src\styles.css:6983:
+  src\styles.css:6984:
+  src\styles.css:6985:/* ==========================================================
+> src\styles.css:6986:   NOTATION LEARNER FULL-WIDTH WORKSPACE FIX
+  src\styles.css:6987:   Keep the library sidebar; give notation the remaining width.
+  src\styles.css:6988:   ========================================================== */
+  src\styles.css:6989:
+> src\styles.css:6990:.workspace.notation-learner-active {
+  src\styles.css:6991:  grid-template-columns: 220px minmax(0, 1fr) !important;
+  src\styles.css:6992:  min-width: 0;
+  src\styles.css:6993:  min-height: 0;
+  src\styles.css:6994:}
+  src\styles.css:6995:
+> src\styles.css:6996:.workspace.notation-learner-active.library-collapsed {
+  src\styles.css:6997:  grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:6998:}
+  src\styles.css:6999:
+> src\styles.css:7000:.workspace.notation-learner-active > .notation-workspace {
+  src\styles.css:7001:  grid-column: 2 / -1;
+  src\styles.css:7002:  width: 100%;
+  src\styles.css:7003:  max-width: none;
+  src\styles.css:7004:  min-width: 0;
+  src\styles.css:7005:  min-height: 0;
+  src\styles.css:7006:}
+  src\styles.css:7007:
+  src\styles.css:7008:@media (max-width: 820px) {
+> src\styles.css:7009:  .workspace.notation-learner-active {
+  src\styles.css:7010:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:7011:  }
+  src\styles.css:7012:
+> src\styles.css:7013:  .workspace.notation-learner-active > .notation-workspace {
+  src\styles.css:7014:    grid-column: 1 / -1;
+  src\styles.css:7015:  }
+  src\styles.css:7016:}
+  src\styles.css:7017:/* ==========================================================
+> src\styles.css:7018:   TRAINING WORKSPACES - VIEWPORT FIT
+  src\styles.css:7019:   Scoped only to Coordinate Training and Notation Learner.
+  src\styles.css:7020:   ========================================================== */
+  src\styles.css:7021:
+> src\styles.css:7022:.workspace.notation-learner-active,
+> src\styles.css:7023:.workspace.coordinate-training-active {
+  src\styles.css:7024:  min-width: 0;
+  src\styles.css:7025:  min-height: 0;
+  src\styles.css:7026:  overflow: hidden;
+  src\styles.css:7027:}
+  src\styles.css:7028:
+> src\styles.css:7029:.workspace.coordinate-training-active {
+  src\styles.css:7030:  grid-template-columns: 220px minmax(0, 1fr) !important;
+  src\styles.css:7031:}
+  src\styles.css:7032:
+> src\styles.css:7033:.workspace.coordinate-training-active.library-collapsed {
+  src\styles.css:7034:  grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:7035:}
+  src\styles.css:7036:
+> src\styles.css:7037:.workspace.coordinate-training-active > .coordinate-training-workspace {
+  src\styles.css:7038:  grid-column: 2 / -1;
+  src\styles.css:7039:  min-width: 0;
+  src\styles.css:7040:  min-height: 0;
+  src\styles.css:7041:  width: 100%;
+  src\styles.css:7042:}
+  src\styles.css:7043:
+> src\styles.css:7044:.workspace.notation-learner-active > .notation-workspace {
+  src\styles.css:7045:  min-height: 0;
+  src\styles.css:7046:  height: 100%;
+  src\styles.css:7047:}
+  src\styles.css:7048:
+  src\styles.css:7049:@media (max-width: 820px) {
+> src\styles.css:7050:  .workspace.coordinate-training-active {
+  src\styles.css:7051:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:7052:  }
+  src\styles.css:7053:
+> src\styles.css:7054:  .workspace.coordinate-training-active > .coordinate-training-workspace {
+  src\styles.css:7055:    grid-column: 1 / -1;
+  src\styles.css:7056:  }
+  src\styles.css:7057:}
+  src\styles.css:7058:
+  src\styles.css:7059:/* =========================================================
+> src\styles.css:7060:   GAME REVIEW WORKSPACE � UI FIRST / SAMPLE DATA ONLY
+  src\styles.css:7061:   ========================================================= */
+  src\styles.css:7062:.game-review-page {
+  src\styles.css:7063:  width: 100%;
+  src\styles.css:7064:  height: 100%;
+  src\styles.css:7065:  min-width: 0;
+  src\styles.css:7066:  overflow: auto;
+  src\styles.css:7067:  padding: 30px clamp(18px, 3vw, 42px) 36px;
+  src\styles.css:7068:  color: var(--text-primary);
+  src\styles.css:7069:  background: var(--bg-app);
+  src\styles.css:7070:}
+  src\styles.css:7171:.gr-move-table-row strong { color: var(--text-primary); }
+  src\styles.css:7172:.gr-move-table-row > span:nth-child(4) { display: flex; align-items: center; gap: 7px; }
+  src\styles.css:7173:.gr-empty { padding: 30px; text-align: center; color: var(--text-muted); font-size: 12px; }
+  src\styles.css:7174:.gr-bottom-note { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10px; margin-top: 16px; }
+> src\styles.css:7175:.workspace.game-review-active { display: block; overflow: hidden; }
+> src\styles.css:7176:.workspace.game-review-active > .game-review-page { height: 100%; }
+> src\styles.css:7177:.workspace.game-review-active .library-panel { display: none; }
+  src\styles.css:7178:
+  src\styles.css:7179:@media (max-width: 1050px) {
+  src\styles.css:7180:  .gr-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  src\styles.css:7181:  .gr-main-grid { grid-template-columns: 1fr; }
+  src\styles.css:7182:  .gr-move-preview { grid-column: auto; }
+  src\styles.css:7183:}
+  src\styles.css:7184:@media (max-width: 650px) {
+  src\styles.css:7185:  .game-review-page { padding: 20px 13px; }
+  src\styles.css:7186:  .gr-topline { align-items: flex-start; flex-direction: column; }
+  src\styles.css:7187:  .gr-top-actions { width: 100%; }
+  src\styles.css:7198:  .gr-move-table-head, .gr-move-table-row { grid-template-columns: .45fr .6fr .7fr 1.2fr .6fr; gap: 5px; padding: 10px 6px; font-size: 9px; }
+  src\styles.css:7199:}
+  src\styles.css:7200:
+  src\styles.css:7201:/* ==========================================================================
+> src\styles.css:7202:   GAME REVIEW WORKSPACE (60/40 CHESS.COM PREMIUM & LICHESS INSPIRED LAYOUT)
+  src\styles.css:7203:   ========================================================================== */
+> src\styles.css:7204:.gr-workspace {
+  src\styles.css:7205:  display: flex;
+  src\styles.css:7206:  flex-direction: column;
+  src\styles.css:7207:  gap: 14px;
+  src\styles.css:7208:  width: 100%;
+  src\styles.css:7209:  min-height: calc(100vh - 32px);
+  src\styles.css:7210:  padding: 16px 20px;
+  src\styles.css:7211:  background: #0f172a;
+  src\styles.css:7212:  color: #f1f5f9;
+  src\styles.css:7213:  box-sizing: border-box;
+  src\styles.css:7214:}
+  src\styles.css:7753:  .gr-live-move-row > span:nth-last-child(2) { display:none; }
+  src\styles.css:7754:  .gr-live-current-eval { flex-wrap:wrap; }
+  src\styles.css:7755:}
+  src\styles.css:7756:
+> src\styles.css:7757:/* CHESS.COM REVIEW REBUILD - WORKSPACE FOUNDATION */
+> src\styles.css:7758:.workspace.game-review-active {
+  src\styles.css:7759:  display: grid !important;
+  src\styles.css:7760:  grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:7761:  grid-template-rows: minmax(0, 1fr) !important;
+  src\styles.css:7762:  min-width: 0;
+  src\styles.css:7763:  min-height: 0;
+  src\styles.css:7764:  overflow: hidden;
+  src\styles.css:7765:}
+  src\styles.css:7766:
+> src\styles.css:7767:.workspace.game-review-active > .game-review-page {
+  src\styles.css:7768:  width: 100%;
+  src\styles.css:7769:  height: 100%;
+  src\styles.css:7770:  min-width: 0;
+  src\styles.css:7771:  min-height: 0;
+  src\styles.css:7772:  overflow: auto;
+  src\styles.css:7773:}
+  src\styles.css:7774:
+> src\styles.css:7775:.workspace.game-review-active > .library-panel {
+  src\styles.css:7776:  display: none !important;
+  src\styles.css:7777:}
+  src\styles.css:7778:
+  src\styles.css:7779:@media (max-width: 900px) {
+> src\styles.css:7780:  .workspace.game-review-active {
+  src\styles.css:7781:    grid-template-columns: minmax(0, 1fr) !important;
+  src\styles.css:7782:    overflow: auto;
+  src\styles.css:7783:  }
+  src\styles.css:7784:
+> src\styles.css:7785:  .workspace.game-review-active > .game-review-page {
+  src\styles.css:7786:    height: auto;
+  src\styles.css:7787:    min-height: 100%;
+  src\styles.css:7788:  }
+  src\styles.css:7789:}
+> src\styles.css:7790:/* END CHESS.COM REVIEW WORKSPACE FOUNDATION */
+
+
+
+
+========== COORDINATE TRAINING IMPORT AND MOUNT ==========
+
+  src\App.tsx:1:import { useEffect, useMemo, useRef, useState } from "react";
+> src\App.tsx:2:import CoordinateTraining from "./CoordinateTraining";
+  src\App.tsx:3:import {
+  src\App.tsx:4:  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  src\App.tsx:5:  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+  src\App.tsx:6:import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+  src\App.tsx:7:import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+  src\App.tsx:8:import { fenWithTurn, makePosition } from "./chess-state";
+  src\App.tsx:9:import { parsePgn } from "./pgn-import";
+  src\App.tsx:10:import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+  src\App.tsx:425:      controller.abort();
+  src\App.tsx:426:    };
+  src\App.tsx:427:  }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+  src\App.tsx:428:
+  src\App.tsx:429:  const boardSession: StudyBoardState | null =
+> src\App.tsx:430:    workspaceMode === "analysis"
+  src\App.tsx:431:      ? analysisBoard
+> src\App.tsx:432:      : workspaceMode === "opening-prep"
+  src\App.tsx:433:        ? openingPrepBoard
+> src\App.tsx:434:        : workspaceMode === "opening-explorer"
+  src\App.tsx:435:          ? {
+  src\App.tsx:436:              lineBaseFen: START_FEN,
+  src\App.tsx:437:              currentFen: openingPosition.fen,
+  src\App.tsx:438:              moves: openingPosition.sanMoves,
+  src\App.tsx:439:              moveIndex: openingPosition.sanMoves.length,
+  src\App.tsx:440:              flipped: false,
+  src\App.tsx:441:              coordinates: true,
+  src\App.tsx:442:            }
+  src\App.tsx:527:      return typeof change === "function" ? change(current) : { ...current, ...change };
+  src\App.tsx:528:    });
+  src\App.tsx:529:  }
+  src\App.tsx:530:
+  src\App.tsx:531:  function patchBoardSession(change: Partial<StudyBoardState>) {
+> src\App.tsx:532:    if (workspaceMode === "opening-explorer") {
+  src\App.tsx:533:      return;
+  src\App.tsx:534:    }
+  src\App.tsx:535:
+> src\App.tsx:536:    if (workspaceMode === "analysis") {
+  src\App.tsx:537:      setAnalysisBoard((current) => ({ ...current, ...change }));
+> src\App.tsx:538:    } else if (workspaceMode === "opening-prep") {
+  src\App.tsx:539:      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+  src\App.tsx:540:    } else if (studyMode) {
+  src\App.tsx:541:      setStudyBoard((current) => current ? { ...current, ...change } : current);
+  src\App.tsx:542:    } else {
+  src\App.tsx:543:      patchSession(change);
+  src\App.tsx:544:    }
+  src\App.tsx:545:  }
+  src\App.tsx:546:  async function toggleStudyMode() {
+  src\App.tsx:893:        setPromotionRequest({ from, to });
+  src\App.tsx:894:        return;
+  src\App.tsx:895:      }
+  src\App.tsx:896:      const result = currentGame.move({ from, to });
+  src\App.tsx:897:      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+> src\App.tsx:898:      if (workspaceMode === "opening-explorer") {
+  src\App.tsx:899:        const line = nextMoves
+  src\App.tsx:900:          .map((move, index) => index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ${move}` : move)
+  src\App.tsx:901:          .join(" ");
+  src\App.tsx:902:        setOpeningExplorerInput(line);
+  src\App.tsx:903:        setOpeningExplorerPly(nextMoves.length);
+  src\App.tsx:904:      } else {
+  src\App.tsx:905:        patchBoardSession({
+  src\App.tsx:906:          currentFen: currentGame.fen(),
+  src\App.tsx:1370:    patchSession((current) => ({ ...current, positions: [...current.positions, position] }));
+  src\App.tsx:1371:    setNotice("Position saved to this book.");
+  src\App.tsx:1372:  }
+  src\App.tsx:1373:
+  src\App.tsx:1374:  function resetBoard() {
+> src\App.tsx:1375:    if (workspaceMode === "opening-prep") {
+  src\App.tsx:1376:      const original = new Chess(openingPrepBoard.lineBaseFen);
+  src\App.tsx:1377:      patchBoardSession({
+  src\App.tsx:1378:        lineBaseFen: original.fen(),
+  src\App.tsx:1379:        currentFen: original.fen(),
+  src\App.tsx:1380:        moves: [],
+  src\App.tsx:1381:        moveIndex: 0,
+  src\App.tsx:1382:      });
+  src\App.tsx:1383:    } else if (studyMode) {
+  src\App.tsx:1429:        <div className="top-spacer" />
+  src\App.tsx:1430:        <span className="storage-label"><i /> LOCAL LIBRARY</span>
+  src\App.tsx:1431:        <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+  src\App.tsx:1432:      </header>
+  src\App.tsx:1433:
+> src\App.tsx:1434:      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} 
+${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+  src\App.tsx:1435:        {libraryOpen && (
+  src\App.tsx:1436:          <aside className="library-panel">
+  src\App.tsx:1437:            <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+  src\App.tsx:1438:            <input
+  src\App.tsx:1439:              ref={fileInput}
+  src\App.tsx:1440:              className="hidden-input"
+  src\App.tsx:1441:              type="file"
+  src\App.tsx:1442:              accept="application/pdf,.pdf"
+  src\App.tsx:1443:              onChange={(event) => void addBook(event.target.files?.[0])}
+  src\App.tsx:1444:            />
+  src\App.tsx:1445:            <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" /></label>
+  src\App.tsx:1446:            <nav className="library-nav" aria-label="Library sections">
+> src\App.tsx:1447:                            <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+> src\App.tsx:1448:              <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+> src\App.tsx:1449:              <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+> src\App.tsx:1450:              <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+  src\App.tsx:1451:
+  src\App.tsx:1452:
+  src\App.tsx:1453:
+  src\App.tsx:1454:</nav>
+  src\App.tsx:1455:            <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+  src\App.tsx:1456:            <div className="book-list">
+  src\App.tsx:1457:                {visibleBooks.map((item, index) => {
+  src\App.tsx:1458:                  const saved = sessionIndex[item.id];
+  src\App.tsx:1491:            </section>
+  src\App.tsx:1492:            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+  src\App.tsx:1493:          </aside>
+  src\App.tsx:1494:        )}
+  src\App.tsx:1495:
+> src\App.tsx:1496:        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+  src\App.tsx:1497:        <section className="board-panel" aria-label="Chessboard analysis">
+  src\App.tsx:1498:          <div className="board-header">
+> src\App.tsx:1499:            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : 
+session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready 
+for a position"}</span></div>
+  src\App.tsx:1500:            <div className="board-header-actions">
+  src\App.tsx:1501:              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+  src\App.tsx:1502:              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip 
+board</span></button>
+  src\App.tsx:1503:            </div>
+  src\App.tsx:1504:          </div>
+  src\App.tsx:1505:          <div className="board-area">
+  src\App.tsx:1506:            <div
+  src\App.tsx:1507:              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+  src\App.tsx:1695:          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+  src\App.tsx:1696:        </section>
+  src\App.tsx:1697:
+  src\App.tsx:1698:        <section className="reader-panel" aria-label="PDF book reader">
+  src\App.tsx:1699:          <div className="opening-explorer-right-workspace">
+> src\App.tsx:1700:          {workspaceMode === "opening-explorer" && (
+  src\App.tsx:1701:            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+  src\App.tsx:1702:              <h3>Opening Explorer</h3>
+  src\App.tsx:1703:              <div className="lichess-connection-controls">
+  src\App.tsx:1704:                {lichessStatus?.connected ? (
+  src\App.tsx:1705:                  <>
+  src\App.tsx:1706:                    <span role="status">Lichess connected</span>
+  src\App.tsx:1707:                    <button
+  src\App.tsx:1708:                      type="button"
+
+
+

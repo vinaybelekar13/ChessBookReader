@@ -1,0 +1,9 @@
+﻿          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "Ready Ãƒâ€šÃ‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ãƒâ€šÃ‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>

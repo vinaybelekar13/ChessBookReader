@@ -1,0 +1,523 @@
+PHASE 1 � STOCKFISH AND PGN INTEGRATION AUDIT
+
+========== STOCKFISH FILES ==========
+
+FullName                                                                           Length
+--------                                                                           ------
+D:\chess\BookChess\ChessBookReader\public\stockfish\stockfish-19-lite-single.js     28230
+D:\chess\BookChess\ChessBookReader\public\stockfish\stockfish-19-lite-single.wasm 1845971
+
+
+
+
+========== STOCKFISH REFERENCES ==========
+
+  src\App.tsx:6:import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+  src\App.tsx:7:import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+  src\App.tsx:8:import { fenWithTurn, makePosition } from "./chess-state";
+> src\App.tsx:9:import { parsePgn } from "./pgn-import";
+  src\App.tsx:10:import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+  src\App.tsx:11:import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+  src\App.tsx:12:import { ManualBoardEditor } from "./ManualBoardEditor";
+  src\App.tsx:13:import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+  src\App.tsx:14:import {
+  src\App.tsx:201:  const [recognitionStatus, setRecognitionStatus] = useState<RecognitionStatus>("idle");
+  src\App.tsx:202:  const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
+  src\App.tsx:203:  const [recognitionError, setRecognitionError] = useState("");
+> src\App.tsx:204:  const [engineEnabled, setEngineEnabled] = useState(false);
+  src\App.tsx:205:  const [engineStatus, setEngineStatus] = useState<EngineStatus>("off");
+  src\App.tsx:206:  const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+  src\App.tsx:207:  const [engineMessage, setEngineMessage] = useState("");
+> src\App.tsx:208:  const [engineDepth, setEngineDepth] = useState(14);
+  src\App.tsx:209:  const fileInput = useRef<HTMLInputElement>(null);
+  src\App.tsx:210:  const canvasRef = useRef<HTMLCanvasElement>(null);
+  src\App.tsx:211:  const pageStageRef = useRef<HTMLDivElement>(null);
+  src\App.tsx:212:  const boardRef = useRef<HTMLDivElement>(null);
+  src\App.tsx:213:  const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  src\App.tsx:457:  }, [game, selectedSquare]);
+  src\App.tsx:458:  const pieceSquares = game.board();
+  src\App.tsx:459:  const moveHistory = useMemo(() => {
+> src\App.tsx:460:    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+  src\App.tsx:461:    catch { return []; }
+  src\App.tsx:462:  }, [boardSession]);
+  src\App.tsx:463:  const highlightedMove = lastMove ?? (moveHistory.length
+  src\App.tsx:464:    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+  src\App.tsx:465:    : null);
+  src\App.tsx:466:  const engineArrow = useMemo(
+> src\App.tsx:467:    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+> src\App.tsx:468:    [engineEnabled, engineScore?.bestMove],
+  src\App.tsx:469:  );
+  src\App.tsx:470:
+  src\App.tsx:471:  useEffect(() => {
+  src\App.tsx:472:    setUserArrows([]);
+  src\App.tsx:473:    setArrowStart(null);
+  src\App.tsx:476:  }, [book?.id, session?.currentFen]);
+  src\App.tsx:477:
+  src\App.tsx:478:  useEffect(() => {
+> src\App.tsx:479:    if (engineEnabled && boardSession) {
+> src\App.tsx:480:      engineRef.current?.analyze(game.fen(), engineDepth);
+  src\App.tsx:481:    }
+> src\App.tsx:482:  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+  src\App.tsx:483:
+  src\App.tsx:484:  function messageOf(cause: unknown): string {
+  src\App.tsx:485:    return cause instanceof Error ? cause.message : String(cause);
+  src\App.tsx:486:  }
+  src\App.tsx:487:
+  src\App.tsx:488:  function toggleEngine() {
+> src\App.tsx:489:    if (engineEnabled) {
+  src\App.tsx:490:      engineRef.current?.dispose();
+  src\App.tsx:491:      engineRef.current = null;
+> src\App.tsx:492:      setEngineEnabled(false);
+  src\App.tsx:493:      setEngineStatus("off");
+  src\App.tsx:494:      setEngineScore(null);
+  src\App.tsx:495:      setEngineMessage("");
+  src\App.tsx:496:      return;
+  src\App.tsx:497:    }
+  src\App.tsx:498:    try {
+  src\App.tsx:499:      setEngineScore(null);
+  src\App.tsx:500:      setEngineMessage("");
+> src\App.tsx:501:      const client = new StockfishEngine(
+  src\App.tsx:502:        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+  src\App.tsx:503:        (status, message) => {
+  src\App.tsx:504:          setEngineStatus(status);
+  src\App.tsx:505:          if (status === "error") {
+  src\App.tsx:506:            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+> src\App.tsx:507:            setEngineEnabled(false);
+  src\App.tsx:508:            setEngineScore(null);
+  src\App.tsx:509:            engineRef.current?.dispose();
+  src\App.tsx:510:            engineRef.current = null;
+  src\App.tsx:511:          }
+  src\App.tsx:512:        },
+  src\App.tsx:513:        setEngineScore,
+  src\App.tsx:514:      );
+  src\App.tsx:515:      engineRef.current = client;
+> src\App.tsx:516:      setEngineEnabled(true);
+  src\App.tsx:517:    } catch (cause) {
+  src\App.tsx:518:      setEngineStatus("error");
+  src\App.tsx:519:      setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+> src\App.tsx:520:      setEngineEnabled(false);
+  src\App.tsx:521:    }
+  src\App.tsx:522:  }
+  src\App.tsx:523:
+  src\App.tsx:524:  function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+  src\App.tsx:525:    setSession((current) => {
+  src\App.tsx:711:    if (!loaded) return false;
+  src\App.tsx:712:    setEngineScore(null);
+  src\App.tsx:713:    setEngineMessage("");
+> src\App.tsx:714:    if (!engineEnabled) {
+  src\App.tsx:715:      toggleEngine();
+  src\App.tsx:716:    } else {
+> src\App.tsx:717:      engineRef.current?.analyze(fen, engineDepth);
+  src\App.tsx:718:    }
+  src\App.tsx:719:    setNotice("Manual position loaded. Stockfish analysis started.");
+  src\App.tsx:720:    return true;
+  src\App.tsx:721:  }
+  src\App.tsx:722:
+  src\App.tsx:1014:    setArrowHover(null);
+  src\App.tsx:1015:  }
+  src\App.tsx:1016:
+> src\App.tsx:1017:  function loadPgnText(source: string) {
+  src\App.tsx:1018:    try {
+> src\App.tsx:1019:      const imported = parsePgn(source);
+  src\App.tsx:1020:      const replay = new Chess(imported.lineBaseFen);
+  src\App.tsx:1021:
+  src\App.tsx:1022:      for (const san of imported.moves) {
+  src\App.tsx:1023:        replay.move(san);
+  src\App.tsx:1024:      }
+  src\App.tsx:1025:
+> src\App.tsx:1026:      const last = replay.history({ verbose: true }).at(-1);
+  src\App.tsx:1027:
+  src\App.tsx:1028:      setAnalysisBoard((current) => ({
+  src\App.tsx:1029:        ...current,
+  src\App.tsx:1030:        lineBaseFen: imported.lineBaseFen,
+  src\App.tsx:1031:        currentFen: imported.finalFen,
+  src\App.tsx:1050:  async function importPgnFile(file: File) {
+  src\App.tsx:1051:    try {
+  src\App.tsx:1052:      const source = await file.text();
+> src\App.tsx:1053:      loadPgnText(source);
+  src\App.tsx:1054:    } catch (cause) {
+  src\App.tsx:1055:      setError(`Could not read PGN file: ${messageOf(cause)}`);
+  src\App.tsx:1056:    }
+  src\App.tsx:1057:  }
+  src\App.tsx:1058:
+  src\App.tsx:1059:  function pastePgn() {
+  src\App.tsx:1060:    const source = window.prompt("Paste PGN notation:");
+> src\App.tsx:1061:    if (source !== null) loadPgnText(source);
+  src\App.tsx:1062:  }
+  src\App.tsx:1063:  function jumpToMove(index: number) {
+  src\App.tsx:1064:    if (!boardSession) return;
+  src\App.tsx:1065:    try {
+  src\App.tsx:1066:      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+> src\App.tsx:1067:      const last = next.history({ verbose: true }).at(-1);
+  src\App.tsx:1068:      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+  src\App.tsx:1069:      setLastMove(last ? { from: last.from, to: last.to } : null);
+  src\App.tsx:1070:      setSelectedSquare(null);
+  src\App.tsx:1071:    } catch (cause) {
+  src\App.tsx:1072:      setError(`Could not navigate to move: ${messageOf(cause)}`);
+  src\App.tsx:1953:          <div className="analysis-strip">
+  src\App.tsx:1954:            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine 
+unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineâ€¦" : engineStatus === "analyzing" ? "Analyzing current positionâ€¦" : "Ready Â· White-positive scores"}</span></div></div>
+  src\App.tsx:1955:            <div className="analysis-divider" />
+> src\App.tsx:1956:            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+> src\App.tsx:1957:            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option 
+value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+  src\App.tsx:1958:            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+  src\App.tsx:1959:            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+> src\App.tsx:1960:            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first 
+valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+  src\App.tsx:1961:          </div>
+  src\App.tsx:1962:        </section>
+  src\App.tsx:1963:        </>}
+  src\App.tsx:1964:      </div>
+  src\App.tsx:1965:
+  src\chess-state.test.ts:6:  it("replays legal SAN from an arbitrary diagram position", () => {
+  src\chess-state.test.ts:7:    const game = makePosition(START_FEN, ["e4", "e5"], 2);
+  src\chess-state.test.ts:8:    expect(game.fen()).toContain(" w KQkq ");
+> src\chess-state.test.ts:9:    expect(game.history()).toEqual(["e4", "e5"]);
+  src\chess-state.test.ts:10:  });
+  src\chess-state.test.ts:11:
+  src\chess-state.test.ts:12:  it("rejects invalid restored moves instead of substituting a position", () => {
+  src\chess-state.test.ts:13:    expect(() => makePosition(START_FEN, ["e5"], 1)).toThrow();
+  src\chess-state.test.ts:14:  });
+  src\CoordinateTraining.tsx:50:  useEffect(() => {
+  src\CoordinateTraining.tsx:51:    if (finished && startedAt) {
+  src\CoordinateTraining.tsx:52:      const result = { date: new Date().toISOString(), score, accuracy, duration: duration - remaining };
+> src\CoordinateTraining.tsx:53:      setHistory((previous) => {
+  src\CoordinateTraining.tsx:54:        const next = [result, ...previous].slice(0, 30);
+  src\CoordinateTraining.tsx:55:        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* storage may be unavailable */ }
+  src\CoordinateTraining.tsx:56:        return next;
+  src\CoordinateTraining.tsx:57:      });
+  src\CoordinateTraining.tsx:58:      setStartedAt(null);
+  src\ManualBoardEditor.tsx:85:    setPlacement(parsedInitial.placement);
+  src\ManualBoardEditor.tsx:86:    setTurn(parsedInitial.turn);
+  src\ManualBoardEditor.tsx:87:    setCastling(parsedInitial.castling);
+> src\ManualBoardEditor.tsx:88:    setHistory([parsedInitial.fen]);
+  src\ManualBoardEditor.tsx:89:    setHistoryIndex(0);
+  src\ManualBoardEditor.tsx:90:    setFenInputText(parsedInitial.fen);
+  src\ManualBoardEditor.tsx:91:    setValidationError("");
+  src\ManualBoardEditor.tsx:92:    setSelectedSquare(null);
+  src\ManualBoardEditor.tsx:93:  }, [parsedInitial]);
+  src\ManualBoardEditor.tsx:112:    if (newFen !== history[historyIndex]) {
+  src\ManualBoardEditor.tsx:113:      const nextHistory = history.slice(0, historyIndex + 1);
+  src\ManualBoardEditor.tsx:114:      nextHistory.push(newFen);
+> src\ManualBoardEditor.tsx:115:      setHistory(nextHistory);
+  src\ManualBoardEditor.tsx:116:      setHistoryIndex(nextHistory.length - 1);
+  src\ManualBoardEditor.tsx:117:    }
+  src\ManualBoardEditor.tsx:118:  }
+  src\ManualBoardEditor.tsx:119:
+  src\ManualBoardEditor.tsx:120:  function handleUndo() {
+  src\ManualBoardEditor.tsx:204:        if (trimmed !== history[historyIndex]) {
+  src\ManualBoardEditor.tsx:205:          const nextHistory = history.slice(0, historyIndex + 1);
+  src\ManualBoardEditor.tsx:206:          nextHistory.push(trimmed);
+> src\ManualBoardEditor.tsx:207:          setHistory(nextHistory);
+  src\ManualBoardEditor.tsx:208:          setHistoryIndex(nextHistory.length - 1);
+  src\ManualBoardEditor.tsx:209:        }
+  src\ManualBoardEditor.tsx:210:        return;
+  src\ManualBoardEditor.tsx:211:      }
+  src\ManualBoardEditor.tsx:212:    }
+  src\pgn-import.test.ts:1:import { describe, expect, it } from "vitest";
+> src\pgn-import.test.ts:2:import { parsePgn } from "./pgn-import";
+  src\pgn-import.test.ts:3:import { START_FEN } from "./model";
+  src\pgn-import.test.ts:4:
+> src\pgn-import.test.ts:5:describe("parsePgn", () => {
+  src\pgn-import.test.ts:6:  it("parses a standard PGN and its headers", () => {
+> src\pgn-import.test.ts:7:    const result = parsePgn(`[Event "Test Game"]
+  src\pgn-import.test.ts:8:[White "Alice"]
+  src\pgn-import.test.ts:9:[Black "Bob"]
+  src\pgn-import.test.ts:10:
+  src\pgn-import.test.ts:11:1. e4 e5 2. Nf3 Nc6 *`);
+  src\pgn-import.test.ts:12:
+  src\pgn-import.test.ts:19:
+  src\pgn-import.test.ts:20:  it("supports a custom starting FEN", () => {
+  src\pgn-import.test.ts:21:    const fen = "7k/8/8/8/8/8/8/KR6 w - - 0 1";
+> src\pgn-import.test.ts:22:    const result = parsePgn(`[Event "Custom Position"]
+  src\pgn-import.test.ts:23:[SetUp "1"]
+  src\pgn-import.test.ts:24:[FEN "${fen}"]
+  src\pgn-import.test.ts:25:
+  src\pgn-import.test.ts:26:1. Rb7 *`);
+  src\pgn-import.test.ts:27:
+  src\pgn-import.test.ts:30:  });
+  src\pgn-import.test.ts:31:
+  src\pgn-import.test.ts:32:  it("rejects empty input", () => {
+> src\pgn-import.test.ts:33:    expect(() => parsePgn("   ")).toThrow(/Paste or select/i);
+  src\pgn-import.test.ts:34:  });
+  src\pgn-import.test.ts:35:
+  src\pgn-import.test.ts:36:  it("rejects a PGN with no moves", () => {
+> src\pgn-import.test.ts:37:    expect(() => parsePgn(`[Event "Empty Game"]
+  src\pgn-import.test.ts:38:
+  src\pgn-import.test.ts:39:*`)).toThrow(/no moves/i);
+  src\pgn-import.test.ts:40:  });
+  src\pgn-import.test.ts:41:
+  src\pgn-import.test.ts:42:  it("rejects invalid move notation", () => {
+> src\pgn-import.test.ts:43:    expect(() => parsePgn(`1. e4 ThisIsNotAMove`)).toThrow();
+  src\pgn-import.test.ts:44:  });
+  src\pgn-import.test.ts:45:});
+  src\pgn-import.ts:8:  finalFen: string;
+  src\pgn-import.ts:9:};
+  src\pgn-import.ts:10:
+> src\pgn-import.ts:11:export function parsePgn(pgn: string): ImportedPgn {
+  src\pgn-import.ts:12:  const source = pgn.trim();
+  src\pgn-import.ts:13:
+  src\pgn-import.ts:14:  if (!source) {
+  src\pgn-import.ts:15:    throw new Error("Paste or select a PGN game first.");
+  src\pgn-import.ts:16:  }
+  src\pgn-import.ts:18:  const parsed = new Chess();
+  src\pgn-import.ts:19:
+  src\pgn-import.ts:20:  try {
+> src\pgn-import.ts:21:    parsed.loadPgn(source);
+  src\pgn-import.ts:22:  } catch (cause) {
+  src\pgn-import.ts:23:    const detail = cause instanceof Error ? cause.message : "Unknown PGN error";
+  src\pgn-import.ts:24:    throw new Error(`Invalid PGN: ${detail}`);
+  src\pgn-import.ts:25:  }
+  src\pgn-import.ts:26:
+  src\pgn-import.ts:36:    throw new Error("The PGN contains an invalid starting FEN.");
+  src\pgn-import.ts:37:  }
+  src\pgn-import.ts:38:
+> src\pgn-import.ts:39:  const moves = parsed.history();
+  src\pgn-import.ts:40:
+  src\pgn-import.ts:41:  if (moves.length === 0) {
+  src\pgn-import.ts:42:    throw new Error("The PGN contains no moves.");
+  src\pgn-import.ts:43:  }
+  src\pgn-import.ts:44:
+  src\stockfish.test.ts:45:      constructor() { return worker; }
+  src\stockfish.test.ts:46:    });
+  src\stockfish.test.ts:47:    const scores: any[] = [];
+> src\stockfish.test.ts:48:    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+  src\stockfish.test.ts:49:
+  src\stockfish.test.ts:50:    worker.send("uciok");
+  src\stockfish.test.ts:51:    worker.send("readyok");
+  src\stockfish.test.ts:52:    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 14);
+  src\stockfish.test.ts:53:
+  src\stockfish.test.ts:68:      constructor() { return worker; }
+  src\stockfish.test.ts:69:    });
+  src\stockfish.test.ts:70:    const scores: (ReturnType<typeof parseUciInfo> | null)[] = [];
+> src\stockfish.test.ts:71:    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+  src\stockfish.test.ts:72:    worker.send("uciok");
+  src\stockfish.test.ts:73:    worker.send("readyok");
+  src\stockfish.test.ts:74:    expect(worker.commands).toEqual(["uci", "isready"]);
+  src\stockfish.test.ts:75:
+  src\stockfish.test.ts:76:    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 12);
+
+
+
+
+========== PGN PARSER ==========
+import { Chess } from "chess.js";
+import { START_FEN } from "./model";
+
+export type ImportedPgn = {
+  headers: Record<string, string>;
+  lineBaseFen: string;
+  moves: string[];
+  finalFen: string;
+};
+
+export function parsePgn(pgn: string): ImportedPgn {
+  const source = pgn.trim();
+
+  if (!source) {
+    throw new Error("Paste or select a PGN game first.");
+  }
+
+  const parsed = new Chess();
+
+  try {
+    parsed.loadPgn(source);
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : "Unknown PGN error";
+    throw new Error(`Invalid PGN: ${detail}`);
+  }
+
+  const headers = parsed.getHeaders();
+  const customFen = headers.FEN?.trim();
+  const lineBaseFen = customFen || START_FEN;
+
+  let replay: Chess;
+
+  try {
+    replay = new Chess(lineBaseFen);
+  } catch {
+    throw new Error("The PGN contains an invalid starting FEN.");
+  }
+
+  const moves = parsed.history();
+
+  if (moves.length === 0) {
+    throw new Error("The PGN contains no moves.");
+  }
+
+  try {
+    for (const san of moves) {
+      replay.move(san);
+    }
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : "Unknown move error";
+    throw new Error(`Could not replay the imported game: ${detail}`);
+  }
+
+  if (replay.fen() !== parsed.fen()) {
+    throw new Error("The imported PGN could not be reproduced from its starting position.");
+  }
+
+  return {
+    headers,
+    lineBaseFen,
+    moves,
+    finalFen: replay.fen(),
+  };
+}
+
+========== STOCKFISH SOURCE ==========
+export type EngineStatus = "off" | "loading" | "ready" | "analyzing" | "error";
+export type EngineScore = { kind: "cp" | "mate"; value: number; depth: number; bestMove?: string; pv?: string[] };
+
+type UciRequest = { fen: string; depth: number };
+
+export function parseUciInfo(line: string, sideToMove: "w" | "b"): Omit<EngineScore, "bestMove"> | null {
+  if (!line.startsWith("info ")) return null;
+  const depth = Number(line.match(/\bdepth (\d+)/)?.[1]);
+  const score = line.match(/\bscore (cp|mate) (-?\d+)/);
+  if (!score || !Number.isFinite(depth)) return null;
+  const value = Number(score[2]);
+  const whiteValue = sideToMove === "w" ? value : -value;
+  const kind = score[1] as "cp" | "mate";
+  const orientedValue = kind === "mate" && value === 0
+    ? (sideToMove === "w" ? -1 : 1)
+    : whiteValue;
+  const pv = line.match(/\bpv (.+)$/)?.[1]?.trim().split(/\s+/);
+  return {
+    kind,
+    value: orientedValue,
+    depth,
+    ...(pv?.length ? { pv } : {}),
+  };
+}
+
+export function formatEvaluation(score: EngineScore): string {
+  if (score.kind === "mate") return `#${score.value > 0 ? "+" : ""}${score.value}`;
+  const pawns = score.value / 100;
+  return `${pawns > 0 ? "+" : ""}${pawns.toFixed(2)}`;
+}
+
+export function whiteScoreShare(score: EngineScore): number {
+  if (score.kind === "mate") return score.value > 0 ? 0.96 : 0.04;
+  const bounded = Math.max(-1000, Math.min(1000, score.value));
+  return Math.max(0.04, Math.min(0.96, 1 / (1 + 10 ** (-bounded / 400))));
+}
+
+export class StockfishEngine {
+  private readonly worker: Worker;
+  private ready = false;
+  private searching = false;
+  private awaitingStop = false;
+  private queued: UciRequest | null = null;
+  private currentSide: "w" | "b" = "w";
+  private latestScore: EngineScore | null = null;
+
+  constructor(
+    workerUrl: string,
+    private readonly onStatus: (status: EngineStatus, message?: string) => void,
+    private readonly onScore: (score: EngineScore | null) => void,
+  ) {
+    this.worker = new Worker(workerUrl);
+    this.worker.onmessage = (event: MessageEvent<string>) => this.handleLine(String(event.data));
+    this.worker.onerror = (event) => {
+      this.onStatus("error", event.message || "The Stockfish worker failed to load.");
+      this.dispose();
+    };
+    this.onStatus("loading");
+    this.worker.postMessage("uci");
+  }
+
+  analyze(fen: string, depth: number): void {
+    this.queued = { fen, depth: Math.max(1, Math.min(24, Math.floor(depth))) };
+    this.latestScore = null;
+    this.onScore(null);
+    if (!this.ready) return;
+    if (this.searching) {
+      if (!this.awaitingStop) {
+        this.awaitingStop = true;
+        this.worker.postMessage("stop");
+      }
+      return;
+    }
+    this.startQueuedAnalysis();
+  }
+
+  dispose(): void {
+    this.worker.terminate();
+    this.ready = false;
+    this.searching = false;
+    this.queued = null;
+  }
+
+  private handleLine(line: string): void {
+    if (/^Error:/i.test(line)) {
+      this.onStatus("error", line);
+      this.dispose();
+      return;
+    }
+    if (line === "uciok") {
+      this.worker.postMessage("isready");
+      return;
+    }
+    if (line === "readyok") {
+      this.ready = true;
+      this.onStatus("ready");
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (line.startsWith("info ")) {
+      if (this.awaitingStop) return;
+      const score = parseUciInfo(line, this.currentSide);
+      if (score) {
+        // Use the current principal variation's first move for a live arrow.
+        // Stockfish's final "bestmove" will replace this provisional move.
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+          ...score,
+          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+        };
+        this.onScore(this.latestScore);
+      }
+      return;
+    }
+    const bestMove = line.match(/^bestmove (\S+)/)?.[1];
+    if (!bestMove) return;
+    this.searching = false;
+    if (this.awaitingStop) {
+      this.awaitingStop = false;
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (this.latestScore) {
+      this.latestScore = { ...this.latestScore, bestMove: bestMove === "(none)" ? undefined : bestMove };
+      this.onScore(this.latestScore);
+    }
+    this.onStatus("ready");
+  }
+
+  private startQueuedAnalysis(): void {
+    if (!this.ready || this.searching || !this.queued) return;
+    const request = this.queued;
+    this.queued = null;
+    this.currentSide = request.fen.split(/\s+/)[1] === "b" ? "b" : "w";
+    this.searching = true;
+    this.latestScore = null;
+    this.onStatus("analyzing");
+    this.worker.postMessage(`position fen ${request.fen}`);
+    this.worker.postMessage(`go depth ${request.depth}`);
+  }
+}
+
+========== CURRENT GIT STATUS ==========
+## main...origin/main
+?? ChessBookReader_1d5872f_SOURCE.zip
+?? PHASE0_BUILD_BASELINE.txt
+?? PHASE0_TEST_BASELINE.txt
+?? PHASE1_ACTIVE_BOARD_AUDIT.txt
+?? PHASE1_BADGE_INTEGRATION_AUDIT.txt
+?? PHASE1_BOARD_RENDERING.txt
+?? PHASE1_CHESS_LOGIC_AUDIT.txt
+?? PHASE1_ENGINE_ASSETS_AUDIT.txt
+?? PHASE1_GAMEREVIEW_DEEP_AUDIT.txt

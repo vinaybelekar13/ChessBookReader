@@ -1,0 +1,147 @@
+========== GAME REVIEW CSS ==========
+D:\chess\BookChess\ChessBookReader\src\App.tsx:1578: {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece.color}${piece.type}.svg`} /></span>}
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:74: <main className="game-review-page">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:118: <article className="gr-stat-card">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:123: <article className="gr-stat-card">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:128: <article className="gr-stat-card">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:134: <article className="gr-stat-card">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:148: <section className="gr-panel gr-board-panel">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:149: <div className="gr-panel-heading">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:153: <div className="gr-board-wrap">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:155: <div className="gr-board">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:157: <div key={`${r}-${c}`} className={`gr-square ${(r + c) % 2 === 0 ? "light" : "dark"}`}>
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:158: {piece && <span className={piece.charCodeAt(0) > 9817 ? "white-piece" : "black-piece"}>{piece}</span>}
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:164: <div className="gr-board-controls">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:174: <section className="gr-panel gr-insights-panel">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:175: <div className="gr-panel-heading"><div><h2>Game insights</h2><span>Key moments from this game</span></div><Lightbulb size={19} /></div>
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:194: <section className="gr-panel gr-move-preview">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:195: <div className="gr-panel-heading"><div><h2>Move timeline</h2><span>Browse the game's decisions</span></div><button className="gr-text-link" onClick={() => setTab("moves")}>View all moves <ChevronRight size={14} /></button></div>
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:200: <span>{move.white}</span><i className={`gr-move-dot ${tagClass[move.whiteTag]}`} />
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:201: <span>{move.black}</span><i className={`gr-move-dot ${tagClass[move.blackTag]}`} />
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:208: <section className="gr-panel gr-full-moves">
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:209: <div className="gr-panel-heading"><div><h2>Move-by-move analysis</h2><span>Review every decision and its classification</span></div></div>
+D:\chess\BookChess\ChessBookReader\src\GameReview.tsx:219: <span>{item.ply}</span><strong>{item.san}</strong><span>{item.side}</span><span><i className={`gr-move-dot ${tagClass[item.tag]}`} />{item.tag}</span><span>{sampleMoves[Math.floor((item.ply - 1) / 2)][item.side === "White" ? "whiteEval" : "blackEval"]}</span>
+D:\chess\BookChess\ChessBookReader\src\notation-learner.css:304: .white-piece {
+D:\chess\BookChess\ChessBookReader\src\notation-learner.css:309: .black-piece {
+D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx:146: {item && <span className={`nl-piece ${item.color === "w" ? "white-piece" : "black-piece"}`}>{PIECES[item.color + item.type]}</span>}
+D:\chess\BookChess\ChessBookReader\src\styles.css:7062: .game-review-page {
+D:\chess\BookChess\ChessBookReader\src\styles.css:7072: .gr-game-meta, .gr-stat-label, .gr-stat-foot, .gr-panel-heading,
+D:\chess\BookChess\ChessBookReader\src\styles.css:7073: .gr-board-controls, .gr-tabs, .gr-filter-row, .gr-insight-item {
+D:\chess\BookChess\ChessBookReader\src\styles.css:7079: .game-review-page h1 { font-size: clamp(25px, 3vw, 34px); line-height: 1.1; margin: 0; letter-spacing: -1px; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7080: .game-review-page .gr-topline p { margin: 8px 0 0; color: var(--text-muted); font-size: 13px; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7089: .gr-game-card, .gr-stat-card, .gr-panel { background: var(--panel-primary); border: 1px solid var(--border-subtle); border-radius: 12px; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7103: .gr-stat-card { min-width: 0; padding: 15px 17px; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7122: .gr-panel { padding: 17px; min-width: 0; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7123: .gr-panel-heading { justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7124: .gr-panel-heading h2 { font-size: 14px; margin: 0; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7125: .gr-panel-heading span { display: block; color: var(--text-muted); font-size: 10px; margin-top: 5px; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7127: .gr-board-wrap { width: min(100%, 390px); margin: 0 auto; position: relative; padding-left: 17px; padding-bottom: 17px; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7128: .gr-board { width: 100%; aspect-ratio: 1; display: grid; grid-template-columns: repeat(8,1fr); overflow: hidden; border-radius: 3px; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7129: .gr-square { display: grid; place-items: center; aspect-ratio: 1; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7130: .gr-square.light { background: #e9e4d7; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7131: .gr-square.dark { background: #77917e; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7132: .gr-square span { font-family: "Arial Unicode MS", "Segoe UI Symbol", sans-serif; font-size: clamp(22px, 4vw, 39px); line-height: 1; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7133: .gr-square .white-piece { color: #fff; text-shadow: 0 1px 2px #333, 0 0 2px #333; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7134: .gr-square .black-piece { color: #20242a; text-shadow: 0 1px 1px #fff7; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7137: .gr-board-controls { justify-content: center; gap: 7px; margin-top: 4px; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7138: .gr-board-controls button { width: 32px; height: 30px; display: grid; place-items: center; border-radius: 6px; border: 1px solid var(--border-subtle); color: var(--text-secondary); background: var(--panel-elevated); cursor: pointer; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7139: .gr-board-controls button.gr-play-button { color: white; background: var(--green-primary); border-color: var(--green-primary); }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7141: .gr-insights-panel > .gr-panel-heading > svg { color: #d6a54b; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7158: .gr-move-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7159: .gr-move-dot.best, .gr-move-dot.excellent { background: #4cb987; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7160: .gr-move-dot.good { background: #8a9c91; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7161: .gr-move-dot.inaccuracy { background: #d6a54b; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7162: .gr-move-dot.mistake, .gr-move-dot.blunder { background: #e07878; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7176: .workspace.game-review-active > .game-review-page { height: 100%; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7185: .game-review-page { padding: 20px 13px; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7195: .gr-stat-card { padding: 12px; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7302: .gr-board-stage {
+D:\chess\BookChess\ChessBookReader\src\styles.css:7318: .gr-board-frame {
+D:\chess\BookChess\ChessBookReader\src\styles.css:7323: .gr-board-grid {
+D:\chess\BookChess\ChessBookReader\src\styles.css:7327: .gr-square {
+D:\chess\BookChess\ChessBookReader\src\styles.css:7336: .gr-piece { font-size: clamp(1.9rem, 3.6vw, 2.85rem); line-height: 1; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35)); }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7337: .gr-piece-white { color: #ffffff; text-shadow: 0 0 2px #000, 0 1px 2px #000; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7338: .gr-piece-black { color: #111827; }
+D:\chess\BookChess\ChessBookReader\src\styles.css:7339: .gr-board-badge {
+
+========== PIECE ASSET REFERENCES ==========
+D:\chess\BookChess\ChessBookReader\src\App.tsx:1578: {piece && <span className={`piece ${piece.color === "w" ? "white-piece" : "black-piece"}`} aria-hidden="true"><img draggable={false} alt="" src={`${import.meta.env.BASE_URL}assets/pieces/standalone/${piece.color}${piece.type}.svg`} /></span>}
+D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx:256: return `${import.meta.env.BASE_URL}assets/pieces/standalone/${color}${type}.svg`;
+
+========== PIECE ASSET FILES ==========
+
+Name   Length
+----   ------
+bb.svg   1960
+bk.svg   1932
+bn.svg   2752
+bp.svg    948
+bq.svg   2741
+br.svg   1918
+wb.svg   1943
+wk.svg   1692
+wn.svg   1973
+wp.svg    948
+wq.svg   3200
+wr.svg   1325
+
+
+
+
+========== GAME REVIEW MOUNT ==========
+
+  src\App.tsx:1429:        <div className="top-spacer" />
+  src\App.tsx:1430:        <span className="storage-label"><i /> LOCAL LIBRARY</span>
+  src\App.tsx:1431:        <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+  src\App.tsx:1432:      </header>
+  src\App.tsx:1433:
+> src\App.tsx:1434:      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? 
+"analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+  src\App.tsx:1435:        {libraryOpen && (
+  src\App.tsx:1436:          <aside className="library-panel">
+  src\App.tsx:1437:            <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+  src\App.tsx:1438:            <input
+  src\App.tsx:1439:              ref={fileInput}
+  src\App.tsx:1440:              className="hidden-input"
+  src\App.tsx:1441:              type="file"
+  src\App.tsx:1442:              accept="application/pdf,.pdf"
+  src\App.tsx:1445:            <label className="search-field"><Search size={16} aria-hidden={true} /><input value={bookSearch} onChange={(event) => setBookSearch(event.target.value)} placeholder="Search library" 
+/></label>
+  src\App.tsx:1446:            <nav className="library-nav" aria-label="Library sections">
+  src\App.tsx:1447:                            <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); 
+setLibraryTab("all"); }} />
+  src\App.tsx:1448:              <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} 
+/>
+  src\App.tsx:1449:              <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); 
+setStudyMode(false); }} />
+> src\App.tsx:1450:              <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); 
+setStudyMode(false); }} />
+  src\App.tsx:1451:
+  src\App.tsx:1452:
+  src\App.tsx:1453:
+  src\App.tsx:1454:</nav>
+  src\App.tsx:1455:            <div className="library-list-title"><span>ALL BOOKS</span><span>{visibleBooks.length}</span></div>
+  src\App.tsx:1456:            <div className="book-list">
+  src\App.tsx:1457:                {visibleBooks.map((item, index) => {
+  src\App.tsx:1458:                  const saved = sessionIndex[item.id];
+  src\App.tsx:1491:            </section>
+  src\App.tsx:1492:            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 
+0))}</span></div>
+  src\App.tsx:1493:          </aside>
+  src\App.tsx:1494:        )}
+  src\App.tsx:1495:
+> src\App.tsx:1496:        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+  src\App.tsx:1497:        <section className="board-panel" aria-label="Chessboard analysis">
+  src\App.tsx:1498:          <div className="board-header">
+  src\App.tsx:1499:            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? 
+"Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual 
+region" : "Board candidate"}` : "Ready for a position"}</span></div>
+  src\App.tsx:1500:            <div className="board-header-actions">
+  src\App.tsx:1501:              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+  src\App.tsx:1502:              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" 
+/><span>Flip board</span></button>
+  src\App.tsx:1503:            </div>
+  src\App.tsx:1504:          </div>
+
+
+

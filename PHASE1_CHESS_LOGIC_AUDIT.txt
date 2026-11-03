@@ -1,0 +1,4032 @@
+PHASE 1 � CHESS LOGIC AUDIT
+Generated: 10/31/2026 14:40:54
+
+========== SEARCH: new Chess ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 34
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+      from: match[1] as Square,
+      to: match[2] as Square,
+      ...(match[3] ? { promotion: match[3] as "q" | "r" | "b" | "n" } : {}),
+    });
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 47
+}
+
+function formatUciPv(fen: string, pv: string[]): string {
+  const position = new Chess(fen);
+  const san: string[] = [];
+  for (const uci of pv) {
+    const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+    if (!match) break;
+    try {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 447
+            ? studyBoard
+            : session;
+  const game = useMemo(() => {
+    if (!boardSession) return new Chess();
+    try {
+      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+    } catch {
+      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+    }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 451
+    try {
+      return makePosition(boardSession.lineBaseFen, boardSession.moves, boardSession.moveIndex);
+    } catch {
+      try { return new Chess(boardSession.currentFen); } catch { return new Chess(); }
+    }
+  }, [boardSession]);
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return new Set<string>();
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 689
+  function moveToPosition(fen: string): boolean {
+    const activeSession = session ?? newSession("analysis");
+    try {
+      const next = new Chess(fen);
+      setSession({
+        ...activeSession,
+        originalFen: fen,
+        lineBaseFen: fen,
+        currentFen: next.fen(),
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 862
+    if (!promotionRequest || !boardSession) return;
+    const activeBoard = boardSession;
+    try {
+      const currentGame = new Chess(activeBoard.currentFen);
+      const result = currentGame.move({
+        from: promotionRequest.from,
+        to: promotionRequest.to,
+        promotion: piece,
+      });
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 889
+    if (!boardSession) return;
+    const activeBoard = boardSession;
+    try {
+      const currentGame = new Chess(activeBoard.currentFen);
+      const mover = currentGame.get(from);
+      const promote = mover?.type === "p" && (to.endsWith("8") || to.endsWith("1"));
+      if (promote) {
+        setPromotionRequest({ from, to });
+        return;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1020
+  function loadPgnText(source: string) {
+    try {
+      const imported = parsePgn(source);
+      const replay = new Chess(imported.lineBaseFen);
+
+      for (const san of imported.moves) {
+        replay.move(san);
+      }
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1376
+
+  function resetBoard() {
+    if (workspaceMode === "opening-prep") {
+      const original = new Chess(openingPrepBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1385
+      });
+    } else if (studyMode) {
+      if (!studyBoard) return;
+      const original = new Chess(studyBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1394
+      });
+    } else {
+      if (!session) return;
+      const original = new Chess(session.originalFen);
+      patchSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\chess-state.ts
+LINE: 4
+import { Chess } from "chess.js";
+
+export function makePosition(baseFen: string, moves: string[], moveIndex: number): Chess {
+  const game = new Chess(baseFen);
+  for (const san of moves.slice(0, moveIndex)) {
+    const result = game.move(san);
+    if (!result) throw new Error(`Saved move could not be replayed: ${san}`);
+  }
+  return game;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 13
+};
+
+function parseLine(input: string) {
+  const chess = new Chess();
+  const cleaned = input
+    .replace(/\{[^}]*\}/g, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/^\s*\[.*\]\s*$/gm, " ")
+    .replace(/\d+\.(\.\.)?/g, " ")
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 50
+
+
+  const positions = useMemo(() => {
+    const game = new Chess();
+    const result = [game.fen()];
+    for (const san of moves) {
+      game.move(san);
+      result.push(game.fen());
+    }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 59
+    return result;
+  }, [moves]);
+
+  const game = useMemo(() => new Chess(positions[index]), [positions, index]);
+  const legalTargets = useMemo(() => {
+    if (!selectedSquare) return [];
+    return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  }, [game, selectedSquare]);
+  const history = useMemo(() => {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 65
+    return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  }, [game, selectedSquare]);
+  const history = useMemo(() => {
+    const replay = new Chess();
+    const result = [];
+    for (const san of moves.slice(0, index)) result.push(replay.move(san));
+    return result;
+  }, [moves, index]);
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 11
+};
+
+export function parseOpeningLine(input: string): OpeningLineResult {
+  const chess = new Chess();
+  const sanMoves: string[] = [];
+  const uciMoves: string[] = [];
+
+  const tokens = input
+    .replace(/\{[^}]*\}/g, " ")
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 55
+  if (parsed.error) return parsed;
+
+  const limit = Math.max(0, Math.min(parsed.sanMoves.length, Math.floor(ply)));
+  const chess = new Chess();
+  const sanMoves: string[] = [];
+  const uciMoves: string[] = [];
+
+  for (let i = 0; i < limit; i++) {
+    const move = chess.move(parsed.sanMoves[i]);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\pgn-import.ts
+LINE: 18
+    throw new Error("Paste or select a PGN game first.");
+  }
+
+  const parsed = new Chess();
+
+  try {
+    parsed.loadPgn(source);
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : "Unknown PGN error";
+
+FILE: D:\chess\BookChess\ChessBookReader\src\pgn-import.ts
+LINE: 34
+  let replay: Chess;
+
+  try {
+    replay = new Chess(lineBaseFen);
+  } catch {
+    throw new Error("The PGN contains an invalid starting FEN.");
+  }
+
+  const moves = parsed.history();
+
+FILE: D:\chess\BookChess\ChessBookReader\src\position-editor.ts
+LINE: 207
+  }
+
+  try {
+    new Chess(trimmed);
+  } catch (err: unknown) {
+    return { isValid: false, error: err instanceof Error ? err.message : String(err) };
+  }
+
+  return { isValid: true };
+
+========== SEARCH: \.move\( ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 35
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+      from: match[1] as Square,
+      to: match[2] as Square,
+      ...(match[3] ? { promotion: match[3] as "q" | "r" | "b" | "n" } : {}),
+    });
+    return move.san;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 53
+    const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+    if (!match) break;
+    try {
+      const move = position.move({
+        from: match[1] as Square,
+        to: match[2] as Square,
+        ...(match[3] ? { promotion: match[3] as "q" | "r" | "b" | "n" } : {}),
+      });
+      san.push(move.san);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 863
+    const activeBoard = boardSession;
+    try {
+      const currentGame = new Chess(activeBoard.currentFen);
+      const result = currentGame.move({
+        from: promotionRequest.from,
+        to: promotionRequest.to,
+        promotion: piece,
+      });
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 896
+        setPromotionRequest({ from, to });
+        return;
+      }
+      const result = currentGame.move({ from, to });
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+      if (workspaceMode === "opening-explorer") {
+        const line = nextMoves
+          .map((move, index) => index % 2 === 0 ? `${Math.floor(index / 2) + 1}. ${move}` : move)
+          .join(" ");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1023
+      const replay = new Chess(imported.lineBaseFen);
+
+      for (const san of imported.moves) {
+        replay.move(san);
+      }
+
+      const last = replay.history({ verbose: true }).at(-1);
+
+      setAnalysisBoard((current) => ({
+
+FILE: D:\chess\BookChess\ChessBookReader\src\chess-state.ts
+LINE: 6
+export function makePosition(baseFen: string, moves: string[], moveIndex: number): Chess {
+  const game = new Chess(baseFen);
+  for (const san of moves.slice(0, moveIndex)) {
+    const result = game.move(san);
+    if (!result) throw new Error(`Saved move could not be replayed: ${san}`);
+  }
+  return game;
+}
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 29
+  const moves: string[] = [];
+  for (const token of tokens) {
+    try {
+      const move = chess.move(token);
+      moves.push(move.san);
+    } catch {
+      throw new Error(`Invalid or illegal move: ${token}`);
+    }
+  }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 53
+    const game = new Chess();
+    const result = [game.fen()];
+    for (const san of moves) {
+      game.move(san);
+      result.push(game.fen());
+    }
+    return result;
+  }, [moves]);
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 67
+  const history = useMemo(() => {
+    const replay = new Chess();
+    const result = [];
+    for (const san of moves.slice(0, index)) result.push(replay.move(san));
+    return result;
+  }, [moves, index]);
+
+  const lastMove = history.at(-1);
+  const board = game.board();
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 28
+    try {
+      const uci = token.match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
+      const move = uci
+        ? chess.move({
+            from: uci[1].toLowerCase() as Square,
+            to: uci[2].toLowerCase() as Square,
+            promotion: uci[3]?.toLowerCase(),
+          })
+        : chess.move(token);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 33
+            to: uci[2].toLowerCase() as Square,
+            promotion: uci[3]?.toLowerCase(),
+          })
+        : chess.move(token);
+
+      sanMoves.push(move.san);
+      uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+    } catch {
+      return {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 60
+  const uciMoves: string[] = [];
+
+  for (let i = 0; i < limit; i++) {
+    const move = chess.move(parsed.sanMoves[i]);
+    sanMoves.push(move.san);
+    uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+  }
+
+  return { fen: chess.fen(), sanMoves, uciMoves, error: null };
+
+FILE: D:\chess\BookChess\ChessBookReader\src\pgn-import.ts
+LINE: 47
+
+  try {
+    for (const san of moves) {
+      replay.move(san);
+    }
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : "Unknown move error";
+    throw new Error(`Could not replay the imported game: ${detail}`);
+  }
+
+========== SEARCH: \.fen\( ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 480
+
+  useEffect(() => {
+    if (engineEnabled && boardSession) {
+      engineRef.current?.analyze(game.fen(), engineDepth);
+    }
+  }, [engineEnabled, boardSession?.currentFen, boardSession?.moveIndex, game, engineDepth]);
+
+  function messageOf(cause: unknown): string {
+    return cause instanceof Error ? cause.message : String(cause);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 694
+        ...activeSession,
+        originalFen: fen,
+        lineBaseFen: fen,
+        currentFen: next.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+      setLastMove(null);
+      setSelectedSquare(null);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 870
+      });
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+      patchBoardSession({
+        currentFen: currentGame.fen(),
+        moves: nextMoves,
+        moveIndex: nextMoves.length,
+      });
+      updateGameEndOverlay(currentGame);
+      setLastMove({ from: promotionRequest.from, to: promotionRequest.to });
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 906
+        setOpeningExplorerPly(nextMoves.length);
+      } else {
+        patchBoardSession({
+          currentFen: currentGame.fen(),
+          moves: nextMoves,
+          moveIndex: nextMoves.length,
+        });
+      }
+      updateGameEndOverlay(currentGame);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1068
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+    } catch (cause) {
+      setError(`Could not navigate to move: ${messageOf(cause)}`);
+    }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1378
+    if (workspaceMode === "opening-prep") {
+      const original = new Chess(openingPrepBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else if (studyMode) {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1379
+      const original = new Chess(openingPrepBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else if (studyMode) {
+      if (!studyBoard) return;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1387
+      if (!studyBoard) return;
+      const original = new Chess(studyBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1388
+      const original = new Chess(studyBoard.lineBaseFen);
+      patchBoardSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    } else {
+      if (!session) return;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1396
+      if (!session) return;
+      const original = new Chess(session.originalFen);
+      patchSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1397
+      const original = new Chess(session.originalFen);
+      patchSession({
+        lineBaseFen: original.fen(),
+        currentFen: original.fen(),
+        moves: [],
+        moveIndex: 0,
+      });
+    }
+    setLastMove(null);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1477
+<div className="moves-panel">
+            <div className="moves-heading"><span>MOVE LIST</span><button className="new-line" onClick={() => {
+              if (!session) return;
+              patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+              setLastMove(null);
+              setNotice("New analysis line started from the current position.");
+            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1657
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+            <span className="controls-spacer" />
+            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+            <button title="Paste PGN notation" onClick={pastePgn}><FileCode2 size={15} aria-hidden="true" /> Paste PGN</button>
+            <button title="Import a PGN file" onClick={() => document.getElementById("pgn-import-input")?.click()}><FileCode2 size={15} aria-hidden="true" /> Import PGN</button>
+            <input
+              id="pgn-import-input"
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1677
+            <span>TO MOVE</span>
+            <button className={whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "w");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+            <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1684
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> White</button>
+            <button className={!whiteTurn ? "turn-active" : ""} onClick={() => {
+              try {
+                const fen = fenWithTurn(game.fen(), "b");
+                patchBoardSession({ lineBaseFen: fen, currentFen: fen, moves: [], moveIndex: 0 });
+                setLastMove(null);
+              } catch (cause) { setError(messageOf(cause)); }
+            }}><Crown size={15} strokeWidth={2} aria-hidden="true" /> Black</button>
+            <button className="save-position" onClick={savePosition}><Save size={15} aria-hidden="true" /> Save position</button>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1695
+            <summary>Board position Â· enter FEN to correct selected diagram</summary>
+            <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+          </details>
+          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+        </section>
+
+        <section className="reader-panel" aria-label="PDF book reader">
+          <div className="opening-explorer-right-workspace">
+          {workspaceMode === "opening-explorer" && (
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1959
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1960
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1988
+      )}
+      {setupOpen && (
+        <ManualBoardEditor
+          initialFen={game.fen()}
+          title="Set Up Position"
+          subtitle="Set up a custom chess position to analyze with Stockfish."
+          confirmLabel="Analyze Position"
+          showPresets={true}
+          currentAnalysisFen={game.fen()}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1993
+          subtitle="Set up a custom chess position to analyze with Stockfish."
+          confirmLabel="Analyze Position"
+          showPresets={true}
+          currentAnalysisFen={game.fen()}
+          onConfirm={(confirmedFen) => {
+            if (analyzeManualPosition(confirmedFen)) {
+              setSetupOpen(false);
+            }
+          }}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\chess-state.test.ts
+LINE: 8
+describe("chess position state", () => {
+  it("replays legal SAN from an arbitrary diagram position", () => {
+    const game = makePosition(START_FEN, ["e4", "e5"], 2);
+    expect(game.fen()).toContain(" w KQkq ");
+    expect(game.history()).toEqual(["e4", "e5"]);
+  });
+
+  it("rejects invalid restored moves instead of substituting a position", () => {
+    expect(() => makePosition(START_FEN, ["e5"], 1)).toThrow();
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 51
+
+  const positions = useMemo(() => {
+    const game = new Chess();
+    const result = [game.fen()];
+    for (const san of moves) {
+      game.move(san);
+      result.push(game.fen());
+    }
+    return result;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 54
+    const result = [game.fen()];
+    for (const san of moves) {
+      game.move(san);
+      result.push(game.fen());
+    }
+    return result;
+  }, [moves]);
+
+  const game = useMemo(() => new Chess(positions[index]), [positions, index]);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 209
+          </div>
+        </aside>
+      </div>
+      <p className="nl-fen"><strong>FEN</strong> {game.fen()}</p>
+    </main>
+  );
+}
+
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 39
+      uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+    } catch {
+      return {
+        fen: chess.fen(),
+        sanMoves,
+        uciMoves,
+        error: `Invalid or illegal move: ${token}`,
+      };
+    }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 47
+    }
+  }
+
+  return { fen: chess.fen(), sanMoves, uciMoves, error: null };
+}
+
+export function openingPositionAt(input: string, ply: number): OpeningLineResult {
+  const parsed = parseOpeningLine(input);
+  if (parsed.error) return parsed;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 65
+    uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+  }
+
+  return { fen: chess.fen(), sanMoves, uciMoves, error: null };
+}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\pgn-import.ts
+LINE: 54
+    throw new Error(`Could not replay the imported game: ${detail}`);
+  }
+
+  if (replay.fen() !== parsed.fen()) {
+    throw new Error("The imported PGN could not be reproduced from its starting position.");
+  }
+
+  return {
+    headers,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\pgn-import.ts
+LINE: 62
+    headers,
+    lineBaseFen,
+    moves,
+    finalFen: replay.fen(),
+  };
+}
+
+========== SEARCH: \.pgn\( ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1658
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+            <span className="controls-spacer" />
+            <button title="Copy current FEN" onClick={() => void copyText(game.fen())}><FileCode2 size={15} aria-hidden="true" /> FEN</button>
+            <button title="Copy current PGN" onClick={() => void copyText(game.pgn())}><FileCode2 size={15} aria-hidden="true" /> PGN</button>
+            <button title="Paste PGN notation" onClick={pastePgn}><FileCode2 size={15} aria-hidden="true" /> Paste PGN</button>
+            <button title="Import a PGN file" onClick={() => document.getElementById("pgn-import-input")?.click()}><FileCode2 size={15} aria-hidden="true" /> Import PGN</button>
+            <input
+              id="pgn-import-input"
+              type="file"
+
+========== SEARCH: stockfish ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.test.tsx
+LINE: 27
+  }
+}
+
+describe("App - Manual Position Setup & Stockfish Analysis", () => {
+  let fakeWorker: FakeWorker;
+
+  beforeEach(() => {
+    fakeWorker = new FakeWorker();
+    vi.stubGlobal(
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.test.tsx
+LINE: 72
+    expect(screen.queryByRole("dialog", { name: "Set Up Position" })).not.toBeInTheDocument();
+  });
+
+  it("loads a custom manual position, reflects side to move, and triggers Stockfish analysis", async () => {
+    render(<App />);
+
+    const setupBtns = await screen.findAllByRole("button", { name: /set up position/i });
+    fireEvent.click(setupBtns[0]);
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.test.tsx
+LINE: 96
+    const boardFenElement = screen.getByText(customFen);
+    expect(boardFenElement).toBeInTheDocument();
+
+    // Stockfish worker should have received uci and commands
+    expect(fakeWorker.commands).toContain("uci");
+  });
+});
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 13
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+  getBooks,
+  getSession,
+  getSession as getStoredSession,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 226
+  const transferRequestRef = useRef(0);
+  const cropEditStartRef = useRef<{ candidate: Candidate; handle: CropHandle; point: { x: number; y: number } } | null>(null);
+  const cropBaselineRef = useRef<Candidate | null>(null);
+  const engineRef = useRef<StockfishEngine | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function initialize() {
+      try {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 501
+    try {
+      setEngineScore(null);
+      setEngineMessage("");
+      const client = new StockfishEngine(
+        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+        (status, message) => {
+          setEngineStatus(status);
+          if (status === "error") {
+            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 502
+      setEngineScore(null);
+      setEngineMessage("");
+      const client = new StockfishEngine(
+        `${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`,
+        (status, message) => {
+          setEngineStatus(status);
+          if (status === "error") {
+            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+            setEngineEnabled(false);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 506
+        (status, message) => {
+          setEngineStatus(status);
+          if (status === "error") {
+            setEngineMessage(message || "Stockfish could not start. Check the engine assets and browser worker support.");
+            setEngineEnabled(false);
+            setEngineScore(null);
+            engineRef.current?.dispose();
+            engineRef.current = null;
+          }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 519
+      setEngineEnabled(true);
+    } catch (cause) {
+      setEngineStatus("error");
+      setEngineMessage(`Stockfish could not start: ${messageOf(cause)}`);
+      setEngineEnabled(false);
+    }
+  }
+
+  function patchSession(change: Partial<BookSession> | ((current: BookSession) => BookSession)) {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 719
+    } else {
+      engineRef.current?.analyze(fen, engineDepth);
+    }
+    setNotice("Manual position loaded. Stockfish analysis started.");
+    return true;
+  }
+
+  function selectCandidate(candidate: Candidate) {
+    if (!session) return;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1954
+            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+          </div>
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineâ€¦" : engineStatus === "analyzing" ? "Analyzing current positionâ€¦" : "Ready Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1956
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineâ€¦" : engineStatus === "analyzing" ? "Analyzing current positionâ€¦" : "Ready Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1960
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1966
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+          title="Review recognized position"
+          subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits."
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1990
+        <ManualBoardEditor
+          initialFen={game.fen()}
+          title="Set Up Position"
+          subtitle="Set up a custom chess position to analyze with Stockfish."
+          confirmLabel="Analyze Position"
+          showPresets={true}
+          currentAnalysisFen={game.fen()}
+          onConfirm={(confirmedFen) => {
+            if (analyzeManualPosition(confirmedFen)) {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 2
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatEvaluation, parseUciInfo, StockfishEngine, whiteScoreShare } from "./stockfish";
+
+class FakeWorker {
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  commands: string[] = [];
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 16
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("Stockfish UCI evaluation", () => {
+  it("converts side-to-move centipawns to the White perspective", () => {
+    expect(parseUciInfo("info depth 12 score cp 74 pv e2e4 e7e5", "w"))
+      .toEqual({ kind: "cp", value: 74, depth: 12, pv: ["e2e4", "e7e5"] });
+    expect(parseUciInfo("info depth 15 score cp 74 pv e7e5", "b"))
+      .toMatchObject({ kind: "cp", value: -74, depth: 15 });
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 48
+      constructor() { return worker; }
+    });
+    const scores: any[] = [];
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+
+    worker.send("uciok");
+    worker.send("readyok");
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 14);
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 71
+      constructor() { return worker; }
+    });
+    const scores: (ReturnType<typeof parseUciInfo> | null)[] = [];
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+    worker.send("uciok");
+    worker.send("readyok");
+    expect(worker.commands).toEqual(["uci", "isready"]);
+
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 12);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 38
+  return Math.max(0.04, Math.min(0.96, 1 / (1 + 10 ** (-bounded / 400))));
+}
+
+export class StockfishEngine {
+  private readonly worker: Worker;
+  private ready = false;
+  private searching = false;
+  private awaitingStop = false;
+  private queued: UciRequest | null = null;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 55
+    this.worker = new Worker(workerUrl);
+    this.worker.onmessage = (event: MessageEvent<string>) => this.handleLine(String(event.data));
+    this.worker.onerror = (event) => {
+      this.onStatus("error", event.message || "The Stockfish worker failed to load.");
+      this.dispose();
+    };
+    this.onStatus("loading");
+    this.worker.postMessage("uci");
+  }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 105
+      const score = parseUciInfo(line, this.currentSide);
+      if (score) {
+        // Use the current principal variation's first move for a live arrow.
+        // Stockfish's final "bestmove" will replace this provisional move.
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+          ...score,
+          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+        };
+
+========== SEARCH: uci ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.test.tsx
+LINE: 13
+  terminated = false;
+  postMessage(command: string) {
+    this.commands.push(command);
+    if (command === "uci") {
+      setTimeout(() => this.send("uciok"), 10);
+    } else if (command === "isready") {
+      setTimeout(() => this.send("readyok"), 10);
+    }
+  }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.test.tsx
+LINE: 14
+  postMessage(command: string) {
+    this.commands.push(command);
+    if (command === "uci") {
+      setTimeout(() => this.send("uciok"), 10);
+    } else if (command === "isready") {
+      setTimeout(() => this.send("readyok"), 10);
+    }
+  }
+  terminate() {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.test.tsx
+LINE: 96
+    const boardFenElement = screen.getByText(customFen);
+    expect(boardFenElement).toBeInTheDocument();
+
+    // Stockfish worker should have received uci and commands
+    expect(fakeWorker.commands).toContain("uci");
+  });
+});
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.test.tsx
+LINE: 97
+    expect(boardFenElement).toBeInTheDocument();
+
+    // Stockfish worker should have received uci and commands
+    expect(fakeWorker.commands).toContain("uci");
+  });
+});
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 5
+import CoordinateTraining from "./CoordinateTraining";
+import {
+  Search, Cpu, Crown, CirclePlus, Plus, LayoutDashboard, RotateCcw, RotateCw, Settings2, ArrowLeftRight, FileCode2, Save,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, BookOpenText } from "lucide-react";import { Chess, type Square } from "chess.js";
+import { GlobalWorkerOptions, getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 30
+import { fetchOpeningExplorerStats, getLichessConnectionStatus, disconnectLichess, type OpeningExplorerStats, type LichessConnectionStatus } from "./opening-explorer-api";
+
+
+function formatUciMove(fen: string, uci: string): string {
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 31
+
+
+function formatUciMove(fen: string, uci: string): string {
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+      from: match[1] as Square,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 32
+
+function formatUciMove(fen: string, uci: string): string {
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return uci;
+  try {
+    const position = new Chess(fen);
+    const move = position.move({
+      from: match[1] as Square,
+      to: match[2] as Square,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 42
+    });
+    return move.san;
+  } catch {
+    return uci;
+  }
+}
+
+function formatUciPv(fen: string, pv: string[]): string {
+  const position = new Chess(fen);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 46
+  }
+}
+
+function formatUciPv(fen: string, pv: string[]): string {
+  const position = new Chess(fen);
+  const san: string[] = [];
+  for (const uci of pv) {
+    const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+    if (!match) break;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 49
+function formatUciPv(fen: string, pv: string[]): string {
+  const position = new Chess(fen);
+  const san: string[] = [];
+  for (const uci of pv) {
+    const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+    if (!match) break;
+    try {
+      const move = position.move({
+        from: match[1] as Square,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 50
+  const position = new Chess(fen);
+  const san: string[] = [];
+  for (const uci of pv) {
+    const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+    if (!match) break;
+    try {
+      const move = position.move({
+        from: match[1] as Square,
+        to: match[2] as Square,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 410
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setOpeningStatsStatus("loading");
+      fetchOpeningExplorerStats(openingPosition.uciMoves, controller.signal)
+        .then((result) => {
+          setOpeningStats(result);
+          setOpeningStatsStatus("ready");
+        })
+        .catch(() => {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1739
+                )}
+              </div>
+              {lichessStatusError && <p role="status">{lichessStatusError}</p>}
+              <p>Enter a legal opening line in SAN or UCI notation. The board follows the selected move.</p>
+              <label htmlFor="opening-line-input">Opening moves</label>
+              <textarea
+                id="opening-line-input"
+                aria-label="Opening line input"
+                rows={3}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1826
+                            {openingStats.moves.slice(0, 8).map((move) => {
+                              const total = move.white + move.draws + move.black;
+                              return (
+                                <div className="opening-stat-move" key={move.uci}>
+                                  <strong>{move.san}</strong>
+                                  <span>{total.toLocaleString()} games</span>
+                                  {move.opening && <small>{move.opening.name}</small>}
+                                </div>
+                              );
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1959
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1960
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\board-annotations.test.ts
+LINE: 28
+    expect(squareCenter("a1", true)).toEqual({ x: 7.5, y: 0.5 });
+  });
+
+  it("accepts valid UCI best moves and rejects absent or invalid moves", () => {
+    expect(parseBestMove("e2e4")).toEqual({ from: "e2", to: "e4", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("a7a8q")).toEqual({ from: "a7", to: "a8", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("(none)")).toBeNull();
+    expect(parseBestMove(undefined)).toBeNull();
+  });
+
+FILE: D:\chess\BookChess\ChessBookReader\src\GameReview.tsx
+LINE: 6
+  ArrowLeft, ArrowRight, BarChart3, ChevronDown, ChevronRight,
+  CircleAlert, Crown, FileUp, Lightbulb, Play, RotateCcw,
+  Sparkles, Target, Trophy
+} from "lucide-react";
+
+type MoveTag = "Best" | "Excellent" | "Good" | "Inaccuracy" | "Mistake" | "Blunder";
+
+type ReviewMove = {
+  number: number;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 3
+import { useMemo, useState } from "react";
+import { Chess, type Square } from "chess.js";
+import { ChevronFirst, ChevronLeft, ChevronRight, ChevronLast, RotateCw, BookOpen, GraduationCap } from "lucide-react";
+import "./notation-learner.css";
+
+const FILES = "abcdefgh";
+const PIECES: Record<string, string> = {
+  wk:"?", wq:"?", wr:"?", wb:"?", wn:"?", wp:"?",
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LINE: 2
+export type OpeningExplorerMove = {
+  uci: string;
+  san: string;
+  white: number;
+  draws: number;
+  black: number;
+  opening?: { eco?: string; name: string } | null;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LINE: 36
+}
+
+export async function fetchOpeningExplorerStats(
+  uciMoves: string[],
+  signal?: AbortSignal,
+): Promise<OpeningExplorerStats> {
+  const query = new URLSearchParams();
+  query.set("variant", "standard");
+  query.set("moves", "8");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LINE: 42
+  const query = new URLSearchParams();
+  query.set("variant", "standard");
+  query.set("moves", "8");
+  if (uciMoves.length) query.set("play", uciMoves.join(","));
+
+  const response = await fetch(
+    `/api/lichess/opening-explorer?${query.toString()}`,
+    {
+      method: "GET",
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LINE: 72
+    ? data.moves.flatMap((entry): OpeningExplorerMove[] => {
+        if (!entry || typeof entry !== "object") return [];
+        const item = entry as Record<string, unknown>;
+        if (typeof item.uci !== "string" || typeof item.san !== "string") return [];
+        return [{
+          uci: item.uci,
+          san: item.san,
+          white: count(item.white),
+          draws: count(item.draws),
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer-api.ts
+LINE: 74
+        const item = entry as Record<string, unknown>;
+        if (typeof item.uci !== "string" || typeof item.san !== "string") return [];
+        return [{
+          uci: item.uci,
+          san: item.san,
+          white: count(item.white),
+          draws: count(item.draws),
+          black: count(item.black),
+          opening: opening(item.opening),
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.test.ts
+LINE: 14
+    const result = parseOpeningLine("1. e4 e5 2. Nf3 Nc6");
+    expect(result.error).toBeNull();
+    expect(result.sanMoves).toEqual(["e4", "e5", "Nf3", "Nc6"]);
+    expect(result.uciMoves).toEqual(["e2e4", "e7e5", "g1f3", "b8c6"]);
+  });
+
+  it("parses UCI moves", () => {
+    const result = parseOpeningLine("e2e4 e7e5 g1f3");
+    expect(result.error).toBeNull();
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.test.ts
+LINE: 17
+    expect(result.uciMoves).toEqual(["e2e4", "e7e5", "g1f3", "b8c6"]);
+  });
+
+  it("parses UCI moves", () => {
+    const result = parseOpeningLine("e2e4 e7e5 g1f3");
+    expect(result.error).toBeNull();
+    expect(result.sanMoves).toEqual(["e4", "e5", "Nf3"]);
+  });
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 6
+export type OpeningLineResult = {
+  fen: string;
+  sanMoves: string[];
+  uciMoves: string[];
+  error: string | null;
+};
+
+export function parseOpeningLine(input: string): OpeningLineResult {
+  const chess = new Chess();
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 13
+export function parseOpeningLine(input: string): OpeningLineResult {
+  const chess = new Chess();
+  const sanMoves: string[] = [];
+  const uciMoves: string[] = [];
+
+  const tokens = input
+    .replace(/\{[^}]*\}/g, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\d+\.(\.\.)?/g, " ")
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 26
+
+  for (const token of tokens) {
+    try {
+      const uci = token.match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
+      const move = uci
+        ? chess.move({
+            from: uci[1].toLowerCase() as Square,
+            to: uci[2].toLowerCase() as Square,
+            promotion: uci[3]?.toLowerCase(),
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 27
+  for (const token of tokens) {
+    try {
+      const uci = token.match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
+      const move = uci
+        ? chess.move({
+            from: uci[1].toLowerCase() as Square,
+            to: uci[2].toLowerCase() as Square,
+            promotion: uci[3]?.toLowerCase(),
+          })
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 29
+      const uci = token.match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
+      const move = uci
+        ? chess.move({
+            from: uci[1].toLowerCase() as Square,
+            to: uci[2].toLowerCase() as Square,
+            promotion: uci[3]?.toLowerCase(),
+          })
+        : chess.move(token);
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 30
+      const move = uci
+        ? chess.move({
+            from: uci[1].toLowerCase() as Square,
+            to: uci[2].toLowerCase() as Square,
+            promotion: uci[3]?.toLowerCase(),
+          })
+        : chess.move(token);
+
+      sanMoves.push(move.san);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 31
+        ? chess.move({
+            from: uci[1].toLowerCase() as Square,
+            to: uci[2].toLowerCase() as Square,
+            promotion: uci[3]?.toLowerCase(),
+          })
+        : chess.move(token);
+
+      sanMoves.push(move.san);
+      uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 36
+        : chess.move(token);
+
+      sanMoves.push(move.san);
+      uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+    } catch {
+      return {
+        fen: chess.fen(),
+        sanMoves,
+        uciMoves,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 41
+      return {
+        fen: chess.fen(),
+        sanMoves,
+        uciMoves,
+        error: `Invalid or illegal move: ${token}`,
+      };
+    }
+  }
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 47
+    }
+  }
+
+  return { fen: chess.fen(), sanMoves, uciMoves, error: null };
+}
+
+export function openingPositionAt(input: string, ply: number): OpeningLineResult {
+  const parsed = parseOpeningLine(input);
+  if (parsed.error) return parsed;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 57
+  const limit = Math.max(0, Math.min(parsed.sanMoves.length, Math.floor(ply)));
+  const chess = new Chess();
+  const sanMoves: string[] = [];
+  const uciMoves: string[] = [];
+
+  for (let i = 0; i < limit; i++) {
+    const move = chess.move(parsed.sanMoves[i]);
+    sanMoves.push(move.san);
+    uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 62
+  for (let i = 0; i < limit; i++) {
+    const move = chess.move(parsed.sanMoves[i]);
+    sanMoves.push(move.san);
+    uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+  }
+
+  return { fen: chess.fen(), sanMoves, uciMoves, error: null };
+}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\opening-explorer.ts
+LINE: 65
+    uciMoves.push(`${move.from}${move.to}${move.promotion ?? ""}`);
+  }
+
+  return { fen: chess.fen(), sanMoves, uciMoves, error: null };
+}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 2
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatEvaluation, parseUciInfo, StockfishEngine, whiteScoreShare } from "./stockfish";
+
+class FakeWorker {
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  commands: string[] = [];
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 16
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("Stockfish UCI evaluation", () => {
+  it("converts side-to-move centipawns to the White perspective", () => {
+    expect(parseUciInfo("info depth 12 score cp 74 pv e2e4 e7e5", "w"))
+      .toEqual({ kind: "cp", value: 74, depth: 12, pv: ["e2e4", "e7e5"] });
+    expect(parseUciInfo("info depth 15 score cp 74 pv e7e5", "b"))
+      .toMatchObject({ kind: "cp", value: -74, depth: 15 });
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 18
+
+describe("Stockfish UCI evaluation", () => {
+  it("converts side-to-move centipawns to the White perspective", () => {
+    expect(parseUciInfo("info depth 12 score cp 74 pv e2e4 e7e5", "w"))
+      .toEqual({ kind: "cp", value: 74, depth: 12, pv: ["e2e4", "e7e5"] });
+    expect(parseUciInfo("info depth 15 score cp 74 pv e7e5", "b"))
+      .toMatchObject({ kind: "cp", value: -74, depth: 15 });
+  });
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 20
+  it("converts side-to-move centipawns to the White perspective", () => {
+    expect(parseUciInfo("info depth 12 score cp 74 pv e2e4 e7e5", "w"))
+      .toEqual({ kind: "cp", value: 74, depth: 12, pv: ["e2e4", "e7e5"] });
+    expect(parseUciInfo("info depth 15 score cp 74 pv e7e5", "b"))
+      .toMatchObject({ kind: "cp", value: -74, depth: 15 });
+  });
+
+  it("orients mate scores and represents a checkmated side-to-move", () => {
+    expect(parseUciInfo("info depth 20 score mate 3 pv e2e4", "w")?.value).toBe(3);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 25
+  });
+
+  it("orients mate scores and represents a checkmated side-to-move", () => {
+    expect(parseUciInfo("info depth 20 score mate 3 pv e2e4", "w")?.value).toBe(3);
+    expect(parseUciInfo("info depth 20 score mate 3 pv e7e5", "b")?.value).toBe(-3);
+    expect(parseUciInfo("info depth 20 score mate 0", "w")?.value).toBe(-1);
+    expect(formatEvaluation({ kind: "mate", value: -3, depth: 20 })).toBe("#-3");
+  });
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 26
+
+  it("orients mate scores and represents a checkmated side-to-move", () => {
+    expect(parseUciInfo("info depth 20 score mate 3 pv e2e4", "w")?.value).toBe(3);
+    expect(parseUciInfo("info depth 20 score mate 3 pv e7e5", "b")?.value).toBe(-3);
+    expect(parseUciInfo("info depth 20 score mate 0", "w")?.value).toBe(-1);
+    expect(formatEvaluation({ kind: "mate", value: -3, depth: 20 })).toBe("#-3");
+  });
+
+  it("keeps the evaluation bar bounded and consistent around equality", () => {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 27
+  it("orients mate scores and represents a checkmated side-to-move", () => {
+    expect(parseUciInfo("info depth 20 score mate 3 pv e2e4", "w")?.value).toBe(3);
+    expect(parseUciInfo("info depth 20 score mate 3 pv e7e5", "b")?.value).toBe(-3);
+    expect(parseUciInfo("info depth 20 score mate 0", "w")?.value).toBe(-1);
+    expect(formatEvaluation({ kind: "mate", value: -3, depth: 20 })).toBe("#-3");
+  });
+
+  it("keeps the evaluation bar bounded and consistent around equality", () => {
+    const whiteAdvantage = { kind: "cp" as const, value: 250, depth: 12 };
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 50
+    const scores: any[] = [];
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+
+    worker.send("uciok");
+    worker.send("readyok");
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 14);
+
+    worker.send("info depth 3 score cp 12 pv e2e4 e7e5");
+    expect(scores.at(-1)).toMatchObject({ depth: 3, bestMove: "e2e4" });
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 65
+    engine.dispose();
+  });
+
+  it("initializes UCI, replaces stale analysis, and terminates the worker", () => {
+    const worker = new FakeWorker();
+    vi.stubGlobal("Worker", class {
+      constructor() { return worker; }
+    });
+    const scores: (ReturnType<typeof parseUciInfo> | null)[] = [];
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 70
+    vi.stubGlobal("Worker", class {
+      constructor() { return worker; }
+    });
+    const scores: (ReturnType<typeof parseUciInfo> | null)[] = [];
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+    worker.send("uciok");
+    worker.send("readyok");
+    expect(worker.commands).toEqual(["uci", "isready"]);
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 72
+    });
+    const scores: (ReturnType<typeof parseUciInfo> | null)[] = [];
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+    worker.send("uciok");
+    worker.send("readyok");
+    expect(worker.commands).toEqual(["uci", "isready"]);
+
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 12);
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 b - - 0 1", 16);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 74
+    const engine = new StockfishEngine("/stockfish.js", () => undefined, (score) => scores.push(score));
+    worker.send("uciok");
+    worker.send("readyok");
+    expect(worker.commands).toEqual(["uci", "isready"]);
+
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 12);
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 b - - 0 1", 16);
+    expect(worker.commands.slice(-1)).toEqual(["stop"]);
+    worker.send("info depth 11 score cp 80 pv e2e4");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 4
+export type EngineStatus = "off" | "loading" | "ready" | "analyzing" | "error";
+export type EngineScore = { kind: "cp" | "mate"; value: number; depth: number; bestMove?: string; pv?: string[] };
+
+type UciRequest = { fen: string; depth: number };
+
+export function parseUciInfo(line: string, sideToMove: "w" | "b"): Omit<EngineScore, "bestMove"> | null {
+  if (!line.startsWith("info ")) return null;
+  const depth = Number(line.match(/\bdepth (\d+)/)?.[1]);
+  const score = line.match(/\bscore (cp|mate) (-?\d+)/);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 6
+
+type UciRequest = { fen: string; depth: number };
+
+export function parseUciInfo(line: string, sideToMove: "w" | "b"): Omit<EngineScore, "bestMove"> | null {
+  if (!line.startsWith("info ")) return null;
+  const depth = Number(line.match(/\bdepth (\d+)/)?.[1]);
+  const score = line.match(/\bscore (cp|mate) (-?\d+)/);
+  if (!score || !Number.isFinite(depth)) return null;
+  const value = Number(score[2]);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 43
+  private ready = false;
+  private searching = false;
+  private awaitingStop = false;
+  private queued: UciRequest | null = null;
+  private currentSide: "w" | "b" = "w";
+  private latestScore: EngineScore | null = null;
+
+  constructor(
+    workerUrl: string,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 59
+      this.dispose();
+    };
+    this.onStatus("loading");
+    this.worker.postMessage("uci");
+  }
+
+  analyze(fen: string, depth: number): void {
+    this.queued = { fen, depth: Math.max(1, Math.min(24, Math.floor(depth))) };
+    this.latestScore = null;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 90
+      this.dispose();
+      return;
+    }
+    if (line === "uciok") {
+      this.worker.postMessage("isready");
+      return;
+    }
+    if (line === "readyok") {
+      this.ready = true;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 102
+    }
+    if (line.startsWith("info ")) {
+      if (this.awaitingStop) return;
+      const score = parseUciInfo(line, this.currentSide);
+      if (score) {
+        // Use the current principal variation's first move for a live arrow.
+        // Stockfish's final "bestmove" will replace this provisional move.
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+
+========== SEARCH: bestmove ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 10
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { fenWithTurn, makePosition } from "./chess-state";
+import { parsePgn } from "./pgn-import";
+import { boardSquareAtPoint, parseBestMove, squareCenter, toggleArrow, type BoardArrow } from "./board-annotations";
+import { cropToPixels, editCrop, pointOnCanvas, type CropHandle } from "./crop-geometry";
+import { ManualBoardEditor } from "./ManualBoardEditor";
+import { formatEvaluation, StockfishEngine, whiteScoreShare, type EngineScore, type EngineStatus } from "./stockfish";
+import {
+  getActiveBookId,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 467
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+  useEffect(() => {
+    setUserArrows([]);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 468
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+  useEffect(() => {
+    setUserArrows([]);
+    setArrowStart(null);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1959
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\board-annotations.test.ts
+LINE: 7
+  boardSquareAtPoint,
+  getAnnotationColor,
+  getArrowPath,
+  parseBestMove,
+  squareCenter,
+  toggleArrow,
+  toggleSquareHighlight,
+} from "./board-annotations";
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\board-annotations.test.ts
+LINE: 29
+  });
+
+  it("accepts valid UCI best moves and rejects absent or invalid moves", () => {
+    expect(parseBestMove("e2e4")).toEqual({ from: "e2", to: "e4", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("a7a8q")).toEqual({ from: "a7", to: "a8", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("(none)")).toBeNull();
+    expect(parseBestMove(undefined)).toBeNull();
+  });
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\board-annotations.test.ts
+LINE: 30
+
+  it("accepts valid UCI best moves and rejects absent or invalid moves", () => {
+    expect(parseBestMove("e2e4")).toEqual({ from: "e2", to: "e4", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("a7a8q")).toEqual({ from: "a7", to: "a8", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("(none)")).toBeNull();
+    expect(parseBestMove(undefined)).toBeNull();
+  });
+
+  it("toggles identical user arrows while preserving distinct arrows", () => {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\board-annotations.test.ts
+LINE: 31
+  it("accepts valid UCI best moves and rejects absent or invalid moves", () => {
+    expect(parseBestMove("e2e4")).toEqual({ from: "e2", to: "e4", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("a7a8q")).toEqual({ from: "a7", to: "a8", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("(none)")).toBeNull();
+    expect(parseBestMove(undefined)).toBeNull();
+  });
+
+  it("toggles identical user arrows while preserving distinct arrows", () => {
+    const first = { from: "e2" as const, to: "e4" as const };
+
+FILE: D:\chess\BookChess\ChessBookReader\src\board-annotations.test.ts
+LINE: 32
+    expect(parseBestMove("e2e4")).toEqual({ from: "e2", to: "e4", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("a7a8q")).toEqual({ from: "a7", to: "a8", color: ANNOTATION_COLORS.engine });
+    expect(parseBestMove("(none)")).toBeNull();
+    expect(parseBestMove(undefined)).toBeNull();
+  });
+
+  it("toggles identical user arrows while preserving distinct arrows", () => {
+    const first = { from: "e2" as const, to: "e4" as const };
+    const second = { from: "d2" as const, to: "d4" as const };
+
+FILE: D:\chess\BookChess\ChessBookReader\src\board-annotations.ts
+LINE: 60
+  };
+}
+
+export function parseBestMove(move: string | undefined): BoardArrow | null {
+  const match = move?.match(/^([a-h][1-8])([a-h][1-8])[qrbn]?$/);
+  return match ? { from: match[1] as Square, to: match[2] as Square, color: ANNOTATION_COLORS.engine } : null;
+}
+
+export function toggleArrow(arrows: BoardArrow[], next: BoardArrow): BoardArrow[] {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 55
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 14);
+
+    worker.send("info depth 3 score cp 12 pv e2e4 e7e5");
+    expect(scores.at(-1)).toMatchObject({ depth: 3, bestMove: "e2e4" });
+
+    worker.send("info depth 5 score cp 22 pv d2d4 d7d5");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+
+    worker.send("bestmove d2d4");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 58
+    expect(scores.at(-1)).toMatchObject({ depth: 3, bestMove: "e2e4" });
+
+    worker.send("info depth 5 score cp 22 pv d2d4 d7d5");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+
+    worker.send("bestmove d2d4");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+    engine.dispose();
+  });
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 60
+    worker.send("info depth 5 score cp 22 pv d2d4 d7d5");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+
+    worker.send("bestmove d2d4");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+    engine.dispose();
+  });
+
+  it("initializes UCI, replaces stale analysis, and terminates the worker", () => {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 61
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+
+    worker.send("bestmove d2d4");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+    engine.dispose();
+  });
+
+  it("initializes UCI, replaces stale analysis, and terminates the worker", () => {
+    const worker = new FakeWorker();
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 81
+    expect(worker.commands.slice(-1)).toEqual(["stop"]);
+    worker.send("info depth 11 score cp 80 pv e2e4");
+    expect(scores.at(-1)).toBeNull();
+    worker.send("bestmove e2e4");
+    expect(worker.commands.slice(-2)).toEqual([
+      "position fen 8/8/8/8/8/8/4k3/4K3 b - - 0 1",
+      "go depth 16",
+    ]);
+    worker.send("info depth 16 score cp 35 pv e2e4");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 87
+      "go depth 16",
+    ]);
+    worker.send("info depth 16 score cp 35 pv e2e4");
+    worker.send("bestmove e2e4");
+    expect(scores.at(-1)).toMatchObject({ kind: "cp", value: -35, depth: 16, bestMove: "e2e4" });
+    engine.dispose();
+    expect(worker.terminated).toBe(true);
+  });
+});
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 88
+    ]);
+    worker.send("info depth 16 score cp 35 pv e2e4");
+    worker.send("bestmove e2e4");
+    expect(scores.at(-1)).toMatchObject({ kind: "cp", value: -35, depth: 16, bestMove: "e2e4" });
+    engine.dispose();
+    expect(worker.terminated).toBe(true);
+  });
+});
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 2
+export type EngineStatus = "off" | "loading" | "ready" | "analyzing" | "error";
+export type EngineScore = { kind: "cp" | "mate"; value: number; depth: number; bestMove?: string; pv?: string[] };
+
+type UciRequest = { fen: string; depth: number };
+
+export function parseUciInfo(line: string, sideToMove: "w" | "b"): Omit<EngineScore, "bestMove"> | null {
+  if (!line.startsWith("info ")) return null;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 6
+
+type UciRequest = { fen: string; depth: number };
+
+export function parseUciInfo(line: string, sideToMove: "w" | "b"): Omit<EngineScore, "bestMove"> | null {
+  if (!line.startsWith("info ")) return null;
+  const depth = Number(line.match(/\bdepth (\d+)/)?.[1]);
+  const score = line.match(/\bscore (cp|mate) (-?\d+)/);
+  if (!score || !Number.isFinite(depth)) return null;
+  const value = Number(score[2]);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 105
+      const score = parseUciInfo(line, this.currentSide);
+      if (score) {
+        // Use the current principal variation's first move for a live arrow.
+        // Stockfish's final "bestmove" will replace this provisional move.
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+          ...score,
+          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+        };
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 109
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+          ...score,
+          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+        };
+        this.onScore(this.latestScore);
+      }
+      return;
+    }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 115
+      }
+      return;
+    }
+    const bestMove = line.match(/^bestmove (\S+)/)?.[1];
+    if (!bestMove) return;
+    this.searching = false;
+    if (this.awaitingStop) {
+      this.awaitingStop = false;
+      this.startQueuedAnalysis();
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 116
+      return;
+    }
+    const bestMove = line.match(/^bestmove (\S+)/)?.[1];
+    if (!bestMove) return;
+    this.searching = false;
+    if (this.awaitingStop) {
+      this.awaitingStop = false;
+      this.startQueuedAnalysis();
+      return;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 124
+      return;
+    }
+    if (this.latestScore) {
+      this.latestScore = { ...this.latestScore, bestMove: bestMove === "(none)" ? undefined : bestMove };
+      this.onScore(this.latestScore);
+    }
+    this.onStatus("ready");
+  }
+
+
+========== SEARCH: score cp ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 18
+
+describe("Stockfish UCI evaluation", () => {
+  it("converts side-to-move centipawns to the White perspective", () => {
+    expect(parseUciInfo("info depth 12 score cp 74 pv e2e4 e7e5", "w"))
+      .toEqual({ kind: "cp", value: 74, depth: 12, pv: ["e2e4", "e7e5"] });
+    expect(parseUciInfo("info depth 15 score cp 74 pv e7e5", "b"))
+      .toMatchObject({ kind: "cp", value: -74, depth: 15 });
+  });
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 20
+  it("converts side-to-move centipawns to the White perspective", () => {
+    expect(parseUciInfo("info depth 12 score cp 74 pv e2e4 e7e5", "w"))
+      .toEqual({ kind: "cp", value: 74, depth: 12, pv: ["e2e4", "e7e5"] });
+    expect(parseUciInfo("info depth 15 score cp 74 pv e7e5", "b"))
+      .toMatchObject({ kind: "cp", value: -74, depth: 15 });
+  });
+
+  it("orients mate scores and represents a checkmated side-to-move", () => {
+    expect(parseUciInfo("info depth 20 score mate 3 pv e2e4", "w")?.value).toBe(3);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 54
+    worker.send("readyok");
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 14);
+
+    worker.send("info depth 3 score cp 12 pv e2e4 e7e5");
+    expect(scores.at(-1)).toMatchObject({ depth: 3, bestMove: "e2e4" });
+
+    worker.send("info depth 5 score cp 22 pv d2d4 d7d5");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 57
+    worker.send("info depth 3 score cp 12 pv e2e4 e7e5");
+    expect(scores.at(-1)).toMatchObject({ depth: 3, bestMove: "e2e4" });
+
+    worker.send("info depth 5 score cp 22 pv d2d4 d7d5");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+
+    worker.send("bestmove d2d4");
+    expect(scores.at(-1)).toMatchObject({ depth: 5, bestMove: "d2d4" });
+    engine.dispose();
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 79
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 w - - 0 1", 12);
+    engine.analyze("8/8/8/8/8/8/4k3/4K3 b - - 0 1", 16);
+    expect(worker.commands.slice(-1)).toEqual(["stop"]);
+    worker.send("info depth 11 score cp 80 pv e2e4");
+    expect(scores.at(-1)).toBeNull();
+    worker.send("bestmove e2e4");
+    expect(worker.commands.slice(-2)).toEqual([
+      "position fen 8/8/8/8/8/8/4k3/4K3 b - - 0 1",
+      "go depth 16",
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 86
+      "position fen 8/8/8/8/8/8/4k3/4K3 b - - 0 1",
+      "go depth 16",
+    ]);
+    worker.send("info depth 16 score cp 35 pv e2e4");
+    worker.send("bestmove e2e4");
+    expect(scores.at(-1)).toMatchObject({ kind: "cp", value: -35, depth: 16, bestMove: "e2e4" });
+    engine.dispose();
+    expect(worker.terminated).toBe(true);
+  });
+
+========== SEARCH: score mate ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 25
+  });
+
+  it("orients mate scores and represents a checkmated side-to-move", () => {
+    expect(parseUciInfo("info depth 20 score mate 3 pv e2e4", "w")?.value).toBe(3);
+    expect(parseUciInfo("info depth 20 score mate 3 pv e7e5", "b")?.value).toBe(-3);
+    expect(parseUciInfo("info depth 20 score mate 0", "w")?.value).toBe(-1);
+    expect(formatEvaluation({ kind: "mate", value: -3, depth: 20 })).toBe("#-3");
+  });
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 26
+
+  it("orients mate scores and represents a checkmated side-to-move", () => {
+    expect(parseUciInfo("info depth 20 score mate 3 pv e2e4", "w")?.value).toBe(3);
+    expect(parseUciInfo("info depth 20 score mate 3 pv e7e5", "b")?.value).toBe(-3);
+    expect(parseUciInfo("info depth 20 score mate 0", "w")?.value).toBe(-1);
+    expect(formatEvaluation({ kind: "mate", value: -3, depth: 20 })).toBe("#-3");
+  });
+
+  it("keeps the evaluation bar bounded and consistent around equality", () => {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 27
+  it("orients mate scores and represents a checkmated side-to-move", () => {
+    expect(parseUciInfo("info depth 20 score mate 3 pv e2e4", "w")?.value).toBe(3);
+    expect(parseUciInfo("info depth 20 score mate 3 pv e7e5", "b")?.value).toBe(-3);
+    expect(parseUciInfo("info depth 20 score mate 0", "w")?.value).toBe(-1);
+    expect(formatEvaluation({ kind: "mate", value: -3, depth: 20 })).toBe("#-3");
+  });
+
+  it("keeps the evaluation bar bounded and consistent around equality", () => {
+    const whiteAdvantage = { kind: "cp" as const, value: 250, depth: 12 };
+
+========== SEARCH: analysis ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.test.tsx
+LINE: 27
+  }
+}
+
+describe("App - Manual Position Setup & Stockfish Analysis", () => {
+  let fakeWorker: FakeWorker;
+
+  beforeEach(() => {
+    fakeWorker = new FakeWorker();
+    vi.stubGlobal(
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.test.tsx
+LINE: 51
+    });
+  });
+
+  it("renders 'Set Up Position' buttons on the analysis board and toggles setup mode", async () => {
+    render(<App />);
+
+    // Wait for app initialization
+    const setupBtns = await screen.findAllByRole("button", { name: /set up position/i });
+    expect(setupBtns.length).toBeGreaterThanOrEqual(1);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.test.tsx
+LINE: 72
+    expect(screen.queryByRole("dialog", { name: "Set Up Position" })).not.toBeInTheDocument();
+  });
+
+  it("loads a custom manual position, reflects side to move, and triggers Stockfish analysis", async () => {
+    render(<App />);
+
+    const setupBtns = await screen.findAllByRole("button", { name: /set up position/i });
+    fireEvent.click(setupBtns[0]);
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 71
+import { GameReview } from "./GameReview";
+
+type LibraryTab = "all" | "recent";
+type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "game-review";
+
+const FILE_LIMIT = 100 * 1024 * 1024;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
+const CROP_HANDLES: CropHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+type CandidateInput = Omit<Candidate, "id" | "source" | "relativeScore"> &
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 119
+  type StudyBoardState = Pick<BookSession, "lineBaseFen" | "currentFen" | "moves" | "moveIndex" | "flipped" | "coordinates">;
+  const [studyMode, setStudyMode] = useState(false);
+  const [studyBoard, setStudyBoard] = useState<StudyBoardState | null>(null);
+  const [analysisBoard, setAnalysisBoard] = useState<StudyBoardState>(() => ({
+    lineBaseFen: START_FEN,
+    currentFen: START_FEN,
+    moves: [],
+    moveIndex: 0,
+    flipped: false,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 430
+  }, [workspaceMode, openingPosition, openingExplorerPly, lichessStatus?.connected]);
+
+  const boardSession: StudyBoardState | null =
+    workspaceMode === "analysis"
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+        ? openingPrepBoard
+        : workspaceMode === "opening-explorer"
+          ? {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 431
+
+  const boardSession: StudyBoardState | null =
+    workspaceMode === "analysis"
+      ? analysisBoard
+      : workspaceMode === "opening-prep"
+        ? openingPrepBoard
+        : workspaceMode === "opening-explorer"
+          ? {
+              lineBaseFen: START_FEN,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 536
+      return;
+    }
+
+    if (workspaceMode === "analysis") {
+      setAnalysisBoard((current) => ({ ...current, ...change }));
+    } else if (workspaceMode === "opening-prep") {
+      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+    } else if (studyMode) {
+      setStudyBoard((current) => current ? { ...current, ...change } : current);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 537
+    }
+
+    if (workspaceMode === "analysis") {
+      setAnalysisBoard((current) => ({ ...current, ...change }));
+    } else if (workspaceMode === "opening-prep") {
+      setOpeningPrepBoard((current) => ({ ...current, ...change }));
+    } else if (studyMode) {
+      setStudyBoard((current) => current ? { ...current, ...change } : current);
+    } else {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 687
+  }
+
+  function moveToPosition(fen: string): boolean {
+    const activeSession = session ?? newSession("analysis");
+    try {
+      const next = new Chess(fen);
+      setSession({
+        ...activeSession,
+        originalFen: fen,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 719
+    } else {
+      engineRef.current?.analyze(fen, engineDepth);
+    }
+    setNotice("Manual position loaded. Stockfish analysis started.");
+    return true;
+  }
+
+  function selectCandidate(candidate: Candidate) {
+    if (!session) return;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 811
+      setTransferFen(result.fen);
+      setRecognitionResult(result);
+      setRecognitionStatus("complete");
+      // A successful scan immediately becomes the active analysis position.
+      // Keep the review dialog open so the user can correct uncertain squares;
+      // the explicit confirmation button remains available for corrected FENs.
+      if (moveToPosition(result.fen)) {
+        setNotice("Scanned position loaded automatically onto the analysis board. Review the diagram and correct any uncertain squares before continuing.");
+      }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 815
+      // Keep the review dialog open so the user can correct uncertain squares;
+      // the explicit confirmation button remains available for corrected FENs.
+      if (moveToPosition(result.fen)) {
+        setNotice("Scanned position loaded automatically onto the analysis board. Review the diagram and correct any uncertain squares before continuing.");
+      }
+    } catch (cause) {
+      if (requestId !== transferRequestRef.current) return;
+      setRecognitionStatus("failed");
+      setRecognitionError(messageOf(cause));
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1028
+
+      const last = replay.history({ verbose: true }).at(-1);
+
+      setAnalysisBoard((current) => ({
+        ...current,
+        lineBaseFen: imported.lineBaseFen,
+        currentFen: imported.finalFen,
+        moves: imported.moves,
+        moveIndex: imported.moves.length,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1036
+        moveIndex: imported.moves.length,
+      }));
+
+      setWorkspaceMode("analysis");
+      setStudyMode(false);
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+
+      const white = imported.headers.White || "White";
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1205
+
+      setNotice(
+        candidates.length
+          ? `Found ${candidates.length} board candidate${candidates.length === 1 ? "" : "s"}. Select a candidate to recognize its chess position and load it onto the analysis board.`
+          : "No board candidates found.",
+      );
+    } catch (cause) {
+      if (requestId !== scanRequestIdRef.current) return;
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1434
+        <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
+      </header>
+
+      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+        {libraryOpen && (
+          <aside className="library-panel">
+            <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
+            <input
+              ref={fileInput}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1449
+            <nav className="library-nav" aria-label="Library sections">
+                            <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
+              <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
+              <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
+              <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
+
+
+
+</nav>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1479
+              if (!session) return;
+              patchSession({ lineBaseFen: game.fen(), currentFen: game.fen(), moves: [], moveIndex: 0 });
+              setLastMove(null);
+              setNotice("New analysis line started from the current position.");
+            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1497
+        )}
+
+        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+        <section className="board-panel" aria-label="Chessboard analysis">
+          <div className="board-header">
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div className="board-header-actions">
+              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1499
+        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+        <section className="board-panel" aria-label="Chessboard analysis">
+          <div className="board-header">
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div className="board-header-actions">
+              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+            </div>
+          </div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1651
+            <button className="setup-position-button" title="Set Up Position manually" onClick={() => setSetupOpen(true)}><Settings2 size={15} aria-hidden="true" /> Set Up Position</button>
+            <button
+              className={annotationMode ? "annotation-active" : ""}
+              title="Touch alternative: tap two squares to add or remove an analysis arrow. Right-drag works with a mouse."
+              aria-pressed={annotationMode}
+              onClick={() => { setAnnotationMode((mode) => !mode); setArrowStart(null); setArrowHover(null); }}
+            ><ArrowLeftRight size={15} aria-hidden="true" /> Arrows</button>
+            {(userArrows.length > 0 || redSquares.length > 0) && <button title="Clear arrows and red highlights" onClick={() => { setUserArrows([]); setRedSquares([]); }}>Clear annotations</button>}
+            <span className="controls-spacer" />
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1793
+                  <section className="opening-stats" aria-label="Opening statistics" aria-live="polite">
+                    <div className="opening-stats-heading">
+                      <h4>Position statistics</h4>
+                      <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
+                    </div>
+                    {openingStatsStatus === "loading" && <p>Loading game statisticsâ€¦</p>}
+                    {openingStatsStatus === "error" && (
+                      <p role="status">Statistics are currently unavailable. Check your connection or try again later. The board remains usable.</p>
+                    )}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1846
+                    type="button"
+                    className="green-button"
+                    onClick={() => {
+                      setAnalysisBoard({
+                        lineBaseFen: START_FEN,
+                        currentFen: openingPosition.fen,
+                        moves: [...openingPosition.sanMoves],
+                        moveIndex: openingPosition.sanMoves.length,
+                        flipped: false,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1855
+                        coordinates: true,
+                      });
+                      setStudyMode(false);
+                      setWorkspaceMode("analysis");
+                      setNotice("Opening position copied to the independent Analysis Board.");
+                    }}
+                  >Open position in Analysis Board</button>
+                  <p className="muted">Position FEN: {openingPosition.fen}</p>
+                </>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1856
+                      });
+                      setStudyMode(false);
+                      setWorkspaceMode("analysis");
+                      setNotice("Opening position copied to the independent Analysis Board.");
+                    }}
+                  >Open position in Analysis Board</button>
+                  <p className="muted">Position FEN: {openingPosition.fen}</p>
+                </>
+              )}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1858
+                      setWorkspaceMode("analysis");
+                      setNotice("Opening position copied to the independent Analysis Board.");
+                    }}
+                  >Open position in Analysis Board</button>
+                  <p className="muted">Position FEN: {openingPosition.fen}</p>
+                </>
+              )}
+            </section>
+          )}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1953
+            </div>}
+            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+          </div>
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineâ€¦" : engineStatus === "analyzing" ? "Analyzing current positionâ€¦" : "Ready Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1954
+            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+          </div>
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineâ€¦" : engineStatus === "analyzing" ? "Analyzing current positionâ€¦" : "Ready Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1955
+          </div>
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineâ€¦" : engineStatus === "analyzing" ? "Analyzing current positionâ€¦" : "Ready Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1956
+          <div className="analysis-strip">
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineâ€¦" : engineStatus === "analyzing" ? "Analyzing current positionâ€¦" : "Ready Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1958
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1959
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1960
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1966
+        </>}
+      </div>
+
+      {settingsOpen && <div className="settings-popover"><strong>Workspace settings</strong><span>Books and analysis sessions are stored in IndexedDB on this device.</span><span>Stockfish runs locally in a browser worker. Cloud sync is not configured.</span><button onClick={() => setSettingsOpen(false)}>Close</button></div>}
+      {transferCandidate && (
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+          title="Review recognized position"
+          subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits."
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1971
+        <ManualBoardEditor
+          initialFen={transferFen || (recognitionResult?.fen ?? START_FEN)}
+          title="Review recognized position"
+          subtitle="The scan is already loaded on the analysis board. Review and correct any uncertain squares, then confirm your edits."
+          confirmLabel="Use on Board"
+          cropPreviewUrl={transferPreview}
+          recognitionStatus={recognitionStatus}
+          recognitionResult={recognitionResult}
+          recognitionError={recognitionError}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1993
+          subtitle="Set up a custom chess position to analyze with Stockfish."
+          confirmLabel="Analyze Position"
+          showPresets={true}
+          currentAnalysisFen={game.fen()}
+          onConfirm={(confirmedFen) => {
+            if (analyzeManualPosition(confirmedFen)) {
+              setSetupOpen(false);
+            }
+          }}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 2012
+            <p>{gameEndOverlay.message}</p>
+            <div className="game-end-actions">
+              <button type="button" onClick={() => setGameEndOverlay(null)}>Review position</button>
+              <button type="button" onClick={() => { setGameEndOverlay(null); setSelectedSquare(null); }}>Continue analysis</button>
+            </div>
+          </section>
+        </div>
+      )}
+      {promotionRequest && (
+
+FILE: D:\chess\BookChess\ChessBookReader\src\GameReview.tsx
+LINE: 77
+    <main className="game-review-page">
+      <div className="gr-topline">
+        <div>
+          <div className="gr-eyebrow">CHESS ANALYSIS / GAME REVIEW</div>
+          <h1>Game Review</h1>
+          <p>Understand your decisions. Find the moments that changed the game.</p>
+        </div>
+        <div className="gr-top-actions">
+          <button className="gr-button gr-button-secondary" onClick={() => setActivePly(0)}>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\GameReview.tsx
+LINE: 95
+      {showSampleNotice && (
+        <div className="gr-demo-notice">
+          <Sparkles size={16} />
+          <span><strong>Preview mode</strong> � this is sample review data. Engine analysis will be connected after the UI is approved.</span>
+          <button onClick={() => setShowSampleNotice(false)} aria-label="Dismiss preview notice">�</button>
+        </div>
+      )}
+
+      <section className="gr-game-card">
+
+FILE: D:\chess\BookChess\ChessBookReader\src\GameReview.tsx
+LINE: 209
+        </div>
+      ) : (
+        <section className="gr-panel gr-full-moves">
+          <div className="gr-panel-heading"><div><h2>Move-by-move analysis</h2><span>Review every decision and its classification</span></div></div>
+          <div className="gr-filter-row">
+            {(["All","Best","Excellent","Good","Inaccuracy","Mistake","Blunder"] as const).map(value => (
+              <button key={value} className={filter === value ? "active" : ""} onClick={() => setFilter(value)}>{value}</button>
+            ))}
+          </div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\GameReview.tsx
+LINE: 227
+        </section>
+      )}
+
+      <div className="gr-bottom-note"><ChevronDown size={15} /> Sample review interface � Real PGN import and engine-powered analysis will be connected in the next stage.</div>
+    </main>
+  );
+}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 40
+  onRetryRecognition?: () => void;
+  // Specific to setup mode (Feature B)
+  showPresets?: boolean;
+  currentAnalysisFen?: string;
+}
+
+export function ManualBoardEditor({
+  initialFen,
+  onConfirm,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 56
+  recognitionError,
+  onRetryRecognition,
+  showPresets = false,
+  currentAnalysisFen,
+}: ManualBoardEditorProps) {
+  // Parse initial fields
+  const parsedInitial = useMemo(() => {
+    const trimmed = initialFen.trim();
+    const fields = trimmed ? trimmed.split(/\s+/) : [];
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 285
+        {showPresets && (
+          <div className="editor-presets-bar">
+            <span>START FROM:</span>
+            {currentAnalysisFen && (
+              <button
+                type="button"
+                className="preset-btn"
+                onClick={() => {
+                  const fields = currentAnalysisFen.trim().split(/\s+/);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 290
+                type="button"
+                className="preset-btn"
+                onClick={() => {
+                  const fields = currentAnalysisFen.trim().split(/\s+/);
+                  if (fields.length === 6 && parseFenPlacement(fields[0])) {
+                    pushState(fields[0], fields[1] === "b" ? "b" : "w", fields[2]);
+                  }
+                }}
+              >
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 42
+    expect(whiteScoreShare({ kind: "mate", value: -1, depth: 1 })).toBe(0.04);
+  });
+
+  it("publishes the latest principal-variation move during analysis", () => {
+    const worker = new FakeWorker();
+    vi.stubGlobal("Worker", class {
+      constructor() { return worker; }
+    });
+    const scores: any[] = [];
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 65
+    engine.dispose();
+  });
+
+  it("initializes UCI, replaces stale analysis, and terminates the worker", () => {
+    const worker = new FakeWorker();
+    vi.stubGlobal("Worker", class {
+      constructor() { return worker; }
+    });
+    const scores: (ReturnType<typeof parseUciInfo> | null)[] = [];
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 74
+      }
+      return;
+    }
+    this.startQueuedAnalysis();
+  }
+
+  dispose(): void {
+    this.worker.terminate();
+    this.ready = false;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 97
+    if (line === "readyok") {
+      this.ready = true;
+      this.onStatus("ready");
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (line.startsWith("info ")) {
+      if (this.awaitingStop) return;
+      const score = parseUciInfo(line, this.currentSide);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 120
+    this.searching = false;
+    if (this.awaitingStop) {
+      this.awaitingStop = false;
+      this.startQueuedAnalysis();
+      return;
+    }
+    if (this.latestScore) {
+      this.latestScore = { ...this.latestScore, bestMove: bestMove === "(none)" ? undefined : bestMove };
+      this.onScore(this.latestScore);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 130
+    this.onStatus("ready");
+  }
+
+  private startQueuedAnalysis(): void {
+    if (!this.ready || this.searching || !this.queued) return;
+    const request = this.queued;
+    this.queued = null;
+    this.currentSide = request.fen.split(/\s+/)[1] === "b" ? "b" : "w";
+    this.searching = true;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\storage.test.ts
+LINE: 15
+});
+
+describe("per-book IndexedDB reading sessions", () => {
+  it("restores exact analysis state independently for each book", async () => {
+    const first = newSession("book-a");
+    first.page = 42;
+    first.selectedDiagramId = "diagram-3";
+    first.originalFen = START_FEN;
+    first.lineBaseFen = START_FEN;
+
+========== SEARCH: history ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 157
+    if (result === "connected" || result === "denied") {
+      params.delete("lichess");
+      const rest = params.toString();
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash,
+      );
+      if (result === "denied") setLichessStatusError("Lichess authorization was cancelled.");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 459
+    return new Set(game.moves({ square: selectedSquare, verbose: true }).map((move) => move.to));
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 460
+  }, [game, selectedSquare]);
+  const pieceSquares = game.board();
+  const moveHistory = useMemo(() => {
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 463
+    try { return makePosition(boardSession?.lineBaseFen ?? START_FEN, boardSession?.moves ?? [], boardSession?.moveIndex ?? 0).history({ verbose: true }); }
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 464
+    catch { return []; }
+  }, [boardSession]);
+  const highlightedMove = lastMove ?? (moveHistory.length
+    ? { from: moveHistory[moveHistory.length - 1].from, to: moveHistory[moveHistory.length - 1].to }
+    : null);
+  const engineArrow = useMemo(
+    () => engineEnabled ? parseBestMove(engineScore?.bestMove) : null,
+    [engineEnabled, engineScore?.bestMove],
+  );
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1026
+        replay.move(san);
+      }
+
+      const last = replay.history({ verbose: true }).at(-1);
+
+      setAnalysisBoard((current) => ({
+        ...current,
+        lineBaseFen: imported.lineBaseFen,
+        currentFen: imported.finalFen,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1067
+    if (!boardSession) return;
+    try {
+      const next = makePosition(boardSession.lineBaseFen, boardSession.moves, index);
+      const last = next.history({ verbose: true }).at(-1);
+      patchBoardSession({ moveIndex: index, currentFen: next.fen() });
+      setLastMove(last ? { from: last.from, to: last.to } : null);
+      setSelectedSquare(null);
+    } catch (cause) {
+      setError(`Could not navigate to move: ${messageOf(cause)}`);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1482
+              setNotice("New analysis line started from the current position.");
+            }}><CirclePlus size={15} strokeWidth={2} aria-hidden="true" /> New line</button></div>
+            <div className="move-list">
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1485
+              {moveHistory.length ? Array.from({ length: Math.ceil(moveHistory.length / 2) }, (_, row) => (
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+            </div>
+          </div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1486
+                <div className="move-pair" key={row}>
+                  <span className="move-number">{row + 1}.</span>
+                  {moveHistory[row * 2] && <button className={boardSession?.moveIndex === row * 2 + 1 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 1) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 1)}>{moveHistory[row * 2].san}</button>}
+                  {moveHistory[row * 2 + 1] && <button className={boardSession?.moveIndex === row * 2 + 2 ? "active-move" : ""} ref={(element) => { if (element && boardSession?.moveIndex === row * 2 + 2) element.scrollIntoView({ block: "nearest" }); }} onClick={() => jumpToMove(row * 2 + 2)}>{moveHistory[row * 2 + 1].san}</button>}
+                </div>
+              )) : <span className="muted empty-moves">Select a position and play a move to start a line.</span>}
+            </div>
+          </div>
+            </section>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\chess-state.test.ts
+LINE: 9
+  it("replays legal SAN from an arbitrary diagram position", () => {
+    const game = makePosition(START_FEN, ["e4", "e5"], 2);
+    expect(game.fen()).toContain(" w KQkq ");
+    expect(game.history()).toEqual(["e4", "e5"]);
+  });
+
+  it("rejects invalid restored moves instead of substituting a position", () => {
+    expect(() => makePosition(START_FEN, ["e5"], 1)).toThrow();
+  });
+
+FILE: D:\chess\BookChess\ChessBookReader\src\CoordinateTraining.tsx
+LINE: 32
+  const [feedback, setFeedback] = useState<"correct" | "wrong" | "">("");
+  const [sound, setSound] = useState(false);
+  const [showCoordinates, setShowCoordinates] = useState(true);
+  const [history, setHistory] = useState<SessionResult[]>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as SessionResult[]; } catch { return []; }
+  });
+  const finished = mode === "timed" && remaining <= 0;
+  const attempts = correct + wrong;
+  const accuracy = attempts ? Math.round((correct / attempts) * 100) : 0;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\CoordinateTraining.tsx
+LINE: 53
+  useEffect(() => {
+    if (finished && startedAt) {
+      const result = { date: new Date().toISOString(), score, accuracy, duration: duration - remaining };
+      setHistory((previous) => {
+        const next = [result, ...previous].slice(0, 30);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* storage may be unavailable */ }
+        return next;
+      });
+      setStartedAt(null);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\CoordinateTraining.tsx
+LINE: 120
+          <label className="ct-toggle"><input type="checkbox" checked={sound} onChange={(e) => setSound(e.target.checked)} /> Sound feedback (coming soon)</label>
+          <button className="ct-primary ct-full" onClick={() => restart()}>Start / Restart training</button>
+        </section>
+        <section className="ct-card"><div className="ct-card-heading">RECENT SESSIONS</div>{history.length ? history.slice(0, 4).map((item, index) => <div className="ct-history-row" key={`${item.date}-${index}`}><span>{new Date(item.date).toLocaleDateString()}</span><strong>{item.score} correct</strong><em>{item.accuracy}%</em></div>) : <p className="ct-empty">Your completed timed sessions will appear here.</p>}</section>
+      </aside>
+    </div>
+  </main>;
+}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 78
+  const [activeTool, setActiveTool] = useState<string>("P"); // Piece symbol or "" for erase
+  const [selectedSquare, setSelectedSquare] = useState<{ row: number; col: number } | null>(null);
+  const [flipped, setFlipped] = useState(false);
+  const [history, setHistory] = useState<string[]>([parsedInitial.fen]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const [fenInputText, setFenInputText] = useState(parsedInitial.fen);
+  const [validationError, setValidationError] = useState<string>("");
+
+  // When initialFen changes externally (e.g. recognition completes or retries), reset editor
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 79
+  const [selectedSquare, setSelectedSquare] = useState<{ row: number; col: number } | null>(null);
+  const [flipped, setFlipped] = useState(false);
+  const [history, setHistory] = useState<string[]>([parsedInitial.fen]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const [fenInputText, setFenInputText] = useState(parsedInitial.fen);
+  const [validationError, setValidationError] = useState<string>("");
+
+  // When initialFen changes externally (e.g. recognition completes or retries), reset editor
+  useEffect(() => {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 88
+    setPlacement(parsedInitial.placement);
+    setTurn(parsedInitial.turn);
+    setCastling(parsedInitial.castling);
+    setHistory([parsedInitial.fen]);
+    setHistoryIndex(0);
+    setFenInputText(parsedInitial.fen);
+    setValidationError("");
+    setSelectedSquare(null);
+  }, [parsedInitial]);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 89
+    setTurn(parsedInitial.turn);
+    setCastling(parsedInitial.castling);
+    setHistory([parsedInitial.fen]);
+    setHistoryIndex(0);
+    setFenInputText(parsedInitial.fen);
+    setValidationError("");
+    setSelectedSquare(null);
+  }, [parsedInitial]);
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 100
+  const validation = useMemo(() => validatePositionFen(currentFen), [currentFen]);
+  const kingCounts = useMemo(() => countKings(placement), [placement]);
+
+  // Push new state to history
+  function pushState(newPlacement: string, newTurn: "w" | "b" = turn, newCastling: string = castling) {
+    const board = parseFenPlacement(newPlacement);
+    const sanitizedCastling = board ? sanitizeCastlingRights(board, newCastling) : "-";
+    const newFen = buildFullFen(newPlacement, newTurn, sanitizedCastling);
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 112
+    setFenInputText(newFen);
+    setValidationError("");
+
+    if (newFen !== history[historyIndex]) {
+      const nextHistory = history.slice(0, historyIndex + 1);
+      nextHistory.push(newFen);
+      setHistory(nextHistory);
+      setHistoryIndex(nextHistory.length - 1);
+    }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 113
+    setValidationError("");
+
+    if (newFen !== history[historyIndex]) {
+      const nextHistory = history.slice(0, historyIndex + 1);
+      nextHistory.push(newFen);
+      setHistory(nextHistory);
+      setHistoryIndex(nextHistory.length - 1);
+    }
+  }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 114
+
+    if (newFen !== history[historyIndex]) {
+      const nextHistory = history.slice(0, historyIndex + 1);
+      nextHistory.push(newFen);
+      setHistory(nextHistory);
+      setHistoryIndex(nextHistory.length - 1);
+    }
+  }
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 115
+    if (newFen !== history[historyIndex]) {
+      const nextHistory = history.slice(0, historyIndex + 1);
+      nextHistory.push(newFen);
+      setHistory(nextHistory);
+      setHistoryIndex(nextHistory.length - 1);
+    }
+  }
+
+  function handleUndo() {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 116
+      const nextHistory = history.slice(0, historyIndex + 1);
+      nextHistory.push(newFen);
+      setHistory(nextHistory);
+      setHistoryIndex(nextHistory.length - 1);
+    }
+  }
+
+  function handleUndo() {
+    if (historyIndex > 0) {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 121
+  }
+
+  function handleUndo() {
+    if (historyIndex > 0) {
+      const prevIndex = historyIndex - 1;
+      const prevFen = history[prevIndex];
+      const fields = prevFen.split(/\s+/);
+      setPlacement(fields[0]);
+      setTurn(fields[1] === "b" ? "b" : "w");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 122
+
+  function handleUndo() {
+    if (historyIndex > 0) {
+      const prevIndex = historyIndex - 1;
+      const prevFen = history[prevIndex];
+      const fields = prevFen.split(/\s+/);
+      setPlacement(fields[0]);
+      setTurn(fields[1] === "b" ? "b" : "w");
+      setCastling(fields[2] ?? "-");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 123
+  function handleUndo() {
+    if (historyIndex > 0) {
+      const prevIndex = historyIndex - 1;
+      const prevFen = history[prevIndex];
+      const fields = prevFen.split(/\s+/);
+      setPlacement(fields[0]);
+      setTurn(fields[1] === "b" ? "b" : "w");
+      setCastling(fields[2] ?? "-");
+      setFenInputText(prevFen);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 129
+      setTurn(fields[1] === "b" ? "b" : "w");
+      setCastling(fields[2] ?? "-");
+      setFenInputText(prevFen);
+      setHistoryIndex(prevIndex);
+      setValidationError("");
+    }
+  }
+
+  function handleRedo() {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 135
+  }
+
+  function handleRedo() {
+    if (historyIndex < history.length - 1) {
+      const nextIndex = historyIndex + 1;
+      const nextFen = history[nextIndex];
+      const fields = nextFen.split(/\s+/);
+      setPlacement(fields[0]);
+      setTurn(fields[1] === "b" ? "b" : "w");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 136
+
+  function handleRedo() {
+    if (historyIndex < history.length - 1) {
+      const nextIndex = historyIndex + 1;
+      const nextFen = history[nextIndex];
+      const fields = nextFen.split(/\s+/);
+      setPlacement(fields[0]);
+      setTurn(fields[1] === "b" ? "b" : "w");
+      setCastling(fields[2] ?? "-");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 137
+  function handleRedo() {
+    if (historyIndex < history.length - 1) {
+      const nextIndex = historyIndex + 1;
+      const nextFen = history[nextIndex];
+      const fields = nextFen.split(/\s+/);
+      setPlacement(fields[0]);
+      setTurn(fields[1] === "b" ? "b" : "w");
+      setCastling(fields[2] ?? "-");
+      setFenInputText(nextFen);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 143
+      setTurn(fields[1] === "b" ? "b" : "w");
+      setCastling(fields[2] ?? "-");
+      setFenInputText(nextFen);
+      setHistoryIndex(nextIndex);
+      setValidationError("");
+    }
+  }
+
+  function handleSquareClick(row: number, col: number) {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 204
+        setTurn(fields[1] === "b" ? "b" : "w");
+        setCastling(fields[2] ?? "-");
+        setValidationError("");
+        if (trimmed !== history[historyIndex]) {
+          const nextHistory = history.slice(0, historyIndex + 1);
+          nextHistory.push(trimmed);
+          setHistory(nextHistory);
+          setHistoryIndex(nextHistory.length - 1);
+        }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 205
+        setCastling(fields[2] ?? "-");
+        setValidationError("");
+        if (trimmed !== history[historyIndex]) {
+          const nextHistory = history.slice(0, historyIndex + 1);
+          nextHistory.push(trimmed);
+          setHistory(nextHistory);
+          setHistoryIndex(nextHistory.length - 1);
+        }
+        return;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 206
+        setValidationError("");
+        if (trimmed !== history[historyIndex]) {
+          const nextHistory = history.slice(0, historyIndex + 1);
+          nextHistory.push(trimmed);
+          setHistory(nextHistory);
+          setHistoryIndex(nextHistory.length - 1);
+        }
+        return;
+      }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 207
+        if (trimmed !== history[historyIndex]) {
+          const nextHistory = history.slice(0, historyIndex + 1);
+          nextHistory.push(trimmed);
+          setHistory(nextHistory);
+          setHistoryIndex(nextHistory.length - 1);
+        }
+        return;
+      }
+    }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 208
+          const nextHistory = history.slice(0, historyIndex + 1);
+          nextHistory.push(trimmed);
+          setHistory(nextHistory);
+          setHistoryIndex(nextHistory.length - 1);
+        }
+        return;
+      }
+    }
+    const val = validatePositionFen(trimmed);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 464
+              <button
+                type="button"
+                className="mini-button"
+                disabled={historyIndex <= 0}
+                onClick={handleUndo}
+                title="Undo last manual edit"
+              >
+                ? Undo
+              </button>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 473
+              <button
+                type="button"
+                className="mini-button"
+                disabled={historyIndex >= history.length - 1}
+                onClick={handleRedo}
+                title="Redo undone edit"
+              >
+                ? Redo
+              </button>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 64
+    if (!selectedSquare) return [];
+    return game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  }, [game, selectedSquare]);
+  const history = useMemo(() => {
+    const replay = new Chess();
+    const result = [];
+    for (const san of moves.slice(0, index)) result.push(replay.move(san));
+    return result;
+  }, [moves, index]);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\NotationLearner.tsx
+LINE: 71
+    return result;
+  }, [moves, index]);
+
+  const lastMove = history.at(-1);
+  const board = game.board();
+  const squares = flipped
+    ? [...Array(8)].flatMap((_, r) => [...Array(8)].map((__, f) => `${FILES[7-f]}${r+1}`))
+    : [...Array(8)].flatMap((_, r) => [...Array(8)].map((__, f) => `${FILES[f]}${8-r}`));
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\pgn-import.ts
+LINE: 39
+    throw new Error("The PGN contains an invalid starting FEN.");
+  }
+
+  const moves = parsed.history();
+
+  if (moves.length === 0) {
+    throw new Error("The PGN contains no moves.");
+  }
+
+
+========== SEARCH: undo ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 638
+  }
+
+  async function deleteBook(item: BookRecord) {
+    if (!window.confirm(`Delete "${item.title}" and its saved reading progress from this browser? This cannot be undone.`)) return;
+
+    try {
+      await removeBook(item.id);
+      await removeSession(item.id);
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.test.tsx
+LINE: 98
+    expect(fenInput.value.startsWith("8/8/8/8/8/8/8/8")).toBe(true);
+  });
+
+  it("supports undo and redo for manual edits", () => {
+    render(
+      <ManualBoardEditor
+        initialFen="8/8/8/8/8/8/8/8 w - - 0 1"
+        title="Set Up Position"
+        confirmLabel="Analyze Position"
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.test.tsx
+LINE: 119
+    fireEvent.click(e1Square);
+    expect(fenInput.value).not.toBe(initialFen);
+
+    // Undo
+    const undoBtn = screen.getByRole("button", { name: /undo/i });
+    fireEvent.click(undoBtn);
+    expect(fenInput.value).toBe(initialFen);
+
+    // Redo
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.test.tsx
+LINE: 120
+    expect(fenInput.value).not.toBe(initialFen);
+
+    // Undo
+    const undoBtn = screen.getByRole("button", { name: /undo/i });
+    fireEvent.click(undoBtn);
+    expect(fenInput.value).toBe(initialFen);
+
+    // Redo
+    const redoBtn = screen.getByRole("button", { name: /redo/i });
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.test.tsx
+LINE: 121
+
+    // Undo
+    const undoBtn = screen.getByRole("button", { name: /undo/i });
+    fireEvent.click(undoBtn);
+    expect(fenInput.value).toBe(initialFen);
+
+    // Redo
+    const redoBtn = screen.getByRole("button", { name: /redo/i });
+    fireEvent.click(redoBtn);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 120
+    }
+  }
+
+  function handleUndo() {
+    if (historyIndex > 0) {
+      const prevIndex = historyIndex - 1;
+      const prevFen = history[prevIndex];
+      const fields = prevFen.split(/\s+/);
+      setPlacement(fields[0]);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 465
+                type="button"
+                className="mini-button"
+                disabled={historyIndex <= 0}
+                onClick={handleUndo}
+                title="Undo last manual edit"
+              >
+                ? Undo
+              </button>
+              <button
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 466
+                className="mini-button"
+                disabled={historyIndex <= 0}
+                onClick={handleUndo}
+                title="Undo last manual edit"
+              >
+                ? Undo
+              </button>
+              <button
+                type="button"
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 468
+                onClick={handleUndo}
+                title="Undo last manual edit"
+              >
+                ? Undo
+              </button>
+              <button
+                type="button"
+                className="mini-button"
+                disabled={historyIndex >= history.length - 1}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 475
+                className="mini-button"
+                disabled={historyIndex >= history.length - 1}
+                onClick={handleRedo}
+                title="Redo undone edit"
+              >
+                ? Redo
+              </button>
+              <button
+                type="button"
+
+========== SEARCH: redo ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.test.tsx
+LINE: 98
+    expect(fenInput.value.startsWith("8/8/8/8/8/8/8/8")).toBe(true);
+  });
+
+  it("supports undo and redo for manual edits", () => {
+    render(
+      <ManualBoardEditor
+        initialFen="8/8/8/8/8/8/8/8 w - - 0 1"
+        title="Set Up Position"
+        confirmLabel="Analyze Position"
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.test.tsx
+LINE: 124
+    fireEvent.click(undoBtn);
+    expect(fenInput.value).toBe(initialFen);
+
+    // Redo
+    const redoBtn = screen.getByRole("button", { name: /redo/i });
+    fireEvent.click(redoBtn);
+    expect(fenInput.value).toContain("4K3");
+  });
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.test.tsx
+LINE: 125
+    expect(fenInput.value).toBe(initialFen);
+
+    // Redo
+    const redoBtn = screen.getByRole("button", { name: /redo/i });
+    fireEvent.click(redoBtn);
+    expect(fenInput.value).toContain("4K3");
+  });
+
+  it("updates the board when valid FEN text is entered", () => {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.test.tsx
+LINE: 126
+
+    // Redo
+    const redoBtn = screen.getByRole("button", { name: /redo/i });
+    fireEvent.click(redoBtn);
+    expect(fenInput.value).toContain("4K3");
+  });
+
+  it("updates the board when valid FEN text is entered", () => {
+    render(
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 134
+    }
+  }
+
+  function handleRedo() {
+    if (historyIndex < history.length - 1) {
+      const nextIndex = historyIndex + 1;
+      const nextFen = history[nextIndex];
+      const fields = nextFen.split(/\s+/);
+      setPlacement(fields[0]);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 474
+                type="button"
+                className="mini-button"
+                disabled={historyIndex >= history.length - 1}
+                onClick={handleRedo}
+                title="Redo undone edit"
+              >
+                ? Redo
+              </button>
+              <button
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 475
+                className="mini-button"
+                disabled={historyIndex >= history.length - 1}
+                onClick={handleRedo}
+                title="Redo undone edit"
+              >
+                ? Redo
+              </button>
+              <button
+                type="button"
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 477
+                onClick={handleRedo}
+                title="Redo undone edit"
+              >
+                ? Redo
+              </button>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={handleClearBoard}
+
+========== SEARCH: variation ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1960
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\notation-detection.ts
+LINE: 3
+import type { Candidate } from "./model";
+
+export type NotationHighlightKind = "continuous" | "variation" | "prose";
+
+export type NotationHighlight = {
+  id: string;
+  candidateId: string;
+  kind: NotationHighlightKind;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\notation-detection.ts
+LINE: 28
+const SAN_MOVE_REGEX = /\b([KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?[\+#]?|O-O(?:-O)?[\+#]?)\b/;
+const FIGURINE_MOVE_REGEX = /[????????????]x?[a-h][1-8](?:=[QRBN])?[\+#]?/;
+const CHESS_SYMBOL_REGEX = /([!?]{1,2}|(\+\/?-|-\/?\+|\+\/=|=\/\+|�|�|?|?|=|8|?))/;
+const CHESS_PROSE_REGEX = /\b(diagram|position|white to|black to|wins|draw|mate in|play|move|variation|defense|attack|advantage)\b/i;
+
+export function isChessNotationText(text: string): { isNotation: boolean; kind: NotationHighlightKind } {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.length < 2) return { isNotation: false, kind: "continuous" };
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\notation-detection.ts
+LINE: 41
+  const hasProse = CHESS_PROSE_REGEX.test(trimmed);
+
+  if (trimmed.startsWith("(") || (trimmed.includes("(") && (hasSan || hasFigurine))) {
+    return { isNotation: true, kind: "variation" };
+  }
+
+  if (hasMoveNum && (hasSan || hasFigurine)) {
+    return { isNotation: true, kind: "continuous" };
+  }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.test.ts
+LINE: 42
+    expect(whiteScoreShare({ kind: "mate", value: -1, depth: 1 })).toBe(0.04);
+  });
+
+  it("publishes the latest principal-variation move during analysis", () => {
+    const worker = new FakeWorker();
+    vi.stubGlobal("Worker", class {
+      constructor() { return worker; }
+    });
+    const scores: any[] = [];
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 104
+      if (this.awaitingStop) return;
+      const score = parseUciInfo(line, this.currentSide);
+      if (score) {
+        // Use the current principal variation's first move for a live arrow.
+        // Stockfish's final "bestmove" will replace this provisional move.
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+          ...score,
+          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+
+========== SEARCH: principal variation ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1960
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "â€”"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "â€”"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreâ€¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\stockfish.ts
+LINE: 104
+      if (this.awaitingStop) return;
+      const score = parseUciInfo(line, this.currentSide);
+      if (score) {
+        // Use the current principal variation's first move for a live arrow.
+        // Stockfish's final "bestmove" will replace this provisional move.
+        const provisionalMove = score.pv?.[0];
+        this.latestScore = {
+          ...score,
+          ...(provisionalMove ? { bestMove: provisionalMove } : {}),
+
+========== SEARCH: chessboard ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1497
+        )}
+
+        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+        <section className="board-panel" aria-label="Chessboard analysis">
+          <div className="board-header">
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div className="board-header-actions">
+              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1516
+            </div>
+            <div className="board-frame">
+              <div
+                className={`chessboard ${boardSession?.flipped ? "flipped" : ""} ${annotationMode ? "annotation-mode" : ""}`}
+                ref={boardRef}
+                onPointerDown={boardArrowPointerDown}
+                onPointerMove={boardArrowPointerMove}
+                onPointerUp={boardArrowPointerUp}
+                onPointerCancel={cancelBoardArrowGesture}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\board-annotations.test.ts
+LINE: 13
+  toggleSquareHighlight,
+} from "./board-annotations";
+
+describe("chessboard annotation geometry", () => {
+  const board = { left: 100, top: 50, width: 400, height: 400 };
+
+  it("maps pointer coordinates to board squares at any displayed size", () => {
+    expect(boardSquareAtPoint(125, 75, board)).toBe("a8");
+    expect(boardSquareAtPoint(475, 425, board)).toBe("h1");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\CoordinateTraining.tsx
+LINE: 95
+    <div className="ct-layout">
+      <section className="ct-board-card">
+        <div className="ct-board-top"><span>Find this square</span><strong className="ct-target">{finished ? "TIME!" : target}</strong><span className={`ct-feedback ${feedback}`}>{feedback === "correct" ? "Correct" : feedback === "wrong" ? "Try the next one" : "Select a square"}</span></div>
+        <div className="ct-board" role="group" aria-label="Coordinate training chessboard">
+          {squares.map((square) => {
+            const file = FILES.indexOf(square[0]);
+            const rank = Number(square[1]);
+            const dark = (file + rank) % 2 === 0;
+            return <button key={square} type="button" disabled={finished} onClick={() => chooseSquare(square)} className={`ct-square ${dark ? "dark" : "light"}`} aria-label={square}>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\ManualBoardEditor.tsx
+LINE: 361
+          {/* Left: The Board */}
+          <div className="manual-board-container">
+            <div
+              className={`manual-chessboard ${flipped ? "flipped" : ""}`}
+              role="grid"
+              aria-label="Interactive chess position editor"
+            >
+              {Array.from({ length: 64 }, (_, index) => {
+                const visibleRow = Math.floor(index / 8);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\position-editor.ts
+LINE: 66
+export function setFenPiece(placement: string, row: number, col: number, piece: string): string {
+  const board = parseFenPlacement(placement);
+  if (!board || row < 0 || row > 7 || col < 0 || col > 7) {
+    throw new Error("Cannot edit an invalid chessboard position.");
+  }
+  if (piece && !PIECE_CODES.test(piece)) throw new Error(`Invalid chess piece code: ${piece}`);
+  board[row][col] = piece;
+  return serializeFenPlacement(board);
+}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\position-editor.ts
+LINE: 76
+export function moveFenPiece(placement: string, fromRow: number, fromCol: number, toRow: number, toCol: number): string {
+  const board = parseFenPlacement(placement);
+  if (!board || fromRow < 0 || fromRow > 7 || fromCol < 0 || fromCol > 7 || toRow < 0 || toRow > 7 || toCol < 0 || toCol > 7) {
+    throw new Error("Cannot move a piece on an invalid chessboard position.");
+  }
+  const piece = board[fromRow][fromCol];
+  if (!piece) return placement;
+  board[fromRow][fromCol] = "";
+  board[toRow][toCol] = piece;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\position-editor.ts
+LINE: 87
+
+export function flipFenPlacement(placement: string): string {
+  const board = parseFenPlacement(placement);
+  if (!board) throw new Error("Cannot flip an invalid chessboard position.");
+  return serializeFenPlacement(board.reverse().map((rank) => rank.reverse()));
+}
+
+export function withFenPlacement(fen: string, placement: string): string {
+  const fields = fen.trim().split(/\s+/);
+
+========== SEARCH: promotionRequest ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 185
+  const [detecting, setDetecting] = useState(false);
+  const [fenInput, setFenInput] = useState("");
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [promotionRequest, setPromotionRequest] = useState<{ from: Square; to: Square } | null>(null);
+  const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
+  const [gameEndOverlay, setGameEndOverlay] = useState<{ title: string; message: string } | null>(null);
+  const [userArrows, setUserArrows] = useState<BoardArrow[]>([]);
+  const [redSquares, setRedSquares] = useState<Square[]>([]);
+  const [arrowStart, setArrowStart] = useState<Square | null>(null);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 577
+    }
+    setLastMove(null);
+    setSelectedSquare(null);
+    setPromotionRequest(null);
+
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 859
+  }
+
+  function completePromotion(piece: "q" | "r" | "b" | "n") {
+    if (!promotionRequest || !boardSession) return;
+    const activeBoard = boardSession;
+    try {
+      const currentGame = new Chess(activeBoard.currentFen);
+      const result = currentGame.move({
+        from: promotionRequest.from,
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 864
+    try {
+      const currentGame = new Chess(activeBoard.currentFen);
+      const result = currentGame.move({
+        from: promotionRequest.from,
+        to: promotionRequest.to,
+        promotion: piece,
+      });
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+      patchBoardSession({
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 865
+      const currentGame = new Chess(activeBoard.currentFen);
+      const result = currentGame.move({
+        from: promotionRequest.from,
+        to: promotionRequest.to,
+        promotion: piece,
+      });
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+      patchBoardSession({
+        currentFen: currentGame.fen(),
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 875
+        moveIndex: nextMoves.length,
+      });
+      updateGameEndOverlay(currentGame);
+      setLastMove({ from: promotionRequest.from, to: promotionRequest.to });
+      setSelectedSquare(null);
+      setPromotionRequest(null);
+      setError("");
+    } catch {
+      setError("Unable to complete pawn promotion.");
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 877
+      updateGameEndOverlay(currentGame);
+      setLastMove({ from: promotionRequest.from, to: promotionRequest.to });
+      setSelectedSquare(null);
+      setPromotionRequest(null);
+      setError("");
+    } catch {
+      setError("Unable to complete pawn promotion.");
+      setPromotionRequest(null);
+    }
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 881
+      setError("");
+    } catch {
+      setError("Unable to complete pawn promotion.");
+      setPromotionRequest(null);
+    }
+  }
+
+  function makeMove(from: Square, to: Square) {
+    if (!boardSession) return;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 893
+      const mover = currentGame.get(from);
+      const promote = mover?.type === "p" && (to.endsWith("8") || to.endsWith("1"));
+      if (promote) {
+        setPromotionRequest({ from, to });
+        return;
+      }
+      const result = currentGame.move({ from, to });
+      const nextMoves = [...activeBoard.moves.slice(0, activeBoard.moveIndex), result.san];
+      if (workspaceMode === "opening-explorer") {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 1404
+    }
+    setLastMove(null);
+    setSelectedSquare(null);
+    setPromotionRequest(null);
+    setError("");
+  }
+
+  const currentCandidates = session?.candidatesByPage[String(session.page)] ?? [];
+  const detectionAttempted = Boolean(session && Object.hasOwn(session.candidatesByPage, String(session.page)));
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 2017
+          </section>
+        </div>
+      )}
+      {promotionRequest && (
+        <div className="promotion-backdrop" onClick={() => setPromotionRequest(null)}>
+          <section className="promotion-dialog" role="dialog" aria-modal="true" aria-labelledby="promotion-title" onClick={(event) => event.stopPropagation()}>
+            <h2 id="promotion-title">Promote pawn</h2>
+            <p>Choose a piece to complete your move.</p>
+            <div className="promotion-choices">
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 2018
+        </div>
+      )}
+      {promotionRequest && (
+        <div className="promotion-backdrop" onClick={() => setPromotionRequest(null)}>
+          <section className="promotion-dialog" role="dialog" aria-modal="true" aria-labelledby="promotion-title" onClick={(event) => event.stopPropagation()}>
+            <h2 id="promotion-title">Promote pawn</h2>
+            <p>Choose a piece to complete your move.</p>
+            <div className="promotion-choices">
+              <button type="button" onClick={() => completePromotion("q")} aria-label="Promote to queen"><span>â™•</span><small>Queen</small></button>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 2028
+              <button type="button" onClick={() => completePromotion("b")} aria-label="Promote to bishop"><span>â™—</span><small>Bishop</small></button>
+              <button type="button" onClick={() => completePromotion("n")} aria-label="Promote to knight"><span>â™˜</span><small>Knight</small></button>
+            </div>
+            <button className="promotion-cancel" type="button" onClick={() => setPromotionRequest(null)}>Cancel</button>
+          </section>
+        </div>
+      )}
+            {(error || notice) && <div className={`toast ${error ? "toast-error" : ""}`} role={error ? "alert" : "status"}><span>{error || notice}</span><button aria-label="Dismiss message" onClick={() => { setError(""); setNotice(""); }}>&#215;</button></div>}
+    </main>
+
+========== SEARCH: gameEndOverlay ==========
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 187
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [promotionRequest, setPromotionRequest] = useState<{ from: Square; to: Square } | null>(null);
+  const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
+  const [gameEndOverlay, setGameEndOverlay] = useState<{ title: string; message: string } | null>(null);
+  const [userArrows, setUserArrows] = useState<BoardArrow[]>([]);
+  const [redSquares, setRedSquares] = useState<Square[]>([]);
+  const [arrowStart, setArrowStart] = useState<Square | null>(null);
+  const [arrowHover, setArrowHover] = useState<Square | null>(null);
+  const [annotationMode, setAnnotationMode] = useState(false);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 835
+      }
+
+
+  function updateGameEndOverlay(currentGame: Chess) {
+    if (currentGame.isCheckmate()) {
+      setGameEndOverlay({
+        title: "Checkmate",
+        message: `${currentGame.turn() === "w" ? "Black" : "White"} wins.`,
+      });
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 837
+
+  function updateGameEndOverlay(currentGame: Chess) {
+    if (currentGame.isCheckmate()) {
+      setGameEndOverlay({
+        title: "Checkmate",
+        message: `${currentGame.turn() === "w" ? "Black" : "White"} wins.`,
+      });
+    } else if (currentGame.isStalemate()) {
+      setGameEndOverlay({
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 842
+        message: `${currentGame.turn() === "w" ? "Black" : "White"} wins.`,
+      });
+    } else if (currentGame.isStalemate()) {
+      setGameEndOverlay({
+        title: "Stalemate",
+        message: "The side to move has no legal moves, but its king is not in check. The game is a draw.",
+      });
+    } else if (currentGame.isDraw()) {
+      let message = "The game is drawn.";
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 852
+      else if (currentGame.isInsufficientMaterial()) message = "Draw by insufficient material.";
+      else if (currentGame.isDrawByFiftyMoves()) message = "Draw by the fifty-move rule.";
+      else if (currentGame.isDraw()) message = "Draw by a draw rule.";
+      setGameEndOverlay({ title: "Draw", message });
+    } else {
+      setGameEndOverlay(null);
+    }
+  }
+
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 854
+      else if (currentGame.isDraw()) message = "Draw by a draw rule.";
+      setGameEndOverlay({ title: "Draw", message });
+    } else {
+      setGameEndOverlay(null);
+    }
+  }
+
+  function completePromotion(piece: "q" | "r" | "b" | "n") {
+    if (!promotionRequest || !boardSession) return;
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 874
+        moves: nextMoves,
+        moveIndex: nextMoves.length,
+      });
+      updateGameEndOverlay(currentGame);
+      setLastMove({ from: promotionRequest.from, to: promotionRequest.to });
+      setSelectedSquare(null);
+      setPromotionRequest(null);
+      setError("");
+    } catch {
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 911
+          moveIndex: nextMoves.length,
+        });
+      }
+      updateGameEndOverlay(currentGame);
+      setLastMove({ from, to });
+      setSelectedSquare(null);
+      setError("");
+    } catch {
+      const piece = game.get(to);
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 2002
+          onCancel={() => setSetupOpen(false)}
+        />
+      )}
+      {gameEndOverlay && (
+        <div className="game-end-backdrop">
+          <section className="game-end-dialog" role="dialog" aria-modal="true" aria-labelledby="game-end-title">
+            <div className="game-end-icon" aria-hidden="true">
+              {gameEndOverlay.title === "Checkmate" ? "â™”" : gameEndOverlay.title === "Stalemate" ? "Â½" : "Â½"}
+            </div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 2006
+        <div className="game-end-backdrop">
+          <section className="game-end-dialog" role="dialog" aria-modal="true" aria-labelledby="game-end-title">
+            <div className="game-end-icon" aria-hidden="true">
+              {gameEndOverlay.title === "Checkmate" ? "â™”" : gameEndOverlay.title === "Stalemate" ? "Â½" : "Â½"}
+            </div>
+            <h2 id="game-end-title">{gameEndOverlay.title}</h2>
+            <p>{gameEndOverlay.message}</p>
+            <div className="game-end-actions">
+              <button type="button" onClick={() => setGameEndOverlay(null)}>Review position</button>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 2008
+            <div className="game-end-icon" aria-hidden="true">
+              {gameEndOverlay.title === "Checkmate" ? "â™”" : gameEndOverlay.title === "Stalemate" ? "Â½" : "Â½"}
+            </div>
+            <h2 id="game-end-title">{gameEndOverlay.title}</h2>
+            <p>{gameEndOverlay.message}</p>
+            <div className="game-end-actions">
+              <button type="button" onClick={() => setGameEndOverlay(null)}>Review position</button>
+              <button type="button" onClick={() => { setGameEndOverlay(null); setSelectedSquare(null); }}>Continue analysis</button>
+            </div>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 2009
+              {gameEndOverlay.title === "Checkmate" ? "â™”" : gameEndOverlay.title === "Stalemate" ? "Â½" : "Â½"}
+            </div>
+            <h2 id="game-end-title">{gameEndOverlay.title}</h2>
+            <p>{gameEndOverlay.message}</p>
+            <div className="game-end-actions">
+              <button type="button" onClick={() => setGameEndOverlay(null)}>Review position</button>
+              <button type="button" onClick={() => { setGameEndOverlay(null); setSelectedSquare(null); }}>Continue analysis</button>
+            </div>
+          </section>
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 2011
+            <h2 id="game-end-title">{gameEndOverlay.title}</h2>
+            <p>{gameEndOverlay.message}</p>
+            <div className="game-end-actions">
+              <button type="button" onClick={() => setGameEndOverlay(null)}>Review position</button>
+              <button type="button" onClick={() => { setGameEndOverlay(null); setSelectedSquare(null); }}>Continue analysis</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+FILE: D:\chess\BookChess\ChessBookReader\src\App.tsx
+LINE: 2012
+            <p>{gameEndOverlay.message}</p>
+            <div className="game-end-actions">
+              <button type="button" onClick={() => setGameEndOverlay(null)}>Review position</button>
+              <button type="button" onClick={() => { setGameEndOverlay(null); setSelectedSquare(null); }}>Continue analysis</button>
+            </div>
+          </section>
+        </div>
+      )}
+      {promotionRequest && (
+
+========== SOURCE FILE LIST ==========
+\src\App.test.tsx
+\src\App.tsx
+\src\board-annotations.test.ts
+\src\board-annotations.ts
+\src\chess-state.test.ts
+\src\chess-state.ts
+\src\CoordinateTraining.tsx
+\src\crop-geometry.test.ts
+\src\crop-geometry.ts
+\src\GameReview.tsx
+\src\main.tsx
+\src\ManualBoardEditor.test.tsx
+\src\ManualBoardEditor.tsx
+\src\model.ts
+\src\notation-detection.ts
+\src\NotationLearner.tsx
+\src\opening-explorer-api.ts
+\src\opening-explorer.test.ts
+\src\opening-explorer.ts
+\src\pgn-import.test.ts
+\src\pgn-import.ts
+\src\position-editor.test.ts
+\src\position-editor.ts
+\src\stockfish.test.ts
+\src\stockfish.ts
+\src\storage.test.ts
+\src\storage.ts
+\src\test-setup.ts
+\src\vite-env.d.ts

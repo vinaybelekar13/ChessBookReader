@@ -1,0 +1,185 @@
+﻿
+========== className=.*analysis-opening-stats ==========
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1752:            <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1753:          </details>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1754:          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1755:
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1756:          {workspaceMode === "analysis" && (
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1757:            <section className="analysis-opening-stats opening-stats" aria-label="Analysis Board opening statistics" aria-live="polite">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1758:              <div className="opening-stats-heading">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1759:                <h4>Opening statistics</h4>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1760:                <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1761:              </div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1762:
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1763:              {analysisOpeningUciMoves === null && (
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1764:                <p>Opening statistics are available for lines starting from the standard chess position. This board uses a custom starting position.</p>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1765:              )}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1766:              {analysisOpeningUciMoves !== null && analysisOpeningStatsStatus === "loading" && (
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1767:                <p>Loading game statistics…</p>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1768:              )}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1769:              {analysisOpeningUciMoves !== null && analysisOpeningStatsStatus === "error" && (
+            <div className="fen-entry"><input value={fenInput} onChange={(event) => setFenInput(event.target.value)} placeholder="Paste verified FEN from the selected diagram" aria-label="Position FEN input" /><button className="green-button" onClick={() => { if (!fenInput.trim()) { setError("Enter a FEN position first."); return; } if (moveToPosition(fenInput.trim())) setFenInput(""); }}>Load FEN</button></div>
+          </details>
+          <div className="board-fen"><span>{game.fen()}</span><span>{boardSession?.moveIndex ? `MOVE ${boardSession.moveIndex}` : studyMode ? "STUDY POSITION" : "BOOK POSITION"}</span></div>
+
+          {workspaceMode === "analysis" && (
+              <div className="opening-stats-heading">
+                <h4>Opening statistics</h4>
+                <span>Source: <a href="https://lichess.org/analysis#explorer" target="_blank" rel="noreferrer">Lichess Opening Explorer</a></span>
+              </div>
+
+              {analysisOpeningUciMoves === null && (
+                <p>Opening statistics are available for lines starting from the standard chess position. This board uses a custom starting position.</p>
+              )}
+              {analysisOpeningUciMoves !== null && analysisOpeningStatsStatus === "loading" && (
+                <p>Loading game statistics…</p>
+              )}
+              {analysisOpeningUciMoves !== null && analysisOpeningStatsStatus === "error" && (
+
+========== className="board-panel" ==========
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1551:            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1552:          </aside>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1553:        )}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1554:
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1555:        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1556:        <section className="board-panel" aria-label="Chessboard analysis">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1557:          <div className="board-header">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1558:            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1559:            <div className="board-header-actions">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1560:              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1561:              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1562:            </div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1563:          </div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1564:          <div className="board-area">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1565:            <div
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1566:              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1567:              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1568:              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+            <div className="library-footer"><span className="local-dot" /> Stored on this device <span className="footer-size">{formatSize(books.reduce((sum, item) => sum + item.byteLength, 0))}</span></div>
+          </aside>
+        )}
+
+        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+          <div className="board-header">
+            <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
+            <div className="board-header-actions">
+              <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+              <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
+            </div>
+          </div>
+          <div className="board-area">
+            <div
+              className={`evaluation-bar ${engineScore ? "evaluation-ready" : ""}`}
+              aria-label={engineScore ? `Evaluation ${formatEvaluation(engineScore)} from White's perspective` : engineStatus === "error" ? "Engine evaluation unavailable" : "Waiting for engine evaluation"}
+              title={engineScore ? `White's perspective ? depth ${engineScore.depth}` : engineStatus === "error" ? engineMessage : "No valid engine score yet"}
+
+========== className="analysis-strip" ==========
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2064:              <button className="green-button" onClick={() => void openTransfer(currentDiagram)}>Recognize Pieces</button>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2065:              <button onClick={cancelCandidateSelection}>Cancel</button>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2066:            </div>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2067:            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2068:          </div>
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:2069:          <div className="analysis-strip">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2070:            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2071:            <div className="analysis-divider" />
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2072:            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2073:            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2074:            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2075:            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2076:            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2077:          </div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2078:        </section>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2079:        </>}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2080:      </div>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:2081:
+              <button className="green-button" onClick={() => void openTransfer(currentDiagram)}>Recognize Pieces</button>
+              <button onClick={cancelCandidateSelection}>Cancel</button>
+            </div>}
+            <div className="scan-hint">{currentDiagram ? "Selection does not change the board; confirm with Use on Board." : "Select a detected board or draw a region."}</div>
+          </div>
+            <div className="analysis-name"><span className="stockfish-mark"><Cpu size={19} strokeWidth={2} aria-hidden="true" /></span><div><strong>Stockfish 19 Lite</strong><span>{engineStatus === "error" ? "Engine unavailable" : engineStatus === "off" ? "Engine off" : engineStatus === "loading" ? "Loading engineÃ¢â‚¬Â¦" : engineStatus === "analyzing" ? "Analyzing current positionÃ¢â‚¬Â¦" : "Ready Ã‚Â· White-positive scores"}</span></div></div>
+            <div className="analysis-divider" />
+            <button className={`engine-toggle ${engineEnabled ? "engine-active" : ""}`} onClick={toggleEngine}>{engineEnabled ? "Stop analysis" : engineStatus === "error" ? "Retry Stockfish" : "Analyze position"}</button>
+            <label className="depth-control">Depth <select value={engineDepth} onChange={(event) => setEngineDepth(Number(event.target.value))}><option value={10}>10</option><option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option></select></label>
+            <div className="analysis-result"><span>Evaluation Ã‚Â· White</span><strong>{engineScore ? formatEvaluation(engineScore) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-result best-result"><span>Best move</span><strong>{engineScore?.bestMove ? formatUciMove(game.fen(), engineScore.bestMove) : "Ã¢â‚¬â€"}</strong></div>
+            <div className="analysis-pv"><span>PRINCIPAL VARIATION</span><strong>{engineStatus === "error" ? engineMessage : engineScore?.pv ? formatUciPv(game.fen(), engineScore.pv) : (engineEnabled ? "Waiting for first valid scoreÃ¢â‚¬Â¦" : "Enable Stockfish to analyze this position.")}</strong></div>
+          </div>
+        </section>
+        </>}
+      </div>
+
+
+========== className="reader-panel" ==========
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1809:              )}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1810:            </section>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1811:          )}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1812:        </section>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1813:
+> D:\chess\BookChess\ChessBookReader\src\App.tsx:1814:        <section className="reader-panel" aria-label="PDF book reader">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1815:          <div className="opening-explorer-right-workspace">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1816:          {workspaceMode === "opening-explorer" && (
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1817:            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1818:              <h3>Opening Explorer</h3>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1819:              <div className="lichess-connection-controls">
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1820:                {lichessStatus?.connected ? (
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1821:                  <>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1822:                    <span role="status">Lichess connected</span>
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1823:                    <button
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1824:                      type="button"
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1825:                      disabled={lichessActionBusy}
+  D:\chess\BookChess\ChessBookReader\src\App.tsx:1826:                      onClick={() => {
+              )}
+            </section>
+          )}
+        </section>
+
+          <div className="opening-explorer-right-workspace">
+          {workspaceMode === "opening-explorer" && (
+            <section className="opening-explorer-panel" aria-label="Opening Explorer">
+              <h3>Opening Explorer</h3>
+              <div className="lichess-connection-controls">
+                {lichessStatus?.connected ? (
+                  <>
+                    <span role="status">Lichess connected</span>
+                    <button
+                      type="button"
+                      disabled={lichessActionBusy}
+                      onClick={() => {
+
+========== ANALYSIS BOARD NO-BOOK LAYOUT ==========
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6932:.workspace:not(.opening-explorer-active) > .reader-panel > .engine-panel {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6933:  visibility: visible !important;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6934:  opacity: 1 !important;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6935:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6936:
+> D:\chess\BookChess\ChessBookReader\src\styles.css:6937:/* ANALYSIS BOARD NO-BOOK LAYOUT */
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6938:/* Keep the library available, but give the Analysis Board the remaining workspace. */
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6939:.workspace.analysis-board-active:not(.library-collapsed) {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6940:  grid-template-columns: 220px minmax(0, 1fr) !important;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6941:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6942:.workspace.analysis-board-active.library-collapsed {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6943:  grid-template-columns: minmax(0, 1fr) !important;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6944:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6945:.workspace.analysis-board-active > .reader-panel {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6946:  display: none !important;
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6947:}
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6948:.workspace.analysis-board-active > .board-panel {
+  D:\chess\BookChess\ChessBookReader\src\styles.css:6949:  display: flex;
+.workspace:not(.opening-explorer-active) > .reader-panel > .engine-panel {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Keep the library available, but give the Analysis Board the remaining workspace. */
+.workspace.analysis-board-active:not(.library-collapsed) {
+  grid-template-columns: 220px minmax(0, 1fr) !important;
+}
+.workspace.analysis-board-active.library-collapsed {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.workspace.analysis-board-active > .reader-panel {
+  display: none !important;
+}
+.workspace.analysis-board-active > .board-panel {
+  display: flex;
