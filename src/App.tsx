@@ -69,7 +69,7 @@ import LichessAnalysisBoard from "./components/LichessAnalysis";
 import GameReviewWorkspace from "./game-review/GameReviewWorkspace";
 
 type LibraryTab = "all" | "recent";
-type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "game-review";
+type WorkspaceMode = "library" | "game-review" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training";
 
 const FILE_LIMIT = 100 * 1024 * 1024;
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
@@ -1454,7 +1454,7 @@ if (
         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
       </header>
 
-      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""}`}>
         {libraryOpen && (
           <aside className="library-panel" id="library-navigation">
             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
@@ -1537,6 +1537,7 @@ if (
             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
             <div className="board-header-actions">
               <button className="mini-button" onClick={() => void toggleStudyMode()} title="Toggle full-screen focus mode">{studyMode ? "Focus mode OFF" : "Focus mode ON"}</button>
+              <button className="mini-button arrange-board-button" onClick={() => setSetupOpen(true)} title="Manually arrange pieces, edit the position, and load it for analysis"><Settings2 size={16} aria-hidden="true" /><span>Arrange pieces</span></button>
               <button className="mini-button flip-board-button" onClick={() => patchBoardSession({ flipped: !boardSession?.flipped })} title="Flip board"><RotateCw size={16} aria-hidden="true" /><span>Flip board</span></button>
             </div>
           </div>
