@@ -65,10 +65,9 @@ function formatUciPv(fen: string, pv: string[]): string {
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-import { GameReview } from "./GameReview";
 
 type LibraryTab = "all" | "recent";
-type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training" | "game-review";
+type WorkspaceMode = "library" | "analysis" | "opening-prep" | "opening-explorer" | "coordinate-training";
 
 const FILE_LIMIT = 100 * 1024 * 1024;
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
@@ -1431,7 +1430,7 @@ if (
         <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen((value) => !value)}>&#9881;</button>
       </header>
 
-      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""} ${workspaceMode === "game-review" ? "game-review-active" : ""}`}>
+      <div className={`workspace ${libraryOpen ? "" : "library-collapsed"} ${workspaceMode === "opening-explorer" ? "opening-explorer-active" : ""} ${workspaceMode === "analysis" ? "analysis-board-active" : ""} ${workspaceMode === "coordinate-training" ? "coordinate-training-active" : ""}`}>
         {libraryOpen && (
           <aside className="library-panel">
             <div className="library-heading"><span>LIBRARY</span><button className="text-button" onClick={() => fileInput.current?.click()}>&#10133; Add Book</button></div>
@@ -1447,7 +1446,6 @@ if (
                             <LibraryNavItem active={workspaceMode === "library" && libraryTab === "all"} icon={BookOpenText} label="All Books" onClick={() => { setWorkspaceMode("library"); setLibraryTab("all"); }} />
               <LibraryNavItem active={workspaceMode === "coordinate-training"} icon={Cpu} label="Coordinate Training" onClick={() => { setWorkspaceMode("coordinate-training"); setLibraryTab("all"); }} />
               <LibraryNavItem active={workspaceMode === "analysis"} icon={LayoutDashboard} label="Analysis Board" onClick={() => { setWorkspaceMode("analysis"); setLibraryTab("all"); setStudyMode(false); }} />
-              <LibraryNavItem active={workspaceMode === "game-review"} icon={LayoutDashboard} label="Game Review" onClick={() => { setWorkspaceMode("game-review"); setLibraryTab("all"); setStudyMode(false); }} />
 
 
 
@@ -1493,7 +1491,7 @@ if (
           </aside>
         )}
 
-        {workspaceMode === "game-review" ? <GameReview /> : workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
+        {workspaceMode === "coordinate-training" ? <CoordinateTraining /> : <>
         <section className="board-panel" aria-label="Chessboard analysis">
           <div className="board-header">
             <div><strong className="analysis-title-text"><LayoutDashboard size={17} aria-hidden="true" />{workspaceMode === "opening-prep" ? "Opening Prep" : workspaceMode === "opening-explorer" ? "Opening Explorer" : session?.selectedDiagramId ? "Selected diagram" : "Analysis board"}</strong><span>{session?.selectedDiagramId ? `Page ${session.page} Ã‚Â· ${session.selectedDiagramId.startsWith("manual-") ? "Manual region" : "Board candidate"}` : "Ready for a position"}</span></div>
